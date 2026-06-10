@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-VERSION="${LBAI_VERSION:-v0.1.2}"
+VERSION="${LBAI_VERSION:-v0.1.3}"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -66,17 +66,76 @@ install_from_dir() {
   (cd "$src" && tar --exclude='.git' --exclude='__pycache__' --exclude='*.pyc' -cf - .) | (cd "$INSTALL_DIR" && tar -xf -)
 }
 
+download_archive() {
+  archive="$1"
+  archive_dir="$(dirname "$archive")"
+
+  for url in \
+    "https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
+    "https://ghproxy.net/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
+    "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
+  do
+    info "Downloading $url"
+    if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" \
+      && tar -tzf "$archive" >/dev/null 2>&1
+    then
+      return 0
+    fi
+    rm -f "$archive"
+    info "Download failed, trying next mirror..."
+  done
+
+  if command -v gh >/dev/null 2>&1; then
+    info "Trying gh release download for $REPO $VERSION"
+    rm -f "$archive"
+    if gh release download "$VERSION" --repo "$REPO" --archive=tar.gz --dir "$archive_dir" >/dev/null 2>&1; then
+      candidate="$(find "$archive_dir" -maxdepth 1 -name '*.tar.gz' | head -n 1)"
+      if [ -n "$candidate" ] && tar -tzf "$candidate" >/dev/null 2>&1; then
+        mv "$candidate" "$archive"
+        return 0
+      fi
+    fi
+    rm -f "$archive_dir"/*.tar.gz 2>/dev/null || true
+  fi
+
+  return 1
+}
+
+
+clone_and_install() {
+  tmp="$1"
+  for git_url in \
+    "https://github.com/$REPO.git" \
+    "https://ghproxy.net/https://github.com/$REPO.git"
+  do
+    clone_dir="$tmp/git-clone"
+    rm -rf "$clone_dir"
+    info "Cloning $git_url (branch $VERSION)"
+    if git clone --depth 1 --branch "$VERSION" "$git_url" "$clone_dir" >/dev/null 2>&1; then
+      install_from_dir "$clone_dir"
+      return 0
+    fi
+    info "Clone failed, trying next mirror..."
+  done
+  return 1
+}
+
+
 download_and_install() {
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT INT TERM
   archive="$tmp/lbai-workspace-kit.tar.gz"
-  url="https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
-  info "Downloading $url"
-  curl -fsSL "$url" -o "$archive" || fail "download failed"
-  tar -xzf "$archive" -C "$tmp"
-  src="$(find "$tmp" -maxdepth 1 -type d -name 'lbai-workspace-kit-*' | head -n 1)"
-  [ -n "$src" ] || fail "downloaded archive did not contain lbai-workspace-kit"
-  install_from_dir "$src"
+
+  if download_archive "$archive"; then
+    tar -xzf "$archive" -C "$tmp"
+    src="$(find "$tmp" -maxdepth 1 -type d -name 'lbai-workspace-kit-*' | head -n 1)"
+    [ -n "$src" ] || fail "downloaded archive did not contain lbai-workspace-kit"
+    install_from_dir "$src"
+    return 0
+  fi
+
+  info "Archive download failed, trying git clone fallback..."
+  clone_and_install "$tmp" || fail "download failed from GitHub and all mirrors"
 }
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"

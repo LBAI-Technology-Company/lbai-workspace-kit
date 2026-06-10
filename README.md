@@ -72,8 +72,16 @@ Not in scope yet:
 Recommended release install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
 ```
+
+If `raw.githubusercontent.com` times out, use the jsDelivr mirror:
+
+```bash
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
+```
+
+The installer also falls back to GitHub archive mirrors and `git clone` when downloading the release package.
 
 The installer places the kit under:
 
@@ -218,7 +226,7 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 If the local `lbai` command is broken or outdated, rerun the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
 ```
 
 Update an employee workspace template from the installed kit:

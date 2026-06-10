@@ -53,10 +53,17 @@ lbai-core + init-workspace installer
 第一版推荐流程：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
+# 国内网络推荐（jsDelivr CDN，避免 raw.githubusercontent.com 超时）
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
+
+# 国际网络 / GitHub 直连
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
+
 lbai auth login
 lbai init-workspace
 ```
+
+如果 `curl: (56) Recv failure: Operation timed out`，说明 `raw.githubusercontent.com` 不可达，请改用上面的 jsdelivr 命令。`install.sh` 下载 release 包时也会自动尝试 GitHub 镜像和 `git clone` 回退。
 
 `lbai init-workspace` 使用“已有 private repo”方案：
 
@@ -139,7 +146,7 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 本机 `lbai` 命令坏了或需要升级时，**重新运行安装程序**即可，不需要单独命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
 ```
 
 ### 升级工作区模板
