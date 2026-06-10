@@ -123,6 +123,27 @@ lbai init-workspace
 
 初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写岗位信息。
 
+### 打开正确的 Cursor 工作区目录
+
+`lbai init-workspace` 会在**当前目录或所选目录下**再创建一层与仓库同名的子目录。例如你在 `~/projects/my-folder` 里 init 仓库 `lbai-workspace-zhangsan`，实际工作区是：
+
+```text
+~/projects/my-folder/lbai-workspace-zhangsan/   ← 打开这个
+├── .cursor/commands/                           ← /lbai-* 命令在这里
+├── lbai_system/
+└── role_workspace/
+```
+
+Cursor 的 `/` 命令只读取**工作区根目录**下的 `.cursor/commands/`。如果打开的是外层父目录（例如 `~/projects/my-folder`），输入 `/lbai` 不会出现任何命令。
+
+初始化完成后，终端会打印 `cursor_open: <路径>`。请用 Cursor **File → Open Folder** 打开该路径（或 `cursor <路径>`），再运行 `/lbai-init`。
+
+若希望工作区就在指定路径、不再套一层子目录，可显式传入 `--path`：
+
+```bash
+lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
+```
+
 ## 日常工作流
 
 在工作区目录内，可使用终端命令或 Cursor / Codex 里的 `/lbai-*` 命令：

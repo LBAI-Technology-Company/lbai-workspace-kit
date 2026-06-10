@@ -407,6 +407,7 @@ def resolve_local_path(repo_url: str, path_arg: str | None) -> Path:
     if sys.stdin.isatty() and sys.platform in {'darwin', 'win32'}:
         print(f'默认工作区路径: {default_text}')
         print('正在打开文件夹选择窗口；取消则使用默认路径。')
+        print('提示: 工作区会创建在「所选目录/<仓库名>」；请在 Cursor 中打开内层工作区目录，不要只打开外层父目录。')
         picked = pick_folder_interactive(picker_prompt)
         if picked:
             return workspace_path_from_pick(picked, repo_url)
@@ -484,7 +485,13 @@ def init_workspace(args: argparse.Namespace) -> int:
         doctor_code = doctor(argparse.Namespace(path=str(local_path), allow_missing_upstream=args.no_commit or args.no_push))
         print('init_status: READY' if doctor_code == 0 else 'init_status: NEEDS_REVIEW')
         print(f'workspace_path: {local_path}')
-        print(f'next_step: cd {local_path} && lbai doctor')
+        print(f'cursor_open: {local_path}')
+        parent = local_path.parent.resolve()
+        if parent != local_path and not is_workspace(parent):
+            print(f'cursor_note: 请在 Cursor 或 Codex 中打开 cursor_open 路径；/lbai-* 命令只在该目录下的 .cursor/commands/ 生效，不要打开外层父目录 {parent}')
+        else:
+            print('cursor_note: 请在 Cursor 或 Codex 中打开 cursor_open 路径；/lbai-* 命令只在该目录下的 .cursor/commands/ 生效')
+        print(f'next_step: 用 Cursor 打开 {local_path}，运行 /lbai-init')
         print('changed:')
         for item in changed or ['None']:
             print(f'- {item}')

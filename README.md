@@ -213,6 +213,27 @@ lbai init-workspace --no-push
 
 Use `--no-commit` for local inspection before committing. Use `--no-push` when you want to commit locally but push later.
 
+### Open The Correct Cursor Workspace Folder
+
+`lbai init-workspace` creates a child folder named after the repository under the current directory or the folder you pick. For example, if you run init from `~/projects/my-folder` for repo `lbai-workspace-zhangsan`, the actual workspace is:
+
+```text
+~/projects/my-folder/lbai-workspace-zhangsan/   <- open this
+├── .cursor/commands/                           <- /lbai-* commands live here
+├── lbai_system/
+└── role_workspace/
+```
+
+Cursor slash commands are loaded only from `.cursor/commands/` at the workspace root. If you open the outer parent folder instead, typing `/lbai` will show nothing.
+
+After init, the CLI prints `cursor_open: <path>`. Open that folder in Cursor (`File -> Open Folder` or `cursor <path>`), then run `/lbai-init`.
+
+To place the workspace at an exact path without an extra nested folder, pass `--path` explicitly:
+
+```bash
+lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
+```
+
 ## Daily Workspace Usage
 
 Run these commands inside an initialized LBAI workspace.

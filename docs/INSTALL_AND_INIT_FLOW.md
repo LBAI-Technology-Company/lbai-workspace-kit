@@ -113,3 +113,23 @@ Create local workspace without GitHub sync now?
 ```
 
 That reconnect command is not implemented in the current MVP.
+
+## Open The Correct IDE Workspace Folder
+
+`lbai init-workspace` writes the workspace into `<parent>/<repo-name>/`, not directly into the parent folder you were in when you ran the command.
+
+Example:
+
+```text
+Current directory: ~/projects/my-folder
+Repo name: lbai-workspace-zhangsan
+Actual workspace: ~/projects/my-folder/lbai-workspace-zhangsan/
+```
+
+Cursor and Codex only load `/lbai-*` commands from `.cursor/commands/` at the workspace root. Opening the outer parent folder will make `/lbai` appear empty even though initialization succeeded.
+
+After init, use the printed `cursor_open:` path. To avoid the extra nested folder, pass an explicit destination:
+
+```bash
+lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
+```
