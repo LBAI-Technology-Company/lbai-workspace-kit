@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-VERSION="${LBAI_VERSION:-v0.1.3}"
+VERSION="${LBAI_VERSION:-v0.1.4}"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -70,23 +70,21 @@ download_archive() {
   archive="$1"
   archive_dir="$(dirname "$archive")"
 
+  info "Downloading LBAI Workspace Kit $VERSION..."
   for url in \
-    "https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
     "https://ghproxy.net/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
+    "https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
     "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
   do
-    info "Downloading $url"
-    if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" \
+    if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" 2>/dev/null \
       && tar -tzf "$archive" >/dev/null 2>&1
     then
       return 0
     fi
     rm -f "$archive"
-    info "Download failed, trying next mirror..."
   done
 
   if command -v gh >/dev/null 2>&1; then
-    info "Trying gh release download for $REPO $VERSION"
     rm -f "$archive"
     if gh release download "$VERSION" --repo "$REPO" --archive=tar.gz --dir "$archive_dir" >/dev/null 2>&1; then
       candidate="$(find "$archive_dir" -maxdepth 1 -name '*.tar.gz' | head -n 1)"
@@ -105,17 +103,15 @@ download_archive() {
 clone_and_install() {
   tmp="$1"
   for git_url in \
-    "https://github.com/$REPO.git" \
-    "https://ghproxy.net/https://github.com/$REPO.git"
+    "https://ghproxy.net/https://github.com/$REPO.git" \
+    "https://github.com/$REPO.git"
   do
     clone_dir="$tmp/git-clone"
     rm -rf "$clone_dir"
-    info "Cloning $git_url (branch $VERSION)"
     if git clone --depth 1 --branch "$VERSION" "$git_url" "$clone_dir" >/dev/null 2>&1; then
       install_from_dir "$clone_dir"
       return 0
     fi
-    info "Clone failed, trying next mirror..."
   done
   return 1
 }
@@ -134,8 +130,7 @@ download_and_install() {
     return 0
   fi
 
-  info "Archive download failed, trying git clone fallback..."
-  clone_and_install "$tmp" || fail "download failed from GitHub and all mirrors"
+  clone_and_install "$tmp" || fail "download failed; check network and retry"
 }
 
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
@@ -160,7 +155,11 @@ ensure_shell_path
 info "LBAI Workspace Kit installed."
 info "lbai path: $BIN_DIR/lbai"
 info
+shell_rc="$(detect_shell_rc || true)"
 info "Next steps:"
+if [ -n "$shell_rc" ]; then
+  info "  source $shell_rc"
+fi
 info "  lbai auth login"
 info "  lbai init-workspace"
 info

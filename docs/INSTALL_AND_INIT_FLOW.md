@@ -2,18 +2,16 @@
 
 ## Public Install Command
 
-First public GitHub-based install command:
+Employee install command:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
-```
-
-The installer should install the `lbai` command locally and then print:
-
-```bash
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.4/install.sh | sh
+source ~/.zshrc
 lbai auth login
 lbai init-workspace
 ```
+
+The installer downloads the release package through internal mirrors when needed. Employees only need the one command above.
 
 ## Authentication
 

@@ -50,23 +50,32 @@ lbai-core + init-workspace installer
 
 ## 员工使用流程
 
-第一版推荐流程：
+打开「终端」，按顺序执行下面 3 步。
+
+**第 1 步：安装**
+
+复制下面整行，粘贴到终端，按回车：
 
 ```bash
-# 国内网络推荐（GitHub 代理，立即可用）
-curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.4/install.sh | sh
+```
 
-# 国内备选（jsDelivr CDN；新 tag 发布后可能需要等待几分钟同步）
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
+**第 2 步：登录 GitHub**
 
-# 国际网络 / GitHub 直连
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
-
+```bash
+source ~/.zshrc
 lbai auth login
+```
+
+按提示粘贴管理员发给你的 GitHub Token。
+
+**第 3 步：初始化工作区**
+
+```bash
 lbai init-workspace
 ```
 
-如果 `curl: (56) Recv failure: Operation timed out`，说明 `raw.githubusercontent.com` 不可达，请改用上面的 jsdelivr 命令。`install.sh` 下载 release 包时也会自动尝试 GitHub 镜像和 `git clone` 回退。
+按提示输入管理员发给你的仓库地址和本地保存路径。
 
 `lbai init-workspace` 使用“已有 private repo”方案：
 
@@ -146,11 +155,7 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 | `lbai remove-kit` | 从工作区移除公司模板 | 工作区目录内 | 保留 `role_workspace/`、`tasks/` |
 | `lbai uninstall` | 卸载本机 `lbai` 命令 | 任意目录 | 不删工作区文件夹和 GitHub 仓库 |
 
-本机 `lbai` 命令坏了或需要升级时，**重新运行安装程序**即可，不需要单独命令：
-
-```bash
-curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
-```
+本机 `lbai` 命令坏了或需要升级时，**重新运行第 1 步的安装命令**即可。
 
 ### 升级工作区模板
 

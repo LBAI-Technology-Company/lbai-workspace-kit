@@ -151,12 +151,19 @@ lbai-workspace-zhangsan
 
 员工只需要：
 
-1. 从管理员那里拿到自己的 private 仓库地址
-2. 按公司提供的方式安装本机 `lbai` 命令
+1. 从管理员那里拿到自己的 private 仓库地址和 GitHub Token
+2. 在终端运行公司安装命令（见下方）
 3. 运行 `lbai auth login`
 4. 运行 `lbai init-workspace`
 5. 用 Cursor 或 Codex 打开初始化后的本地工作区
 6. 运行 `/lbai-init` 填写岗位信息
+
+公司安装命令：
+
+```bash
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.4/install.sh | sh
+source ~/.zshrc
+```
 
 Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项目通过 `AGENTS.md` 和 `lbai_system/codex/skills/lbai-workflow/SKILL.md` 提供项目级适配，只影响当前仓库；`.agents/skills/` 是项目内薄适配文件，只做命令入口转发准备，真实规则仍以共享契约为准。当前稳定入口是 `/lbai-*`，不是 `$lbai-*`。
 
@@ -219,7 +226,7 @@ lbai init-workspace \
 lbai doctor
 ```
 
-如果还没有安装本机 `lbai` 命令，先按公司提供的安装方式安装；不要把 GitHub token 写进仓库文件、聊天记录或 README。
+如果还没有安装本机 `lbai` 命令，先运行上面的公司安装命令；不要把 GitHub token 写进仓库文件、聊天记录或 README。
 
 ### 2.6 初始化完成后检查
 
