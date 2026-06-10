@@ -57,17 +57,19 @@ lbai-core + init-workspace installer
 复制下面整行，粘贴到终端，按回车：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+source ~/.zshrc
 ```
+
+安装的是**最新 Release 版本**（不是 main 开发分支）。完成后终端会显示 `已安装版本` 和 `Release`。
 
 **第 2 步：登录 GitHub**
 
 ```bash
-source ~/.zshrc
 lbai auth login
 ```
 
-按提示粘贴管理员发给你的 GitHub Token。
+按提示粘贴管理员发给你的 GitHub Token；如已通过 `gh` 登录，直接回车即可。
 
 **第 3 步：初始化工作区**
 

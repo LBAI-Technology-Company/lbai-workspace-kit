@@ -72,11 +72,13 @@ Not in scope yet:
 Recommended release install:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
 ```
+
+The `@latest` URL serves the newest GitHub release. The installer also resolves the latest release at runtime and prints the installed version when finished.
 
 The installer places the kit under:
 
@@ -221,7 +223,8 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 If the local `lbai` command is broken or outdated, rerun the installer:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+source ~/.zshrc
 ```
 
 Update an employee workspace template from the installed kit:
