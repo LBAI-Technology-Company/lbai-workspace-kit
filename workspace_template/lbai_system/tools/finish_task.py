@@ -1,0 +1,353 @@
+#!/usr/bin/env python3
+import argparse
+import subprocess
+import sys
+from datetime import date
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+
+from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+
+
+def run_pre_commit_check(root: Path, task_folder: str) -> tuple[int, str]:
+    script = Path(__file__).resolve().with_name('hygiene_check.py')
+    result = subprocess.run(
+        ['python3', str(script), task_folder],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode, result.stdout + result.stderr
+
+
+def parse_commit_readiness(output: str) -> str:
+    for line in output.splitlines():
+        if line.startswith('commit_readiness:'):
+            return line.split(':', 1)[1].strip()
+    return 'NEEDS_MANUAL_CHECK'
+
+
+def run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ['git', *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+    )
+
+
+def git_remote_available(root: Path) -> bool:
+    result = run_git(root, ['remote'])
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def git_upstream_available(root: Path) -> bool:
+    result = run_git(root, ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'])
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def git_has_staged_changes(root: Path) -> bool:
+    result = run_git(root, ['diff', '--cached', '--quiet'])
+    return result.returncode == 1
+
+
+def git_add_task_artifacts(root: Path, task_folder: str) -> tuple[bool, str]:
+    paths = [task_folder, 'role_workspace/ledgers/TASK_LEDGER_v1.md']
+    add_result = run_git(root, ['add', '-A', '--', *paths])
+    if add_result.returncode != 0:
+        return False, f'git add failed: {(add_result.stdout + add_result.stderr).strip()}'
+    return True, ''
+
+
+def commit_task_artifacts(root: Path, task_folder: str, commit_message: str) -> tuple[bool, str]:
+    ok, detail = git_add_task_artifacts(root, task_folder)
+    if not ok:
+        return False, detail
+    if git_has_staged_changes(root):
+        commit_result = run_git(root, ['commit', '-m', commit_message])
+        if commit_result.returncode != 0:
+            return False, f'git commit failed: {(commit_result.stdout + commit_result.stderr).strip()}'
+        return True, commit_message
+    return True, 'No local changes to commit'
+
+
+def push_current(root: Path) -> tuple[bool, str]:
+    push_result = run_git(root, ['push'])
+    if push_result.returncode != 0:
+        return False, f'git push failed: {(push_result.stdout + push_result.stderr).strip()}'
+    return True, 'git push completed'
+
+
+def reset_last_commit_keep_changes(root: Path) -> tuple[bool, str]:
+    reset_result = run_git(root, ['reset', '--mixed', 'HEAD~1'])
+    if reset_result.returncode != 0:
+        return False, f'git reset failed while rolling back sync-status commit: {(reset_result.stdout + reset_result.stderr).strip()}'
+    return True, 'sync-status commit rolled back'
+
+
+def determine_task_status(task_dir: Path) -> str:
+    missing = [name for name in REQUIRED_TASK_FILES if not (task_dir / name).exists()]
+    if missing:
+        return 'BLOCKED'
+    if unresolved_missing_inputs(task_dir):
+        return 'BLOCKED'
+    current_status = task_status(task_dir)
+    if current_status == 'BLOCKED':
+        return 'BLOCKED'
+    return 'COMPLETED'
+
+
+def update_task_ledger(task_dir: Path, status: str, commit_readiness: str):
+    path = task_dir / 'task_ledger.md'
+    txt = read_text(path) or '# Task Ledger\n'
+    txt = set_markdown_field(txt, 'status', status)
+    txt = set_markdown_field(txt, 'commit_readiness', commit_readiness)
+    txt = set_markdown_field(txt, 'last_finished_at', date.today().isoformat())
+    path.write_text(txt, encoding='utf-8')
+
+
+def non_placeholder(value: str) -> str:
+    value = value.strip()
+    if not value or value.startswith('<') or 'derived from' in value.lower():
+        return ''
+    return value
+
+
+def task_goal(task_dir: Path) -> str:
+    scope = read_text(task_dir / 'task_scope.md')
+    ledger = read_text(task_dir / 'task_ledger.md')
+    return (
+        non_placeholder(markdown_field(scope, 'goal'))
+        or non_placeholder(markdown_field(scope, 'task_name'))
+        or non_placeholder(markdown_field(ledger, 'task_name'))
+        or task_dir.name
+    )
+
+
+def list_task_artifacts(task_dir: Path) -> list[str]:
+    return sorted(p.name for p in task_dir.iterdir() if p.is_file())
+
+
+def markdown_list_items(value: str) -> list[str]:
+    items = []
+    for line in value.splitlines():
+        item = line.strip().lstrip('-').strip()
+        if item and item.lower() != 'none' and item not in items:
+            items.append(item)
+    return items
+
+
+def source_artifacts_for_task(task_dir: Path) -> list[str]:
+    task_scope = read_text(task_dir / 'task_scope.md')
+    task_ledger = read_text(task_dir / 'task_ledger.md')
+    evidence = markdown_list_items(markdown_field(task_scope, 'evidence_artifacts'))
+    evidence.extend(item for item in markdown_list_items(markdown_field(task_ledger, 'evidence_artifacts')) if item not in evidence)
+
+    artifacts = list_task_artifacts(task_dir)
+    legacy_inputs = [name for name in artifacts if name.startswith('input_')]
+    sources = evidence + [name for name in legacy_inputs if name not in evidence]
+    return sources or ['task description from task_scope.md']
+
+
+def update_structured_task_ledger(
+    task_dir: Path,
+    status: str,
+    commit_readiness: str,
+    git_status: str,
+    blocked_reason: str,
+    next_dependency: str,
+):
+    path = task_dir / 'task_ledger.md'
+    txt = read_text(path) or '# Task Ledger\n'
+    task_id = task_dir.name
+    artifacts = list_task_artifacts(task_dir)
+    sources = source_artifacts_for_task(task_dir)
+    outputs = [name for name in artifacts if name in {'task_output.md', 'overclaim_check.md', 'release_boundary_check.md', 'founder_review_needed.md'}]
+    if not outputs:
+        outputs = ['None']
+    fields = {
+        'task_id': task_id,
+        'task_goal': task_goal(task_dir),
+        'source_artifacts': '\n'.join(f'- {item}' for item in sources),
+        'agents_or_tools_used': '\n'.join([
+            '- /lbai-finish-task',
+            '- lbai_system/tools/finish_task.py',
+            '- lbai_system/tools/hygiene_check.py',
+        ]),
+        'outputs_created': '\n'.join(f'- {item}' for item in outputs),
+        'status': status,
+        'blocked_reason': blocked_reason or 'None',
+        'commit_readiness': commit_readiness,
+        'git_status': git_status,
+        'next_dependency': next_dependency,
+        'next_step': next_dependency,
+        'last_finished_at': date.today().isoformat(),
+        'leader_review_reminder': LEADER_REVIEW_REMINDER if review_required(task_dir) else 'None',
+    }
+    for field, value in fields.items():
+        txt = set_markdown_field(txt, field, value)
+    path.write_text(txt, encoding='utf-8')
+
+
+def update_global_ledger(root: Path, task_folder: str, status: str, commit_readiness: str, git_status: str, next_dependency: str):
+    path = root / 'role_workspace' / 'ledgers' / 'TASK_LEDGER_v1.md'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    txt = read_text(path)
+    if not txt.strip():
+        txt = '# TASK_LEDGER_v1\n\n| Date | Task ID | Task Goal | Status | Review Needed | Commit Readiness | Git Status | Source Artifacts | Outputs Created | Next Dependency |\n|---|---|---|---|---|---|---|---|---|---|\n'
+    elif '| Task ID |' not in txt:
+        legacy = txt.strip()
+        txt = '# TASK_LEDGER_v1\n\n| Date | Task ID | Task Goal | Status | Review Needed | Commit Readiness | Git Status | Source Artifacts | Outputs Created | Next Dependency |\n|---|---|---|---|---|---|---|---|---|---|\n\n## Legacy Rows Before Structured Ledger\n\n' + legacy + '\n'
+    task_name = Path(task_folder).name
+    task_dir = root / task_folder
+    review = 'Yes' if review_required(task_dir) else 'No'
+    sources = '; '.join(source_artifacts_for_task(task_dir))
+    line = f'| {date.today().isoformat()} | {task_name} | {task_goal(task_dir)} | {status} | {review} | {commit_readiness} | {git_status} | {sources} | `{task_folder}/` | {next_dependency} |'
+    lines = [existing for existing in txt.splitlines() if f'| {task_name} |' not in existing]
+    lines.append(line)
+    path.write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
+
+
+def next_dependency_for(status: str, commit_readiness: str, git_status: str, leader_review_reminder: bool = False) -> str:
+    if status == 'BLOCKED':
+        return 'Resolve missing task files or missing inputs.'
+    if git_status == 'PUSH_FAILED':
+        return 'Resolve Git push failure and rerun /lbai-finish-task.'
+    if commit_readiness == 'BLOCKED':
+        return 'Resolve hygiene check blockers.'
+    if git_status == 'BLOCKED':
+        return 'Resolve Git remote, upstream, or sync blocker and rerun /lbai-finish-task.'
+    if git_status == 'COMMITTED':
+        return 'Task artifacts committed locally; private GitHub sync status pending.'
+    if leader_review_reminder and status == 'COMPLETED':
+        return LEADER_REVIEW_REMINDER
+    if git_status == 'PUSHED':
+        return 'Private GitHub artifact ledger synced.'
+    return 'Rerun /lbai-finish-task from the repository root.'
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('task_folder')
+    args = parser.parse_args()
+
+    root = workspace_root()
+    task_dir = (root / args.task_folder).resolve()
+    if not is_task_dir(task_dir, root):
+        print('task_status: BLOCKED')
+        print('commit_readiness: BLOCKED')
+        print('reason: task_folder must be an existing task under tasks/ with task_scope.md and task_ledger.md')
+        return 1
+
+    status = determine_task_status(task_dir)
+    needs_leader_review_reminder = review_required(task_dir)
+    check_code, check_output = run_pre_commit_check(root, args.task_folder)
+    commit_readiness = parse_commit_readiness(check_output)
+    sync_detail = ''
+
+    if status == 'BLOCKED' and commit_readiness == 'READY':
+        commit_readiness = 'BLOCKED'
+        sync_detail = 'Task status is BLOCKED; resolve missing inputs or required files before GitHub sync.'
+
+    if commit_readiness == 'READY' and status != 'BLOCKED':
+        if not git_remote_available(root):
+            commit_readiness = 'BLOCKED'
+            sync_detail = 'MISSING_GITHUB_REMOTE: no Git remote configured'
+        elif not git_upstream_available(root):
+            commit_readiness = 'BLOCKED'
+            sync_detail = 'MISSING_GIT_UPSTREAM: current branch has no upstream'
+
+    if commit_readiness != 'READY' or status == 'BLOCKED':
+        git_status = 'BLOCKED'
+        sync_detail = sync_detail or 'Auto sync blocked by task status, hygiene check, or Git sync precondition.'
+        if sync_detail.startswith(('MISSING_GITHUB_REMOTE', 'MISSING_GIT_UPSTREAM')):
+            next_dependency = 'Configure GitHub remote/upstream and rerun /lbai-finish-task.'
+        else:
+            next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+        update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+        update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+    else:
+        git_status = 'COMMITTED'
+        next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+        update_structured_task_ledger(task_dir, status, commit_readiness, git_status, 'None', next_dependency)
+        update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+
+        check_code, check_output = run_pre_commit_check(root, args.task_folder)
+        commit_readiness = parse_commit_readiness(check_output)
+        if commit_readiness != 'READY':
+            git_status = 'BLOCKED'
+            sync_detail = 'Auto sync blocked after ledger update by hygiene check.'
+            next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+            update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+            update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+        else:
+            task_commit_message = f'docs(lbai): finish {Path(args.task_folder).name}'
+            rel_task_folder = str(task_dir.relative_to(root))
+            commit_ok, sync_detail = commit_task_artifacts(root, rel_task_folder, task_commit_message)
+            if not commit_ok:
+                git_status = 'BLOCKED'
+                next_dependency = 'Resolve local Git commit failure and rerun /lbai-finish-task.'
+                update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+                update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+            else:
+                push_ok, push_detail = push_current(root)
+                if not push_ok:
+                    git_status = 'PUSH_FAILED'
+                    sync_detail = f'git push failed after task commit: {push_detail}'
+                    next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+                    update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+                    update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+                else:
+                    git_status = 'PUSHED'
+                    next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+                    update_structured_task_ledger(task_dir, status, commit_readiness, git_status, 'None', next_dependency)
+                    update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+
+                    sync_commit_message = f'chore(lbai): sync-status {Path(args.task_folder).name}'
+                    sync_commit_ok, sync_commit_detail = commit_task_artifacts(root, rel_task_folder, sync_commit_message)
+                    if not sync_commit_ok:
+                        git_status = 'PUSH_FAILED'
+                        sync_detail = f'sync-status commit failed after task push: {sync_commit_detail}'
+                        next_dependency = 'Resolve local Git sync-status commit failure and rerun /lbai-finish-task.'
+                        update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+                        update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+                    else:
+                        sync_push_ok, sync_push_detail = push_current(root)
+                        if not sync_push_ok:
+                            reset_last_commit_keep_changes(root)
+                            git_status = 'PUSH_FAILED'
+                            sync_detail = f'sync-status push failed after task push: {sync_push_detail}'
+                            next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+                            update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+                            update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+                        else:
+                            sync_detail = f'{task_commit_message}; {sync_commit_message}'
+
+    print(f'task_status: {status}')
+    print(f'commit_readiness: {commit_readiness}')
+    print(f'git_status: {git_status}')
+    print('updated:')
+    print(f'- {args.task_folder}/task_ledger.md')
+    print('- role_workspace/ledgers/TASK_LEDGER_v1.md')
+    if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
+        print('auto_git_sync: completed')
+        print(f'detail: {sync_detail}')
+    else:
+        print('auto_git_sync: blocked_or_failed')
+        print(f'detail: {sync_detail}')
+    print('提交前检查结果:')
+    print(check_output.strip())
+    if needs_leader_review_reminder:
+        print(f'leader_review_reminder: {LEADER_REVIEW_REMINDER}')
+    if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
+        return 0
+    if git_status == 'PUSH_FAILED':
+        return 3
+    if commit_readiness == 'NEEDS_MANUAL_CHECK':
+        return 2
+    return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

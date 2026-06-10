@@ -1,0 +1,28 @@
+---
+description: LBAI three-command task lifecycle
+alwaysApply: true
+---
+
+# LBAI Three-Command Task Lifecycle
+
+Canonical command source: `lbai_system/runner_contracts/lbai_command_contract_v1.md`.
+
+For daily task work, employees mainly need these commands:
+
+1. `/lbai-new-task`
+2. `/lbai-execute-task`
+3. `/lbai-finish-task`
+
+For saving evidence or reference knowledge without creating a task, use `/lbai-add-evidence`.
+
+For first-time role setup or later role changes, use `/lbai-init`. For company workflow template updates, use `/lbai-update-kit`.
+
+Arguments are optional when the current task is unambiguous. If more than one task is plausible, ask the employee to choose from candidate task folders.
+
+Do not expose extra operational commands to employees unless debugging. `/lbai-add-evidence` is an employee-facing command, not a debug command.
+
+## Adapter Rule
+
+Cursor must read `lbai_system/runner_contracts/lbai_command_contract_v1.md` for command behavior, response formats, status values, Git sync rules, and exact next-step requirements.
+
+Do not duplicate command workflows in this rule. The shared command contract is the source of truth for both Cursor and Codex adapters.

@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+CORE_DIR="$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd)"
+export PYTHONPATH="$CORE_DIR${PYTHONPATH:+:$PYTHONPATH}"
+exec python3 -m lbai.cli "$@"
+

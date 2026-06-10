@@ -1,0 +1,56 @@
+---
+description: LBAI high-risk review boundary
+alwaysApply: true
+---
+
+# LBAI Review Boundary Rule
+
+Canonical source: `lbai_system/company_guardrails/REVIEW_REQUIRED_BOUNDARY.md` and `lbai_system/company_guardrails/PUBLIC_CLAIM_BOUNDARY.md`.
+
+## Review reminder (non-blocking)
+
+When a task or evidence touches review-sensitive content, remind the employee in conversation that responsible leader review is required before external release.
+
+Do not block task execution or finish solely because review-sensitive content is present.
+
+Required informational review files may still be created:
+
+- `overclaim_check.md`
+- `release_boundary_check.md`
+- `founder_review_needed.md`
+
+Status handling:
+
+- Missing required input may still mark a task `BLOCKED`.
+- Review-sensitive work may finish as `COMPLETED` after output is generated.
+- Set `review_needed: true` and `leader_review_reminder` when applicable.
+- Private GitHub sync is not release approval.
+
+## Do not trigger review reminder on explicit negation
+
+Do not mark a specific risk category merely because the employee negates that category:
+
+- 不涉及 pricing / legal / investor / media
+- 不包含敏感信息
+- 不对外发布
+- internal only
+- no pricing
+- no legal
+- no investor material
+- no media statement
+- not public-facing
+
+Prefer structured fields in `task_scope.md` / `task_slot.md` over keyword guessing.
+
+Negation is category-specific. For example, "官网文案，不涉及 legal" still needs a leader-review reminder because website release copy is public-facing even though legal is negated.
+
+## Never approve
+
+Never mark review-sensitive work as:
+
+- `APPROVED`
+- `FINAL`
+- `PUBLIC_READY`
+- `RELEASED`
+
+Only founder / role owner review can approve external release outside this workflow.

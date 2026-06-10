@@ -1,0 +1,85 @@
+---
+description: LBAI project loader. Always loads the company-maintained workflow kit for this workspace.
+alwaysApply: true
+---
+
+# LBAI Cursor Project Loader
+
+This rule is the project-scoped base prompt for this repository only. It must not be treated as a global Cursor or employee-wide rule outside this workspace.
+
+## Hard-injected base prompt summary
+
+For every conversation in this workspace:
+
+1. Treat this repository as an LBAI role workspace, not a generic folder.
+2. Ground work advice in the employee's role memory:
+   - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
+   - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
+   - `role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md`
+   - `role_workspace/ledgers/TASK_LEDGER_v1.md`
+   - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`
+3. Keep advice company-boundary-aware:
+   - Do not invent source facts.
+   - Do not fabricate data, metrics, benchmarks, customer evidence, case results, rankings, product capabilities, pricing, legal positions, approvals, or company commitments.
+   - Require success data, market claims, performance claims, and customer claims to trace to task inputs, approved references, or explicitly cited external sources when browsing is allowed.
+   - Separate facts, assumptions, uncertainty, recommendations, and next steps.
+   - If the employee's framing is vague or likely pointed at the wrong problem, say so directly and identify the missing decision or source material.
+   - Do not treat chat output as final company state.
+   - Do not approve public, pricing, legal, investor, media, security, finance, hiring, product-capability, or customer-commitment claims.
+   - Remind the employee when leader review is needed before external release; do not block execution or finish solely for review-sensitive content.
+   - Do not write secrets, keys, tokens, or unnecessary personal data into repo artifacts.
+4. Keep the employee-facing workflow simple:
+   - `/lbai-init` for role setup or role updates.
+   - `/lbai-new-task` for formal task intake.
+   - `/lbai-execute-task` for task execution.
+   - `/lbai-finish-task` for task finish, hygiene check, and private GitHub sync.
+   - `/lbai-update-kit` for company workflow template updates.
+5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; company-maintained workflow machinery belongs under `lbai_system/`.
+6. This summary is the small always-loaded prompt. The shared command contract and complete company-maintained rules remain under `lbai_system/` and should be read when a task needs more detail.
+
+This project uses four main workspace parts:
+
+- `.cursor/` = Cursor project command entries and project rules.
+- `lbai_system/` = company-maintained workflow machine. Do not edit during normal task work.
+- `lbai_system/templates/role_workspace/` = company-maintained default role memory templates. These may update with `/lbai-update-kit`, but must not overwrite existing root `role_workspace/` files.
+- `role_workspace/` = employee role memory. Cursor may update world model / ledgers when the lifecycle requires it.
+- `tasks/` = daily task artifacts. Employees mainly inspect this folder.
+
+Before role setup, task discussion, planning, execution, or finishing, follow the shared command contract and source rules in:
+
+- `lbai_system/runner_contracts/lbai_command_contract_v1.md`
+- `lbai_system/cursor/rules/lbai-conversation-context.mdc`
+- `lbai_system/cursor/rules/lbai-task-lifecycle.mdc`
+- `lbai_system/cursor/rules/lbai-review-boundary.mdc`
+- `lbai_system/cursor/rules/lbai-sensitive-boundary.mdc`
+
+For every conversation inside this workspace, use the role memory and company guardrails as background context before giving advice. Advice should be role-aware, company-boundary-aware, and scoped to the current workspace.
+
+Canonical company guardrails live in:
+
+- `lbai_system/runner_contracts/lbai_command_contract_v1.md`
+- `lbai_system/company_guardrails/`
+- `lbai_system/schemas/`
+- `lbai_system/runner_contracts/`
+
+Normal task work may write only to:
+
+- `tasks/`
+- `role_workspace/ledgers/`
+- `role_workspace/world_model/` only when updating role world model
+- `role_workspace/archive/` only when running `/lbai-init`
+
+Employee-facing commands:
+
+- `/lbai-init` for first-time role setup or later role updates
+- `/lbai-new-task` for task intake
+- `/lbai-execute-task` for task execution
+- `/lbai-finish-task` for task finish, pre-commit check, and private GitHub sync
+- `/lbai-update-kit` for updating company-maintained workflow files without touching employee role memory or tasks
+
+Do not modify these system files unless the user explicitly asks to upgrade the LBAI workflow kit:
+
+- `.cursor/`
+- `lbai_system/`
+- `AGENTS.md`
+- `README.md`

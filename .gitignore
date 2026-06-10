@@ -1,0 +1,14 @@
+.DS_Store
+.env
+.env.*
+*.pem
+*.key
+*.token
+*.log
+__pycache__/
+.venv/
+dist/
+build/
+node_modules/
+.lbai-local/
+
