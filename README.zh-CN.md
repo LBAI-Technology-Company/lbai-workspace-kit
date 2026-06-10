@@ -53,7 +53,10 @@ lbai-core + init-workspace installer
 第一版推荐流程：
 
 ```bash
-# 国内网络推荐（jsDelivr CDN，避免 raw.githubusercontent.com 超时）
+# 国内网络推荐（GitHub 代理，立即可用）
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
+
+# 国内备选（jsDelivr CDN；新 tag 发布后可能需要等待几分钟同步）
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
 
 # 国际网络 / GitHub 直连
@@ -146,7 +149,7 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 本机 `lbai` 命令坏了或需要升级时，**重新运行安装程序**即可，不需要单独命令：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.3/install.sh | sh
+curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.3/install.sh | sh
 ```
 
 ### 升级工作区模板
