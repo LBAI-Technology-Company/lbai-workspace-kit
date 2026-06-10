@@ -53,14 +53,37 @@ def auth_token_path() -> Path:
     return lbai_home() / 'auth' / 'github_token'
 
 
-def read_token() -> str:
-    if os.environ.get('GITHUB_TOKEN'):
-        return os.environ['GITHUB_TOKEN'].strip()
-    if os.environ.get('GH_TOKEN'):
-        return os.environ['GH_TOKEN'].strip()
+def saved_token() -> str:
     path = auth_token_path()
     if path.exists():
         return path.read_text(encoding='utf-8').strip()
+    return ''
+
+
+def env_token() -> str:
+    return (os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN') or '').strip()
+
+
+def gh_authenticated() -> bool:
+    if not shutil.which('gh'):
+        return False
+    return capture(['gh', 'auth', 'status']).returncode == 0
+
+
+def read_token() -> str:
+    token = env_token()
+    if token:
+        return token
+    return saved_token()
+
+
+def auth_source_label() -> str:
+    if saved_token():
+        return f'token_store:{auth_token_path()}'
+    if env_token():
+        return 'environment:GITHUB_TOKEN or GH_TOKEN'
+    if gh_authenticated():
+        return 'github_cli:gh auth login'
     return ''
 
 
@@ -257,11 +280,11 @@ def uninstall(args: argparse.Namespace) -> int:
 
 def auth_login(_args: argparse.Namespace) -> int:
     path = auth_token_path()
-    existing = path.read_text(encoding='utf-8').strip() if path.exists() else ''
+    source = auth_source_label()
 
-    if existing:
+    if source:
         print('auth_check: already configured')
-        print(f'token_store: {path}')
+        print(f'auth_source: {source}')
         print('如需重新配置请输入新 Token；直接回车保持不变。')
         token = getpass.getpass('GitHub Token: ').strip()
         if not token:
@@ -289,15 +312,15 @@ def auth_login(_args: argparse.Namespace) -> int:
 def auth_doctor(_args: argparse.Namespace) -> int:
     token = read_token()
     gh = shutil.which('gh')
-    gh_authenticated = False
+    gh_ok = gh_authenticated() if gh else False
+    source = auth_source_label()
     print('auth_check:')
     print(f'- token_available: {"yes" if token else "no"}')
     print(f'- gh_available: {"yes" if gh else "no"}')
-    if gh:
-        result = capture(['gh', 'auth', 'status'])
-        gh_authenticated = result.returncode == 0
-        print(f'- gh_auth_status: {"ok" if gh_authenticated else "not_authenticated"}')
-    if token or gh_authenticated:
+    print(f'- gh_auth_status: {"ok" if gh_ok else "not_authenticated"}')
+    if source:
+        print(f'- auth_source: {source}')
+    if token or gh_ok:
         print('auth_status: READY')
         return 0
     print('auth_status: BLOCKED')
