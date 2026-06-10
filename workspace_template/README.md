@@ -161,7 +161,7 @@ lbai-workspace-zhangsan
 公司安装命令：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.5/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
 source ~/.zshrc
 ```
 

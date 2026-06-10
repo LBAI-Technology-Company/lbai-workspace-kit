@@ -57,7 +57,7 @@ lbai-core + init-workspace installer
 复制下面整行，粘贴到终端，按回车：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.5/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
 ```
 
 **第 2 步：登录 GitHub**

@@ -2,10 +2,10 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-VERSION="${LBAI_VERSION:-v0.1.5}"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
+RELEASE_TAG=""
 
 info() {
   printf '%s\n' "$*"
@@ -59,6 +59,53 @@ ensure_shell_path() {
   info "Run: source $shell_rc"
 }
 
+read_kit_version() {
+  if [ -f "$INSTALL_DIR/VERSION" ]; then
+    tr -d '[:space:]' < "$INSTALL_DIR/VERSION"
+  else
+    printf 'unknown'
+  fi
+}
+
+resolve_latest_release_tag() {
+  if [ -n "${LBAI_VERSION:-}" ]; then
+    printf '%s\n' "$LBAI_VERSION"
+    return 0
+  fi
+
+  tag=""
+  if command -v gh >/dev/null 2>&1; then
+    tag="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null | tr -d '[:space:]')"
+  fi
+
+  if [ -z "$tag" ]; then
+    for api_url in \
+      "https://ghproxy.net/https://api.github.com/repos/$REPO/releases/latest" \
+      "https://api.github.com/repos/$REPO/releases/latest"
+    do
+      response="$(curl -fsSL --connect-timeout 15 --max-time 30 "$api_url" 2>/dev/null || true)"
+      tag="$(printf '%s\n' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+      if [ -n "$tag" ]; then
+        break
+      fi
+    done
+  fi
+
+  if [ -z "$tag" ]; then
+    location="$(curl -fsSI --connect-timeout 15 --max-time 30 "https://github.com/$REPO/releases/latest" 2>/dev/null \
+      | awk 'tolower($1) == "location:" { print $2 }' | tr -d '\r' | tail -n 1)"
+    if [ -n "$location" ]; then
+      tag="${location##*/}"
+    fi
+  fi
+
+  if [ -z "$tag" ]; then
+    fail "could not resolve latest release for $REPO"
+  fi
+
+  printf '%s\n' "$tag"
+}
+
 install_from_dir() {
   src="$1"
   rm -rf "$INSTALL_DIR"
@@ -70,11 +117,11 @@ download_archive() {
   archive="$1"
   archive_dir="$(dirname "$archive")"
 
-  info "Downloading LBAI Workspace Kit $VERSION..."
+  info "Downloading LBAI Workspace Kit $RELEASE_TAG..."
   for url in \
-    "https://ghproxy.net/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
-    "https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz" \
-    "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$VERSION.tar.gz"
+    "https://ghproxy.net/https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz" \
+    "https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz" \
+    "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz"
   do
     if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" 2>/dev/null \
       && tar -tzf "$archive" >/dev/null 2>&1
@@ -86,7 +133,7 @@ download_archive() {
 
   if command -v gh >/dev/null 2>&1; then
     rm -f "$archive"
-    if gh release download "$VERSION" --repo "$REPO" --archive=tar.gz --dir "$archive_dir" >/dev/null 2>&1; then
+    if gh release download "$RELEASE_TAG" --repo "$REPO" --archive=tar.gz --dir "$archive_dir" >/dev/null 2>&1; then
       candidate="$(find "$archive_dir" -maxdepth 1 -name '*.tar.gz' | head -n 1)"
       if [ -n "$candidate" ] && tar -tzf "$candidate" >/dev/null 2>&1; then
         mv "$candidate" "$archive"
@@ -99,7 +146,6 @@ download_archive() {
   return 1
 }
 
-
 clone_and_install() {
   tmp="$1"
   for git_url in \
@@ -108,14 +154,13 @@ clone_and_install() {
   do
     clone_dir="$tmp/git-clone"
     rm -rf "$clone_dir"
-    if git clone --depth 1 --branch "$VERSION" "$git_url" "$clone_dir" >/dev/null 2>&1; then
+    if git clone --depth 1 --branch "$RELEASE_TAG" "$git_url" "$clone_dir" >/dev/null 2>&1; then
       install_from_dir "$clone_dir"
       return 0
     fi
   done
   return 1
 }
-
 
 download_and_install() {
   tmp="$(mktemp -d)"
@@ -137,7 +182,14 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 if [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
   info "Installing from local checkout: $SCRIPT_DIR"
   install_from_dir "$SCRIPT_DIR"
+  if [ -f "$SCRIPT_DIR/VERSION" ]; then
+    RELEASE_TAG="v$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")"
+  else
+    RELEASE_TAG="local"
+  fi
 else
+  RELEASE_TAG="$(resolve_latest_release_tag)"
+  info "Latest release: $RELEASE_TAG"
   download_and_install
 fi
 
@@ -152,7 +204,10 @@ EOF
 chmod +x "$BIN_DIR/lbai"
 ensure_shell_path
 
+kit_version="$(read_kit_version)"
 info "LBAI Workspace Kit installed."
+info "已安装版本: $kit_version"
+info "Release: $RELEASE_TAG"
 info "lbai path: $BIN_DIR/lbai"
 info
 shell_rc="$(detect_shell_rc || true)"

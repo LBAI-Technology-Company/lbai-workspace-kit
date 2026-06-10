@@ -72,7 +72,7 @@ Not in scope yet:
 Recommended release install:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.5/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
@@ -221,7 +221,7 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 If the local `lbai` command is broken or outdated, rerun the installer:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.5/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@main/install.sh | sh
 ```
 
 Update an employee workspace template from the installed kit:
