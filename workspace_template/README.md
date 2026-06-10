@@ -194,12 +194,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-`lbai init-workspace` 会询问：
-
-```text
-GitHub repo URL
-Local folder path
-```
+`lbai init-workspace` 会询问 GitHub 仓库地址。Mac 上会弹出文件夹选择窗口；取消则默认保存在当前目录下的仓库同名文件夹。
 
 示例：
 

@@ -328,6 +328,48 @@ def auth_doctor(_args: argparse.Namespace) -> int:
     return 2
 
 
+def repo_basename(repo_url: str) -> str:
+    name = repo_url.rstrip('/').split('/')[-1]
+    if name.endswith('.git'):
+        name = name[:-4]
+    return name or 'lbai-workspace'
+
+
+def default_workspace_path(repo_url: str) -> Path:
+    return Path.cwd() / repo_basename(repo_url)
+
+
+def pick_folder_macos(prompt: str) -> str:
+    escaped = prompt.replace('\\', '\\\\').replace('"', '\\"')
+    script = f'POSIX path of (choose folder with prompt "{escaped}")'
+    result = capture(['osascript', '-e', script])
+    if result.returncode != 0:
+        return ''
+    return result.stdout.strip()
+
+
+def resolve_local_path(repo_url: str, path_arg: str | None) -> Path:
+    if path_arg and path_arg.strip():
+        return Path(path_arg.strip()).expanduser()
+
+    default = default_workspace_path(repo_url)
+    default_text = str(default)
+
+    if sys.platform == 'darwin' and sys.stdin.isatty():
+        print(f'默认工作区路径: {default_text}')
+        print('正在打开文件夹选择窗口；取消则使用默认路径。')
+        picked = pick_folder_macos('请选择 LBAI 工作区保存位置')
+        if picked:
+            picked_path = Path(picked).expanduser()
+            if picked_path.name == repo_basename(repo_url):
+                return picked_path
+            return picked_path / repo_basename(repo_url)
+        return default
+
+    entered = input(f'本地文件夹路径 [{default_text}]: ').strip()
+    return Path(entered or default_text).expanduser()
+
+
 def git_env_with_token() -> tuple[dict[str, str], tempfile.TemporaryDirectory | None]:
     token = read_token()
     if not token:
@@ -347,14 +389,14 @@ def git_env_with_token() -> tuple[dict[str, str], tempfile.TemporaryDirectory | 
 
 
 def init_workspace(args: argparse.Namespace) -> int:
-    repo_url = args.repo_url or input('GitHub repo URL: ').strip()
-    local_path_raw = args.path or input('Local folder path: ').strip()
-    if not repo_url or not local_path_raw:
+    repo_url = args.repo_url or input('GitHub 仓库地址: ').strip()
+    if not repo_url:
         print('init_status: BLOCKED')
-        print('reason: repo URL and local path are required')
+        print('reason: repo URL is required')
         return 2
 
-    local_path = Path(local_path_raw).expanduser().resolve()
+    local_path = resolve_local_path(repo_url, args.path).resolve()
+    print(f'workspace_path: {local_path}')
     env, tmp = git_env_with_token()
     try:
         if local_path.exists() and any(local_path.iterdir()):
