@@ -173,6 +173,8 @@ Windows（PowerShell）：
 irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
+Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行 `lbai auth login` 和 `lbai init-workspace`。
+
 Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项目通过 `AGENTS.md` 和 `lbai_system/codex/skills/lbai-workflow/SKILL.md` 提供项目级适配，只影响当前仓库；`.agents/skills/` 是项目内薄适配文件，只做命令入口转发准备，真实规则仍以共享契约为准。当前稳定入口是 `/lbai-*`，不是 `$lbai-*`。
 
 ### 2.3 快速配置流程
@@ -180,8 +182,8 @@ Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项�
 新员工建议按这个顺序配置：
 
 1. 安装 `lbai` 命令。
-2. 运行 `lbai auth login`，保存 GitHub 认证。
-3. 运行 `lbai init-workspace`，输入管理员提供的 private repo URL 和本地保存路径。
+2. 运行 `lbai auth login`，保存 GitHub 认证。首次使用粘贴 Token；已保存过 Token 或已通过 `gh auth login` 登录时，直接回车即可。
+3. 运行 `lbai init-workspace`，输入管理员提供的 private repo URL；Mac / Windows 会弹出文件夹选择窗口，取消则默认保存在当前目录下的仓库同名文件夹。
 4. 进入初始化后的本地工作区，运行 `lbai doctor`。
 5. 用 Cursor 或 Codex 打开这个本地工作区。
 6. 运行 `/lbai-init`，填写岗位名称、职责、常见输入、常见输出、review 边界和近期优先级。
@@ -204,11 +206,11 @@ lbai init-workspace
 
 `lbai init-workspace` 会询问 GitHub 仓库地址。Mac 和 Windows 上会弹出文件夹选择窗口；取消则默认保存在当前目录下的仓库同名文件夹。
 
-示例：
+示例（取消文件夹选择窗口时使用默认路径）：
 
 ```text
 GitHub repo URL: https://github.com/LBAI-Technology-Company/lbai-workspace-zhangsan.git
-Local folder path: ~/LBAI/lbai-workspace-zhangsan
+Local folder path: ./lbai-workspace-zhangsan
 ```
 
 也可以一次性传入参数：

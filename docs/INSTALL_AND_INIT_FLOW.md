@@ -17,11 +17,16 @@ Windows (PowerShell):
 
 ```powershell
 irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
+
+Close and reopen PowerShell after install, then run:
+
+```powershell
 lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed.
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3 and attempts to install them when missing.
 
 ## Authentication
 
@@ -31,6 +36,20 @@ Good:
 
 ```bash
 lbai auth login
+```
+
+`lbai auth login` behavior:
+
+- First run: paste a GitHub token when prompted
+- Token already saved: press Enter to keep the existing token
+- Already authenticated through `gh auth login`: press Enter to continue without changes
+
+Authentication source priority:
+
+```text
+saved token at ~/.lbai/auth/github_token
+-> GITHUB_TOKEN / GH_TOKEN environment variables
+-> GitHub CLI (gh auth login)
 ```
 
 Avoid:
@@ -47,16 +66,21 @@ The selected MVP path is:
 Use an existing private GitHub repo.
 ```
 
-`lbai init-workspace` should ask for:
-
-- Existing private repo URL
-- Local workspace folder path
+`lbai init-workspace` should ask for the existing private repo URL, then open a folder picker on macOS and Windows. Cancel the picker to use `./<repo-name>` in the current directory.
 
 Example interactive result:
 
 ```text
 GitHub repo URL: https://github.com/LBAI-Technology-Company/lbai-workspace-zhangsan.git
-Local folder path: ~/LBAI/lbai-workspace-zhangsan
+Local folder path: ./lbai-workspace-zhangsan
+```
+
+Non-interactive:
+
+```bash
+lbai init-workspace \
+  --repo-url https://github.com/LBAI-Technology-Company/lbai-workspace-zhangsan.git \
+  --path ~/LBAI/lbai-workspace-zhangsan
 ```
 
 ## Init Steps

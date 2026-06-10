@@ -7,7 +7,7 @@ Goal: replace manual folder copying.
 Deliverables:
 
 - Public GitHub repo `lbai-workspace-kit`
-- `install.sh`
+- `install.sh` and `install.ps1`
 - Local `lbai` command
 - `lbai auth login`
 - `lbai init-workspace`

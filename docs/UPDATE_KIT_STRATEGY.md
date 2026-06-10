@@ -8,11 +8,20 @@ There are two different upgrade operations.
 
 Repair or upgrade the installed `lbai` command by rerunning the release installer:
 
+macOS / Linux:
+
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+source ~/.zshrc
 ```
 
-There is no separate `lbai self-update` command.
+Windows (PowerShell):
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
+
+There is no separate `lbai self-update` command. The installer auto-detects the latest release and checks Git / Python 3.
 
 ## 2. Workspace Template Upgrade
 

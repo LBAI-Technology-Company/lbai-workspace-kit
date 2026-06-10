@@ -29,6 +29,8 @@ Paste GitHub token:
 
 The input should not echo in the terminal.
 
+If a token is already saved, or the user is already authenticated through environment variables or `gh auth login`, pressing Enter should keep the current auth unchanged.
+
 Prefer storage in:
 
 - macOS Keychain

@@ -12,7 +12,8 @@
 
 ```text
 lbai-workspace-kit
-├── install.sh
+├── install.sh          Mac / Linux 安装入口
+├── install.ps1         Windows 安装入口
 ├── lbai_core/
 ├── workspace_template/
 ├── docs/
@@ -48,6 +49,18 @@ lbai-core + init-workspace installer
 - 公司专属安装域名
 - 独立 LLM agent runtime
 
+## 系统要求
+
+支持 **macOS** 和 **Windows**。
+
+| 依赖 | 说明 |
+|------|------|
+| Git | 安装程序会自动检查；缺失时尝试自动安装 |
+| Python 3 | 安装程序会自动检查；缺失时尝试自动安装 |
+| 网络 | 需能访问 GitHub 或安装镜像 |
+
+安装完成后，本机 `lbai` 命令位于 `~/.lbai/bin/lbai`（Windows 为 `%USERPROFILE%\.lbai\bin\lbai.cmd`）。
+
 ## 员工使用流程
 
 打开终端，按顺序执行下面 3 步。安装程序会**自动检查并安装** Git 和 Python 3（如本机缺失）。
@@ -67,7 +80,14 @@ Windows（PowerShell）：
 irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
-安装的是**最新 Release 版本**。完成后会显示 `已安装版本` 和 `Release`。如提示安装 Git / Python，按窗口指引完成后**重新运行同一条安装命令**。
+安装的是**最新 Release 版本**（`@latest` 始终指向最新 Release，不是 main 开发分支）。完成后会显示：
+
+```text
+已安装版本: <版本号>
+Release: v<版本号>
+```
+
+如提示安装 Git / Python，按窗口指引完成后**重新运行同一条安装命令**。Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行后续步骤。
 
 **第 2 步：登录 GitHub**
 
@@ -75,7 +95,11 @@ irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@lates
 lbai auth login
 ```
 
-按提示粘贴管理员发给你的 GitHub Token；如已通过 `gh` 登录，直接回车即可。
+- 首次使用：按提示粘贴管理员发给你的 GitHub Token
+- 已保存过 Token：直接回车保持不变
+- 已通过 `gh auth login` 登录：直接回车即可，无需重复配置
+
+可先运行 `lbai auth doctor` 检查认证状态。
 
 **第 3 步：初始化工作区**
 
@@ -88,14 +112,29 @@ lbai init-workspace
 `lbai init-workspace` 使用“已有 private repo”方案：
 
 ```text
-1. 如果还没有 GitHub 认证，安全提示员工输入 token。
-2. 让员工输入已有 private GitHub repo URL。
-3. 让员工选择本地工作区文件夹路径。
-4. clone 这个 repo。
-5. 把 workspace_template/ 里的模板复制进去。
-6. 创建或更新 Codex 和 Cursor 适配文件。
-7. commit 并 push 初始化后的工作区。
-8. 运行 lbai doctor。
+1. 输入管理员发给你的 private GitHub 仓库地址。
+2. Mac / Windows 弹出文件夹选择窗口；取消则默认保存在当前目录下的仓库同名文件夹。
+3. clone 这个 repo（如本地还没有）。
+4. 把 workspace_template/ 里的模板复制进去。
+5. 创建或更新 Codex 和 Cursor 适配文件。
+6. commit 并 push 初始化后的工作区。
+7. 运行 lbai doctor。
+```
+
+初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写岗位信息。
+
+## 日常工作流
+
+在工作区目录内，可使用终端命令或 Cursor / Codex 里的 `/lbai-*` 命令：
+
+```bash
+lbai init                  # 首次填写岗位信息
+lbai add-evidence          # 保存资料，不自动建任务
+lbai search-artifacts      # 搜索历史资料
+lbai new-task "任务标题"   # 创建正式任务
+lbai execute-task          # 准备任务，交给 Cursor/Codex 执行
+lbai finish-task           # 完成任务并同步 GitHub
+lbai doctor                # 检查工作区是否正常
 ```
 
 ## GitHub Token 原则
@@ -128,11 +167,11 @@ task artifacts
 命令行历史
 ```
 
-后续实现里，优先使用系统 Keychain、GitHub CLI 凭据或安全输入。
+认证来源优先级：`lbai auth login` 保存的 Token → 环境变量 `GITHUB_TOKEN` / `GH_TOKEN` → GitHub CLI（`gh auth login`）。
 
 ## 项目目录职责
 
-`install.sh`：安装本地 `lbai` 命令。
+`install.sh` / `install.ps1`：安装本地 `lbai` 命令，自动检查 Git 和 Python 3，并下载最新 Release。
 
 `lbai_core/`：轻量 CLI core。第一版负责安装、初始化、升级、doctor，并把日常工作流命令转发到每个工作区里的 `lbai_system/tools/`。
 
@@ -163,7 +202,20 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 | `lbai remove-kit` | 从工作区移除公司模板 | 工作区目录内 | 保留 `role_workspace/`、`tasks/` |
 | `lbai uninstall` | 卸载本机 `lbai` 命令 | 任意目录 | 不删工作区文件夹和 GitHub 仓库 |
 
-本机 `lbai` 命令坏了或需要升级时，**重新运行第 1 步的安装命令**即可。
+本机 `lbai` 命令坏了或需要升级时，**重新运行第 1 步的安装命令**即可：
+
+Mac：
+
+```bash
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+source ~/.zshrc
+```
+
+Windows（PowerShell）：
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
 
 ### 升级工作区模板
 

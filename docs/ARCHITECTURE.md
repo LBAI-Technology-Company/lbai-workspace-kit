@@ -27,7 +27,8 @@ One repository is easier to maintain because:
 Even with one repository, keep clear directory boundaries:
 
 ```text
-install.sh           public installer entry
+install.sh           macOS / Linux installer entry
+install.ps1          Windows installer entry
 lbai_core/           installable CLI and workflow core
 workspace_template/  files copied into employee private repos
 docs/                planning and operating documentation
@@ -37,7 +38,7 @@ docs/                planning and operating documentation
 
 ```text
 Employee terminal
-  -> install.sh
+  -> install.sh or install.ps1
   -> lbai CLI
   -> init-workspace
   -> employee private GitHub repo

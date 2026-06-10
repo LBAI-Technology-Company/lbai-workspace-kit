@@ -25,7 +25,8 @@ Employees get a private GitHub workspace that contains the same workflow rules, 
 
 ```text
 lbai-workspace-kit/
-├── install.sh              Installer for the local lbai command
+├── install.sh              macOS / Linux installer entry
+├── install.ps1             Windows installer entry
 ├── lbai_core/              Python CLI and workspace orchestration
 ├── workspace_template/     Files copied into employee private repos
 ├── docs/                   Architecture, install flow, token policy, roadmap
@@ -67,6 +68,18 @@ Not in scope yet:
 - custom company install domain
 - standalone LLM runtime
 
+## System Requirements
+
+Supported platforms: **macOS** and **Windows**.
+
+| Dependency | Notes |
+|------------|-------|
+| Git | Checked by the installer; auto-installed when possible |
+| Python 3 | Checked by the installer; auto-installed when possible |
+| Network | Access to GitHub or install mirrors |
+
+After install, the CLI lives at `~/.lbai/bin/lbai` on macOS/Linux and `%USERPROFILE%\.lbai\bin\lbai.cmd` on Windows.
+
 ## Install
 
 Recommended release install. The installer checks for Git and Python 3 and attempts to install them when missing.
@@ -84,11 +97,23 @@ Windows (PowerShell):
 
 ```powershell
 irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
+
+Close and reopen PowerShell after install, then run:
+
+```powershell
 lbai auth login
 lbai init-workspace
 ```
 
-The `@latest` URL serves the newest GitHub release. The installer also resolves the latest release at runtime and prints the installed version when finished.
+The `@latest` URL serves the newest GitHub release. The installer also resolves the latest release at runtime and prints the installed version when finished, for example:
+
+```text
+Installed version: <version>
+Release: v<version>
+```
+
+If Git or Python installation opens a system dialog, complete it and rerun the same install command.
 
 The installer places the kit under:
 
@@ -126,21 +151,27 @@ lbai auth login
 lbai auth doctor
 ```
 
+`lbai auth login` behavior:
+
+- First run: paste a GitHub token when prompted
+- Token already saved: press Enter to keep the existing token
+- Already authenticated through `gh auth login`: press Enter to continue without changes
+
 Do not pass tokens in command arguments. Avoid commands like:
 
 ```bash
 lbai init-workspace --github-token ghp_xxx
 ```
 
-The current CLI stores the token outside any workspace at:
+Authentication source priority:
 
 ```text
-~/.lbai/auth/github_token
+saved token at ~/.lbai/auth/github_token
+-> GITHUB_TOKEN / GH_TOKEN environment variables
+-> GitHub CLI (gh auth login)
 ```
 
-The file is restricted to the current user. Future versions can prefer OS keychains or GitHub CLI credentials.
-
-The token needs permission to clone, commit, and push to the employee private workspace repository.
+The saved token file is restricted to the current user. The token needs permission to clone, commit, and push to the employee private workspace repository.
 
 ## Initialize An Employee Workspace
 
@@ -234,9 +265,17 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 
 If the local `lbai` command is broken or outdated, rerun the installer:
 
+macOS / Linux:
+
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
 Update an employee workspace template from the installed kit:
