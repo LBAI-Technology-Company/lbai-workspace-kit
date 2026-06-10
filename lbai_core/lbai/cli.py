@@ -256,14 +256,27 @@ def uninstall(args: argparse.Namespace) -> int:
 
 
 def auth_login(_args: argparse.Namespace) -> int:
-    print('GitHub token will be saved outside the workspace.')
-    print('Do not paste this token into README, .env, role_workspace, tasks, or chat artifacts.')
-    token = getpass.getpass('Paste GitHub token: ').strip()
-    if not token:
-        print('auth_status: BLOCKED')
-        print('reason: empty token')
-        return 2
     path = auth_token_path()
+    existing = path.read_text(encoding='utf-8').strip() if path.exists() else ''
+
+    if existing:
+        print('auth_check: already configured')
+        print(f'token_store: {path}')
+        print('如需重新配置请输入新 Token；直接回车保持不变。')
+        token = getpass.getpass('GitHub Token: ').strip()
+        if not token:
+            print('auth_status: UNCHANGED')
+            print('next_step: lbai init-workspace')
+            return 0
+    else:
+        print('GitHub token will be saved outside the workspace.')
+        print('Do not paste this token into README, .env, role_workspace, tasks, or chat artifacts.')
+        token = getpass.getpass('Paste GitHub token: ').strip()
+        if not token:
+            print('auth_status: BLOCKED')
+            print('reason: empty token')
+            return 2
+
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(token + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
