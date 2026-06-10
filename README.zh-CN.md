@@ -77,7 +77,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-按提示输入管理员发给你的 GitHub 仓库地址。Mac 会弹出文件夹选择窗口；直接取消则默认保存在当前目录下的仓库同名文件夹。
+按提示输入管理员发给你的 GitHub 仓库地址。Mac 和 Windows 会弹出文件夹选择窗口；直接取消则默认保存在当前目录下的仓库同名文件夹。
 
 `lbai init-workspace` 使用“已有 private repo”方案：
 

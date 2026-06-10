@@ -339,6 +339,13 @@ def default_workspace_path(repo_url: str) -> Path:
     return Path.cwd() / repo_basename(repo_url)
 
 
+def workspace_path_from_pick(picked: str, repo_url: str) -> Path:
+    picked_path = Path(picked).expanduser()
+    if picked_path.name == repo_basename(repo_url):
+        return picked_path
+    return picked_path / repo_basename(repo_url)
+
+
 def pick_folder_macos(prompt: str) -> str:
     escaped = prompt.replace('\\', '\\\\').replace('"', '\\"')
     script = f'POSIX path of (choose folder with prompt "{escaped}")'
@@ -348,22 +355,61 @@ def pick_folder_macos(prompt: str) -> str:
     return result.stdout.strip()
 
 
+def pick_folder_windows(prompt: str) -> str:
+    try:
+        import tkinter as tk
+        from tkinter import filedialog
+
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            root.attributes('-topmost', True)
+        except tk.TclError:
+            pass
+        root.update()
+        picked = filedialog.askdirectory(title=prompt, mustexist=True)
+        root.destroy()
+        if picked:
+            return picked
+    except Exception:
+        pass
+
+    escaped = prompt.replace("'", "''")
+    ps = (
+        'Add-Type -AssemblyName System.Windows.Forms; '
+        '$d = New-Object System.Windows.Forms.FolderBrowserDialog; '
+        f"$d.Description = '{escaped}'; "
+        'if ($d.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { '
+        '$d.SelectedPath }'
+    )
+    result = capture(['powershell', '-NoProfile', '-Command', ps])
+    if result.returncode == 0:
+        return result.stdout.strip()
+    return ''
+
+
+def pick_folder_interactive(prompt: str) -> str:
+    if sys.platform == 'darwin':
+        return pick_folder_macos(prompt)
+    if sys.platform == 'win32':
+        return pick_folder_windows(prompt)
+    return ''
+
+
 def resolve_local_path(repo_url: str, path_arg: str | None) -> Path:
     if path_arg and path_arg.strip():
         return Path(path_arg.strip()).expanduser()
 
     default = default_workspace_path(repo_url)
     default_text = str(default)
+    picker_prompt = '请选择 LBAI 工作区保存位置'
 
-    if sys.platform == 'darwin' and sys.stdin.isatty():
+    if sys.stdin.isatty() and sys.platform in {'darwin', 'win32'}:
         print(f'默认工作区路径: {default_text}')
         print('正在打开文件夹选择窗口；取消则使用默认路径。')
-        picked = pick_folder_macos('请选择 LBAI 工作区保存位置')
+        picked = pick_folder_interactive(picker_prompt)
         if picked:
-            picked_path = Path(picked).expanduser()
-            if picked_path.name == repo_basename(repo_url):
-                return picked_path
-            return picked_path / repo_basename(repo_url)
+            return workspace_path_from_pick(picked, repo_url)
         return default
 
     entered = input(f'本地文件夹路径 [{default_text}]: ').strip()

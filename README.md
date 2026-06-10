@@ -142,7 +142,7 @@ Interactive:
 lbai init-workspace
 ```
 
-On macOS, `lbai init-workspace` opens a folder picker after you enter the repo URL. Cancel the picker to use the default path `./<repo-name>` in the current directory.
+On macOS and Windows, `lbai init-workspace` opens a folder picker after you enter the repo URL. Cancel the picker to use the default path `./<repo-name>` in the current directory.
 
 Non-interactive:
 
