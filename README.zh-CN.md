@@ -70,17 +70,17 @@ lbai-core + init-workspace installer
 Mac（终端）：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
-安装命令固定到同一个 Release tag，避免不同平台拿到不同版本；安装器会在运行时解析并下载最新 Release 包。完成后会显示：
+安装的是**最新 Release 版本**（`@latest` 始终指向最新 Release，不是 main 开发分支）。安装脚本会在运行时再次解析并下载最新 Release 包。完成后会显示：
 
 ```text
 已安装版本: <版本号>
@@ -285,14 +285,14 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 Mac：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
 ### 升级工作区模板

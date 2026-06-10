@@ -93,7 +93,7 @@ Recommended release install. The installer checks for Git and Python 3.10+ and a
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
@@ -102,7 +102,7 @@ lbai init-workspace
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
 Close and reopen PowerShell after install, then run:
@@ -112,7 +112,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The install URL is pinned to the same release tag for macOS/Linux and Windows. The installer also resolves the latest release package at runtime and prints the installed version when finished, for example:
+The install command uses `@latest` (always the newest GitHub Release, not the main development branch). The installer also resolves the latest release package at runtime and prints the installed version when finished, for example:
 
 ```text
 Installed version: <version>
@@ -344,14 +344,14 @@ If the local `lbai` command is broken or outdated, rerun the installer:
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
 Update an employee workspace template from the installed kit:

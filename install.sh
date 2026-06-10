@@ -100,7 +100,7 @@ ensure_prerequisites() {
       ensure_prerequisites_linux
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@v0.1.16/install.ps1 | iex"
+      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@latest/install.ps1 | iex"
       ;;
     *)
       fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3.10+。"
