@@ -72,7 +72,7 @@ Not in scope yet:
 Recommended release install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
 ```
 
 The installer places the kit under:
@@ -87,11 +87,7 @@ and creates the command wrapper at:
 ~/.lbai/bin/lbai
 ```
 
-Add it to your shell PATH if needed:
-
-```bash
-export PATH="$HOME/.lbai/bin:$PATH"
-```
+The installer also adds `~/.lbai/bin` to your shell PATH when possible.
 
 Local development install from this checkout:
 
@@ -222,7 +218,7 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 If the local `lbai` command is broken or outdated, rerun the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.2/install.sh | sh
 ```
 
 Update an employee workspace template from the installed kit:

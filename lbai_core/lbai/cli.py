@@ -251,7 +251,7 @@ def uninstall(args: argparse.Namespace) -> int:
     print('not_removed:')
     print('- employee workspace folders')
     print('- employee private GitHub repos')
-    print('next_step: remove ~/.lbai/bin from PATH if you added it manually')
+    print('next_step: remove ~/.lbai/bin from PATH if install.sh added it to your shell rc')
     return 0
 
 

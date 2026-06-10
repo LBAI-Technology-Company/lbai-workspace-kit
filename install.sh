@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-VERSION="${LBAI_VERSION:-v0.1.1}"
+VERSION="${LBAI_VERSION:-v0.1.2}"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -14,6 +14,49 @@ info() {
 fail() {
   printf 'ERROR: %s\n' "$*" >&2
   exit 1
+}
+
+PATH_MARKER="# LBAI Workspace Kit CLI"
+
+detect_shell_rc() {
+  shell_name="$(basename "${SHELL:-}")"
+  if [ "$shell_name" = "zsh" ] || [ -n "${ZSH_VERSION:-}" ]; then
+    printf '%s\n' "$HOME/.zshrc"
+    return 0
+  fi
+  if [ "$shell_name" = "bash" ] || [ -n "${BASH_VERSION:-}" ]; then
+    if [ -f "$HOME/.bash_profile" ]; then
+      printf '%s\n' "$HOME/.bash_profile"
+    else
+      printf '%s\n' "$HOME/.bashrc"
+    fi
+    return 0
+  fi
+  return 1
+}
+
+ensure_shell_path() {
+  shell_rc="$(detect_shell_rc || true)"
+  path_export="export PATH=\"$BIN_DIR:\$PATH\""
+
+  if [ -z "$shell_rc" ]; then
+    info "Could not detect a shell rc file. Add lbai to PATH manually:"
+    info "  $path_export"
+    return 0
+  fi
+
+  touch "$shell_rc"
+  if grep -qF "$PATH_MARKER" "$shell_rc" 2>/dev/null || grep -qF "$BIN_DIR" "$shell_rc" 2>/dev/null; then
+    info "PATH already configured in $shell_rc"
+    return 0
+  fi
+
+  {
+    printf '\n%s\n' "$PATH_MARKER"
+    printf '%s\n' "$path_export"
+  } >> "$shell_rc"
+  info "Added lbai to PATH in $shell_rc"
+  info "Run: source $shell_rc"
 }
 
 install_from_dir() {
@@ -53,12 +96,10 @@ export PYTHONPATH="$INSTALL_DIR/lbai_core\${PYTHONPATH:+:\$PYTHONPATH}"
 exec python3 -m lbai.cli "\$@"
 EOF
 chmod +x "$BIN_DIR/lbai"
+ensure_shell_path
 
 info "LBAI Workspace Kit installed."
 info "lbai path: $BIN_DIR/lbai"
-info
-info "Add this to PATH if needed:"
-info "  export PATH=\"$BIN_DIR:\$PATH\""
 info
 info "Next steps:"
 info "  lbai auth login"
