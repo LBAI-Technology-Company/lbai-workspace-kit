@@ -9,7 +9,7 @@ There are two different upgrade operations.
 Repair or upgrade the installed `lbai` command by rerunning the release installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 ```
 
 There is no separate `lbai self-update` command.

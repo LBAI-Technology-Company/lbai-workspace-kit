@@ -286,7 +286,7 @@ lbai_system/tools/update_kit.py
 Behavior:
 
 1. If input is a Git URL or local folder, pass it as `--source "<input>"`.
-2. If input is empty, use the standard company workflow-base source.
+2. If input is empty, use the standard company lbai-workspace-kit release source.
 3. Sync only managed workflow paths:
    - `.cursor/`
    - `lbai_system/`

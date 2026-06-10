@@ -72,7 +72,7 @@ Not in scope yet:
 Recommended release install:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 ```
 
 The installer places the kit under:
@@ -222,7 +222,7 @@ The same workflow is also exposed through `/lbai-*` project commands in Codex an
 If the local `lbai` command is broken or outdated, rerun the installer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 ```
 
 Update an employee workspace template from the installed kit:

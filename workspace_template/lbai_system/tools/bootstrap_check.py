@@ -210,7 +210,7 @@ def main():
     if old_commands:
         print('next_step: 删除旧命令文件后重启 Cursor 或 Reload Window。')
     elif missing_templates:
-        print('next_step: 公司默认岗位模板缺失，请管理员重新发布完整 workflow-base。')
+        print('next_step: 公司默认岗位模板缺失，请管理员重新发布完整 lbai-workspace-kit。')
     elif not remote_ok:
         print('next_step: 添加 GitHub remote 后重新运行 bootstrap check。')
     elif not upstream_ok:

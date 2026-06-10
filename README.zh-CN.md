@@ -53,7 +53,7 @@ lbai-core + init-workspace installer
 第一版推荐流程：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 lbai auth login
 lbai init-workspace
 ```
@@ -139,7 +139,7 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 本机 `lbai` 命令坏了或需要升级时，**重新运行安装程序**即可，不需要单独命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 ```
 
 ### 升级工作区模板

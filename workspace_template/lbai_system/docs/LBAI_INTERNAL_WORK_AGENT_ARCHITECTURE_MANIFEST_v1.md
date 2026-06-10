@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This manifest defines the intended company-agent architecture for `workflow-base` v0.5. v0.5 contains contracts and minimal tools only. It does not claim to be a complete MCP or autonomous runtime.
+This manifest defines the intended company-agent architecture for `lbai-workspace-kit` v0.5. v0.5 contains contracts and minimal tools only. It does not claim to be a complete MCP or autonomous runtime.
 
 ## Core Function
 

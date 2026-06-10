@@ -11,7 +11,8 @@ id_rsa*
 credentials.json
 client_secret*.json
 node_modules/
-workflow-base-main/
-workflow-base-main.zip
-workflow-base-*.zip
+lbai-workspace-kit-main/
+lbai-workspace-kit-main.zip
+lbai-workspace-kit-*.zip
+lbai-workspace-kit-*.tar.gz
 *.log

@@ -1,8 +1,8 @@
-# WORKFLOW_BASE_AGENT_IDENTITY_v1
+# LBAI_WORKSPACE_KIT_AGENT_IDENTITY_v1
 
 ## Identity
 
-`workflow-base` is the LBAI employee workspace bootstrap substrate and internal work runtime foundation.
+`lbai-workspace-kit` is the LBAI employee workspace bootstrap substrate and internal work runtime foundation.
 
 Its core function is to let capable models work stably inside company rules, evidence boundaries, task processes, and delivery standards.
 
@@ -17,7 +17,7 @@ It provides:
 
 ## Not This
 
-`workflow-base` is not:
+`lbai-workspace-kit` is not:
 
 - The full LBAI internal work runtime agent system
 - A full autonomous agent

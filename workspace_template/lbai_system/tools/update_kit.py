@@ -17,7 +17,7 @@ sys.dont_write_bytecode = True
 from task_utils import SENSITIVE_PATTERNS, git_root, read_text
 
 
-DEFAULT_REPO = 'LBAI-Technology-Company/workflow-base'
+DEFAULT_REPO = 'LBAI-Technology-Company/lbai-workspace-kit'
 DEFAULT_SOURCE = f'github-release:{DEFAULT_REPO}:latest'
 MANAGED_DIRS = [Path('.cursor'), Path('.agents'), Path('lbai_system')]
 MANAGED_FILES = [
@@ -28,6 +28,7 @@ MANAGED_FILES = [
 ]
 EMPLOYEE_ARTIFACT_DIRS = [Path('role_workspace'), Path('tasks')]
 REQUIRED_SOURCE_PATHS = [Path('.cursor'), Path('lbai_system')]
+KIT_TEMPLATE_DIR = Path('workspace_template')
 TEMP_NAMES = {'.DS_Store', '__pycache__'}
 TEMP_SUFFIXES = {'.pyc', '.pyo', '.log'}
 
@@ -102,8 +103,8 @@ def print_employee_artifact_note(root: Path):
 def source_from_arg(value: str | None) -> str:
     if value:
         return value
-    if os.environ.get('LBAI_WORKFLOW_BASE'):
-        return os.environ['LBAI_WORKFLOW_BASE']
+    if os.environ.get('LBAI_WORKSPACE_KIT_SOURCE'):
+        return os.environ['LBAI_WORKSPACE_KIT_SOURCE']
     return DEFAULT_SOURCE
 
 
@@ -217,6 +218,19 @@ def release_archive_root(unpack_root: Path) -> Path:
     return unpack_root
 
 
+def has_required_source_paths(source_root: Path) -> bool:
+    return all((source_root / path).exists() for path in REQUIRED_SOURCE_PATHS)
+
+
+def kit_template_root(source_root: Path) -> Path:
+    if has_required_source_paths(source_root):
+        return source_root
+    nested = source_root / KIT_TEMPLATE_DIR
+    if nested.is_dir() and has_required_source_paths(nested):
+        return nested
+    return source_root
+
+
 def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
     parsed = parse_github_release_source(source)
     if not parsed:
@@ -268,7 +282,7 @@ def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | Non
     if not archive_path.exists():
         return None, (
             f'Failed to download GitHub release archive {repo}@{tag}. '
-            'Make sure the employee has access to workflow-base and has run the README Git token setup. '
+            'Make sure the employee has access to lbai-workspace-kit and has run the README Git token setup. '
             + '; '.join(item for item in download_details if item)
         )
 
@@ -278,7 +292,7 @@ def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | Non
         shutil.unpack_archive(str(archive_path), str(unpack_root))
     except Exception as exc:
         return None, f'Failed to unpack GitHub release archive {repo}@{tag}: {exc}'
-    return release_archive_root(unpack_root), f'github-release:{repo}:{tag}'
+    return kit_template_root(release_archive_root(unpack_root)), f'github-release:{repo}:{tag}'
 
 
 def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
@@ -287,9 +301,10 @@ def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
 
     local = Path(source).expanduser()
     if local.exists():
-        return local.resolve(), f'local:{local.resolve()}'
+        resolved = kit_template_root(local.resolve())
+        return resolved, f'local:{resolved}'
 
-    target = temp_root / 'workflow-base'
+    target = temp_root / 'lbai-workspace-kit'
     clone = subprocess.run(
         ['git', 'clone', '--depth', '1', source, str(target)],
         capture_output=True,
@@ -298,7 +313,7 @@ def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
     if clone.returncode != 0:
         detail = (clone.stdout + clone.stderr).strip()
         return None, f'Failed to clone workflow kit source: {detail}'
-    return target, source
+    return kit_template_root(target), source
 
 
 def validate_source(source_root: Path) -> list[str]:
@@ -469,7 +484,7 @@ def print_list(title: str, items: list[str]):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--source', help='Workflow-base release source, Git URL, or local folder. Employees usually leave this empty.')
+    parser.add_argument('--source', help='lbai-workspace-kit release source, Git URL, or local folder. Employees usually leave this empty.')
     parser.add_argument('--dry-run', action='store_true', help='Show what would be synced without changing files.')
     parser.add_argument('--no-commit', action='store_true', help='Update files but do not create a git commit.')
     parser.add_argument('--no-push', action='store_true', help='Commit locally but skip git push.')

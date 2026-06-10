@@ -5,7 +5,7 @@
 First public GitHub-based install command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.0/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit/v0.1.1/install.sh | sh
 ```
 
 The installer should install the `lbai` command locally and then print:
