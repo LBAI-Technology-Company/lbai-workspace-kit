@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
+from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
 
 
@@ -19,18 +19,12 @@ BLOCKED_MESSAGE = (
 )
 
 
-def validate_finish_review(data: dict) -> str | None:
-    err = require_version(data, ENRICHMENT_VERSION)
+def validate_finish_review(root: Path, data: dict) -> str | None:
+    err = validate_with_schema(root, data, 'finish_review_enrichment_schema_v1.json')
     if err:
         return err
-    for field in ('finish_verdict', 'completeness_summary', 'gaps', 'overclaim_risks', 'next_step'):
-        if field not in data:
-            return f'missing required field: {field}'
     if data['finish_verdict'] not in {'APPROVE_FINISH', 'BLOCK_FINISH'}:
         return 'invalid finish_verdict'
-    for field in ('gaps', 'overclaim_risks'):
-        if not isinstance(data[field], list):
-            return f'{field} must be an array'
     return None
 
 
@@ -58,7 +52,7 @@ def write_finish_review_artifact(task_dir: Path, data: dict):
 def run_pre_commit_check(root: Path, task_folder: str) -> tuple[int, str]:
     script = Path(__file__).resolve().with_name('hygiene_check.py')
     result = subprocess.run(
-        ['python3', str(script), task_folder],
+        [sys.executable, str(script), task_folder],
         cwd=root,
         capture_output=True,
         text=True,
@@ -321,7 +315,7 @@ def main():
         print(f'reason: {review_error or BLOCKED_MESSAGE}')
         print(f'next_step: {BLOCKED_MESSAGE}')
         return 1
-    validation_error = validate_finish_review(review_data)
+    validation_error = validate_finish_review(root, review_data)
     if validation_error:
         print('task_status: BLOCKED')
         print('commit_readiness: BLOCKED')

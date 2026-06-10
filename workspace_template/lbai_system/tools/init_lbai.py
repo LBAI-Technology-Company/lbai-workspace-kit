@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
+from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from task_utils import redact_sensitive, workspace_root
 
 
@@ -234,8 +234,8 @@ Do not write secrets, passwords, API keys, access tokens, legal privileged commu
     return [world_model, boundary, priorities, archive]
 
 
-def validate_init_enrichment(data: dict) -> tuple[dict[str, str] | None, str | None]:
-    err = require_version(data, ENRICHMENT_VERSION)
+def validate_init_enrichment(root: Path, data: dict) -> tuple[dict[str, str] | None, str | None]:
+    err = validate_with_schema(root, data, 'init_enrichment_schema_v1.json')
     if err:
         return None, err
     sections = data.get('sections')
@@ -272,7 +272,7 @@ def main():
         print('NEXT_STEP 请重新生成 init enrichment JSON 后重试。')
         return 1
 
-    sections, validation_error = validate_init_enrichment(data)
+    sections, validation_error = validate_init_enrichment(root, data)
     if sections is None:
         print('STATUS BLOCKED')
         print(f'reason: {validation_error}')

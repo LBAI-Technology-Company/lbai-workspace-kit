@@ -2,6 +2,20 @@
 
 This repo is an LBAI enterprise role workspace for employee office work.
 
+## Command quick reference (run in Cursor or Codex desktop app)
+
+| Command | When to use |
+|---------|-------------|
+| `/lbai-init` | First-time role setup or role updates |
+| `/lbai-new-task` | Start a formal task |
+| `/lbai-add-evidence` | Capture meeting notes, feedback, or source material |
+| `/lbai-search-artifacts` | Find prior tasks, evidence, or references |
+| `/lbai-execute-task` | Execute the current task and write deliverables |
+| `/lbai-finish-task` | Finish, hygiene-check, and sync to GitHub |
+| `/lbai-update-kit` | Update company-maintained workflow files |
+
+Do **not** run `lbai new-task` / `lbai add-evidence` in a bare terminal without `--enrichment`; use the `/lbai-*` commands above instead.
+
 ## Workspace structure
 
 - `.cursor/` contains Cursor project command entries and project rules.

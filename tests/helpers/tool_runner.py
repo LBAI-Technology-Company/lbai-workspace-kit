@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -35,7 +36,7 @@ def run_tool(workspace: Path, script_name: str, *args: str, input_text: str | No
     if not script.exists():
         raise FileNotFoundError(script)
     proc = subprocess.run(
-        ['python3', str(script), *args],
+        [sys.executable, str(script), *args],
         cwd=workspace,
         capture_output=True,
         text=True,

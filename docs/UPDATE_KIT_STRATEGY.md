@@ -31,7 +31,15 @@ Upgrade the current employee workspace:
 lbai update-kit
 ```
 
-Inside Codex or Cursor, `/lbai-update-kit` should call the same operation.
+Inside Codex or Cursor, `/lbai-update-kit` calls the same workspace tool:
+
+```bash
+python lbai_system/tools/update_kit.py
+```
+
+The CLI command `lbai update-kit` is a thin wrapper that forwards to `lbai_system/tools/update_kit.py` in the current workspace. It fetches the latest release from GitHub and syncs managed paths only. `init-workspace` still uses the locally installed kit template for first-time setup.
+
+Do **not** maintain a second update implementation in `lbai_core/lbai/cli.py`.
 
 ## Managed Paths
 

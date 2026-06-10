@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
+from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from task_utils import read_text, workspace_root
 
 
@@ -277,25 +277,13 @@ def build_catalog(root: Path) -> list[dict]:
     return [catalog_entry(root, artifact) for artifact in collect_all(root)]
 
 
-def validate_search_enrichment(data: dict, catalog_by_path: dict[str, dict]) -> str | None:
-    err = require_version(data, ENRICHMENT_VERSION)
+def validate_search_enrichment(root: Path, data: dict, catalog_by_path: dict[str, dict]) -> str | None:
+    err = validate_with_schema(root, data, 'search_enrichment_schema_v1.json')
     if err:
         return err
-    for field in ('query', 'result_status', 'matches', 'next_step'):
-        if field not in data:
-            return f'missing required field: {field}'
-    if data['result_status'] not in {'FOUND', 'NO_MATCH'}:
-        return 'invalid result_status'
-    if not isinstance(data['matches'], list):
-        return 'matches must be an array'
     if data['result_status'] == 'NO_MATCH' and data['matches']:
         return 'matches must be empty when result_status is NO_MATCH'
     for item in data['matches']:
-        if not isinstance(item, dict):
-            return 'each match must be an object'
-        for field in ('path', 'match_reason', 'suggested_use', 'preview'):
-            if field not in item:
-                return f'match missing field: {field}'
         if item['path'] not in catalog_by_path:
             return f"match path not in catalog: {item['path']}"
     return None
@@ -370,7 +358,7 @@ def main() -> int:
 
     catalog = build_catalog(root)
     catalog_by_path = {item['path']: item for item in catalog}
-    validation_error = validate_search_enrichment(data, catalog_by_path)
+    validation_error = validate_search_enrichment(root, data, catalog_by_path)
     if validation_error:
         return block(validation_error)
 

@@ -172,6 +172,21 @@ Install-KitFromRelease -Tag $releaseTag
 Write-LbaiLauncher -PythonCommand $pythonCommand
 Ensure-UserPath
 
+$pythonArgs = @()
+if ($pythonCommand.Count -gt 1) {
+    $pythonArgs = $pythonCommand[1..($pythonCommand.Count - 1)]
+}
+$pythonExe = $pythonCommand[0]
+$requirements = Join-Path $InstallDir "lbai_core\requirements.txt"
+if (Test-Path $requirements) {
+    try {
+        & $pythonExe @pythonArgs -m pip install --quiet --disable-pip-version-check -r $requirements | Out-Null
+        Write-Info "Installed Python dependencies (jsonschema)."
+    } catch {
+        Write-Info "Warning: could not install jsonschema via pip; run: $pythonExe -m pip install jsonschema"
+    }
+}
+
 $kitVersion = "unknown"
 $versionFile = Join-Path $InstallDir "VERSION"
 if (Test-Path $versionFile) {

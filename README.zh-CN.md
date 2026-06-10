@@ -4,6 +4,25 @@
 
 这是 LBAI 员工 AI 办公工作区的公开分发项目。
 
+## 员工 Day-1 清单
+
+1. **安装 CLI**（macOS / Linux）：
+   ```bash
+   curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+   source ~/.zshrc
+   ```
+   Windows PowerShell：
+   ```powershell
+   irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+   ```
+2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token，或已登录 `gh` 时直接回车）。
+3. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
+4. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
+5. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
+6. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`。
+
+> 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
+
 目标很简单：让员工安装一个 `lbai` 命令，绑定已有的 private GitHub 仓库，选择本地目录，然后继续在 Codex 或 Cursor 里使用同一套 `/lbai-*` 工作流。
 
 ## 产品决策

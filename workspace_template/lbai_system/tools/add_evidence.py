@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
+from enrichment_utils import load_json_file, validate_with_schema
 from task_utils import (
     LEADER_REVIEW_REMINDER,
     REVIEW_ALLOWED_TASK_FILES,
@@ -171,62 +172,27 @@ def ensure_review_files(task_dir: Path):
             )
 
 
-def load_enrichment(path: Path, linked_task: str) -> tuple[dict | None, str]:
-    if not path.exists():
-        return None, f'enrichment file not found: {path}'
-    try:
-        data = json.loads(read_text(path))
-    except json.JSONDecodeError as exc:
-        return None, f'enrichment JSON parse error: {exc}'
+def load_enrichment(root: Path, path: Path, linked_task: str) -> tuple[dict | None, str]:
+    data, error = load_json_file(path)
+    if data is None:
+        return None, error or 'enrichment load failed'
 
-    if not isinstance(data, dict):
-        return None, 'enrichment must be a JSON object'
-    if data.get('schema_version') != ENRICHMENT_VERSION:
-        return None, f'enrichment schema_version must be {ENRICHMENT_VERSION}'
-
-    errors = []
-    for field in ('source_kind', 'usage_intent', 'admissibility_status', 'brief'):
-        if field not in data:
-            errors.append(f'missing required field: {field}')
-
-    kind = data.get('source_kind')
-    if kind not in VALID_SOURCE_KINDS:
-        errors.append(f'invalid source_kind: {kind!r}')
+    schema_error = validate_with_schema(root, data, 'evidence_enrichment_schema_v1.json')
+    if schema_error:
+        return None, schema_error
 
     usage = data.get('usage_intent')
-    if usage not in VALID_USAGE_INTENTS:
-        errors.append(f'invalid usage_intent: {usage!r}')
-
-    status = data.get('admissibility_status')
-    if status not in VALID_ADMISSIBILITY:
-        errors.append(f'invalid admissibility_status: {status!r}')
-
-    brief = data.get('brief')
-    if not isinstance(brief, dict):
-        errors.append('brief must be an object')
-    else:
-        for key, _ in BRIEF_SECTIONS:
-            if key not in brief:
-                errors.append(f'brief missing required field: {key}')
-            elif key != 'practical_next_step' and not isinstance(brief.get(key), list):
-                errors.append(f'brief.{key} must be an array')
-            elif key == 'practical_next_step' and not isinstance(brief.get(key), str):
-                errors.append('brief.practical_next_step must be a string')
+    if linked_task and usage != 'task_input':
+        return None, 'usage_intent must be task_input when linking a task'
 
     if linked_task:
         gap = data.get('gap_analysis')
         if not isinstance(gap, dict):
-            errors.append('gap_analysis is required when linking a task')
-        else:
-            for key in ('covers_gaps', 'remaining_gaps'):
-                if key not in gap or not isinstance(gap.get(key), list):
-                    errors.append(f'gap_analysis.{key} must be an array')
+            return None, 'gap_analysis is required when linking a task'
+        for key in ('covers_gaps', 'remaining_gaps'):
+            if key not in gap or not isinstance(gap.get(key), list):
+                return None, f'gap_analysis.{key} must be an array'
 
-    if linked_task and usage != 'task_input':
-        errors.append('usage_intent must be task_input when linking a task')
-
-    if errors:
-        return None, '; '.join(errors)
     return data, ''
 
 
@@ -406,7 +372,7 @@ def update_ledger(root: Path, evidence_id: str, kind: str, usage_intent: str, li
 
 def run_hygiene(root: Path, evidence_rel: str, linked_task: str, allow_review_files: bool = False) -> tuple[str, str]:
     script = Path(__file__).resolve().with_name('evidence_hygiene_check.py')
-    args = ['python3', str(script), evidence_rel, '--linked-task', linked_task]
+    args = [sys.executable, str(script), evidence_rel, '--linked-task', linked_task]
     if allow_review_files:
         args.append('--allow-review-files')
     result = subprocess.run(args, cwd=root, capture_output=True, text=True)
@@ -474,7 +440,7 @@ def main() -> int:
     if not enrichment_path.is_absolute():
         enrichment_path = (root / enrichment_path).resolve()
 
-    enrichment, enrichment_error = load_enrichment(enrichment_path, linked_task)
+    enrichment, enrichment_error = load_enrichment(root, enrichment_path, linked_task)
     if enrichment is None:
         return block(enrichment_error or ENRICHMENT_BLOCKED_MESSAGE, ENRICHMENT_BLOCKED_MESSAGE)
 

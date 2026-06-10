@@ -320,6 +320,12 @@ EOF
 chmod +x "$BIN_DIR/lbai"
 ensure_shell_path
 
+if "$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null 2>&1; then
+  info "Installed Python dependencies (jsonschema)."
+else
+  info "Warning: could not install jsonschema via pip; run: $PYTHON_BIN -m pip install jsonschema"
+fi
+
 kit_version="$(read_kit_version)"
 info "LBAI Workspace Kit installed."
 info "已安装版本: $kit_version"

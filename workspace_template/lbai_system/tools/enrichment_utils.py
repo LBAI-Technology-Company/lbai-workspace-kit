@@ -28,3 +28,35 @@ def resolve_enrichment_path(root: Path, raw_path: str) -> Path:
     if not path.is_absolute():
         path = (root / path).resolve()
     return path
+
+
+def schema_path(root: Path, schema_file: str) -> Path:
+    return root / 'lbai_system' / 'schemas' / schema_file
+
+
+def validate_with_schema(root: Path, data: dict, schema_file: str) -> str | None:
+    try:
+        import jsonschema
+    except ImportError:
+        return (
+            'jsonschema package is required for enrichment validation; '
+            'run: python -m pip install jsonschema'
+        )
+
+    path = schema_path(root, schema_file)
+    if not path.exists():
+        return f'schema file not found: {path}'
+    try:
+        schema = json.loads(read_text(path))
+    except json.JSONDecodeError as exc:
+        return f'schema JSON parse error: {exc}'
+
+    try:
+        jsonschema.validate(instance=data, schema=schema)
+    except jsonschema.ValidationError as exc:
+        message = exc.message
+        if exc.absolute_path:
+            location = '.'.join(str(part) for part in exc.absolute_path)
+            message = f'{location}: {message}'
+        return f'schema validation failed: {message}'
+    return None

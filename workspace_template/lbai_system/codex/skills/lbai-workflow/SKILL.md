@@ -7,6 +7,22 @@ description: Use this project-level skill when the user types or refers to /lbai
 
 This is a project-local Codex adapter. It must affect only this repository.
 
+## First conversation bootstrap
+
+When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI works in this repo, reply with this command list and recommend `/lbai-init` if role files are empty:
+
+```text
+/lbai-init
+/lbai-new-task
+/lbai-add-evidence
+/lbai-search-artifacts
+/lbai-execute-task
+/lbai-finish-task
+/lbai-update-kit
+```
+
+Remind them: run these in the **Codex desktop app** with this workspace folder open—not in a bare terminal.
+
 ## Required behavior
 
 1. Read `AGENTS.md`.

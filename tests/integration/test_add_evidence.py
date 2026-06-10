@@ -91,7 +91,7 @@ class TestAddEvidence:
             'test',
         )
         assert result.returncode != 0
-        assert 'brief missing required field: practical_next_step' in result.stdout
+        assert 'practical_next_step' in result.stdout
 
     def test_redacts_secrets_in_content(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_valid.json')

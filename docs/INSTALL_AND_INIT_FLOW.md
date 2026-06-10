@@ -133,3 +133,35 @@ After init, use the printed `cursor_open:` path. To avoid the extra nested folde
 ```bash
 lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 ```
+
+## 管理员发给员工的复制模板
+
+```text
+【LBAI 办公环境 — 首次安装】
+
+1. 安装（选你的系统）：
+   macOS/Linux:
+   curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+   source ~/.zshrc
+
+   Windows PowerShell:
+   irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+   （安装后请关闭并重新打开 PowerShell）
+
+2. 登录 GitHub：
+   lbai auth login
+   （向管理员索取 GitHub Token，需有 private repo 读写权限；或本机已 gh auth login 可直接回车）
+
+3. 初始化工作区：
+   lbai init-workspace
+   仓库地址：<你的 private repo URL，例如 https://github.com/LBAI-Technology-Company/lbai-workspace-zhangsan.git>
+   本地目录：按提示选择，或 --path 指定
+
+4. 打开 Cursor 或 Codex：
+   打开 init 成功输出里的 cursor_open 路径（不要打开外层父目录）
+
+5. 第一条命令：
+   /lbai-init
+
+常见问题见 docs/EMPLOYEE_FAQ.zh-CN.md
+```

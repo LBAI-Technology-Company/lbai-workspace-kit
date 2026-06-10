@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
+from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from task_utils import LEADER_REVIEW_REMINDER, today_slugged_task_dir, workspace_root, write_if_missing
 
 
@@ -19,17 +19,10 @@ BLOCKED_MESSAGE = (
 )
 
 
-def validate_intake(data: dict) -> str | None:
-    err = require_version(data, ENRICHMENT_VERSION)
+def validate_intake(root: Path, data: dict) -> str | None:
+    err = validate_with_schema(root, data, 'task_intake_enrichment_schema_v1.json')
     if err:
         return err
-    required = [
-        'task_description', 'goal', 'expected_output', 'missing_inputs',
-        'status', 'review_needed', 'completion_conditions',
-    ]
-    for field in required:
-        if field not in data:
-            return f'missing required field: {field}'
     if data['status'] not in {'OPEN', 'BLOCKED'}:
         return 'invalid status'
     if not isinstance(data['missing_inputs'], list):
@@ -75,7 +68,7 @@ def main():
         print(f'NEXT_STEP {BLOCKED_MESSAGE}')
         return 2
 
-    validation_error = validate_intake(data)
+    validation_error = validate_intake(ROOT, data)
     if validation_error:
         print('TASK_FOLDER unresolved')
         print('STATUS BLOCKED')

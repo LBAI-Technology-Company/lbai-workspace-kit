@@ -31,6 +31,8 @@ For every conversation in this workspace:
 4. Keep the employee-facing workflow simple:
    - `/lbai-init` for role setup or role updates.
    - `/lbai-new-task` for formal task intake.
+   - `/lbai-add-evidence` for capturing evidence and source material.
+   - `/lbai-search-artifacts` for finding prior tasks, evidence, and references.
    - `/lbai-execute-task` for task execution.
    - `/lbai-finish-task` for task finish, hygiene check, and private GitHub sync.
    - `/lbai-update-kit` for company workflow template updates.
@@ -73,6 +75,8 @@ Employee-facing commands:
 
 - `/lbai-init` for first-time role setup or later role updates
 - `/lbai-new-task` for task intake
+- `/lbai-add-evidence` for evidence capture
+- `/lbai-search-artifacts` for artifact search
 - `/lbai-execute-task` for task execution
 - `/lbai-finish-task` for task finish, pre-commit check, and private GitHub sync
 - `/lbai-update-kit` for updating company-maintained workflow files without touching employee role memory or tasks

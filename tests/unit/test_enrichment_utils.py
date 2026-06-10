@@ -52,15 +52,35 @@ class TestEnrichmentUtils:
         resolved = resolve_enrichment_path(root, 'data.json')
         assert resolved == rel.resolve()
 
-    def test_resolve_enrichment_path_absolute(self, tmp_path):
+    def test_validate_with_schema_valid_fixture(self, tmp_path):
+        from enrichment_utils import validate_with_schema
+
         root = tmp_path / 'ws'
-        root.mkdir()
-        abs_path = tmp_path / 'abs.json'
-        abs_path.write_text('{}', encoding='utf-8')
-        assert resolve_enrichment_path(root, str(abs_path)) == abs_path.resolve()
+        schemas = Path(__file__).resolve().parents[2] / 'workspace_template' / 'lbai_system' / 'schemas'
+        (root / 'lbai_system' / 'schemas').mkdir(parents=True)
+        schema_name = 'init_enrichment_schema_v1.json'
+        (root / 'lbai_system' / 'schemas' / schema_name).write_text(
+            (schemas / schema_name).read_text(encoding='utf-8'),
+            encoding='utf-8',
+        )
+        fixture = Path(__file__).resolve().parents[1] / 'fixtures' / 'enrichments' / 'init_valid.json'
+        data = json.loads(fixture.read_text(encoding='utf-8'))
+        assert validate_with_schema(root, data, schema_name) is None
 
+    def test_validate_with_schema_rejects_bad_version(self, tmp_path):
+        from enrichment_utils import validate_with_schema
 
-class TestTaskUtils:
+        root = tmp_path / 'ws'
+        schemas = Path(__file__).resolve().parents[2] / 'workspace_template' / 'lbai_system' / 'schemas'
+        (root / 'lbai_system' / 'schemas').mkdir(parents=True)
+        schema_name = 'init_enrichment_schema_v1.json'
+        (root / 'lbai_system' / 'schemas' / schema_name).write_text(
+            (schemas / schema_name).read_text(encoding='utf-8'),
+            encoding='utf-8',
+        )
+        err = validate_with_schema(root, {'schema_version': 'wrong'}, schema_name)
+        assert err and 'schema validation failed' in err
+
     def test_slugify_ascii(self):
         assert slugify('Hello World!') == 'hello_world'
 

@@ -1,0 +1,48 @@
+{
+  "schema_version": "commands_manifest_v1",
+  "description": "Canonical LBAI employee command surface. Cursor .cursor/commands and lbai_system/cursor/commands must stay byte-identical.",
+  "commands": [
+    {
+      "name": "lbai-init.md",
+      "slug": "/lbai-init",
+      "tool": "init_lbai.py",
+      "requires_enrichment": true
+    },
+    {
+      "name": "lbai-new-task.md",
+      "slug": "/lbai-new-task",
+      "tool": "new_task.py",
+      "requires_enrichment": true
+    },
+    {
+      "name": "lbai-add-evidence.md",
+      "slug": "/lbai-add-evidence",
+      "tool": "add_evidence.py",
+      "requires_enrichment": true
+    },
+    {
+      "name": "lbai-search-artifacts.md",
+      "slug": "/lbai-search-artifacts",
+      "tool": "search_artifacts.py",
+      "requires_enrichment": true
+    },
+    {
+      "name": "lbai-execute-task.md",
+      "slug": "/lbai-execute-task",
+      "tool": "prepare_execute_task.py",
+      "requires_enrichment": false
+    },
+    {
+      "name": "lbai-finish-task.md",
+      "slug": "/lbai-finish-task",
+      "tool": "finish_task.py",
+      "requires_enrichment": true
+    },
+    {
+      "name": "lbai-update-kit.md",
+      "slug": "/lbai-update-kit",
+      "tool": "update_kit.py",
+      "requires_enrichment": false
+    }
+  ]
+}
