@@ -904,7 +904,7 @@
 
     const requiredFiles = [
       'README.md',
-      'lbai_system/VERSION',
+      '.lbai/workspace.json',
       'role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
       'role_workspace/world_model/ROLE_BOUNDARY_v1.md',
       'role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md',
@@ -953,8 +953,19 @@
     }
 
     function shouldIndexFile(path, name) {
-      if (name === 'VERSION' && path === 'lbai_system/VERSION') return true;
+      if (path === '.lbai/workspace.json') return true;
       return name.endsWith('.md');
+    }
+
+    function parseWorkspaceKitVersion(raw) {
+      if (!raw) return '';
+      try {
+        const data = JSON.parse(raw);
+        const version = String(data.workspaceKitVersion || '').trim();
+        return version ? version.replace(/^v/i, '') : '';
+      } catch (_error) {
+        return '';
+      }
     }
 
     function normalizePickedPath(relativePath) {
@@ -1086,7 +1097,7 @@
       const ledger = textFiles.get('role_workspace/ledgers/TASK_LEDGER_v1.md') || '';
       const evidenceLedger = textFiles.get('role_workspace/ledgers/EVIDENCE_LEDGER_v1.md') || '';
       const blocked = textFiles.get('role_workspace/ledgers/BLOCKED_ITEMS_v1.md') || '';
-      const version = (textFiles.get('lbai_system/VERSION') || '').trim();
+      const version = parseWorkspaceKitVersion(textFiles.get('.lbai/workspace.json') || '');
       const roleTemplate = textFiles.get('lbai_system/templates/role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
 
       $('workspaceName').textContent = firstHeading(readme) || 'LBAI 工作区看板';

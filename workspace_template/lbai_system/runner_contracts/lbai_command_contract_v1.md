@@ -311,7 +311,7 @@ Response format:
 工作流更新完成：<UPDATED | NO_CHANGES | BLOCKED | DRY_RUN>
 commit_readiness: <READY | BLOCKED | NEEDS_MANUAL_CHECK>
 git_status: <PUSHED | COMMITTED | NO_CHANGES | PUSH_FAILED | BLOCKED | SKIPPED | COMMIT_SKIPPED>
-当前版本：<version>
+当前版本：<workspaceKitVersion，来自 GitHub release 的 lbai-workspace-kit VERSION，写入 .lbai/workspace.json>
 已更新：
 - <files or 无>
 GitHub 同步：

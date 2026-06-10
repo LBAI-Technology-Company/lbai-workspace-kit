@@ -231,15 +231,15 @@ def kit_template_root(source_root: Path) -> Path:
     return source_root
 
 
-def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
+def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | None, str, str]:
     parsed = parse_github_release_source(source)
     if not parsed:
-        return None, f'Invalid GitHub release source: {source}'
+        return None, f'Invalid GitHub release source: {source}', 'unknown'
     repo, tag = parsed
     if tag == 'latest':
         resolved_tag, detail = resolve_latest_release_tag(repo)
         if not resolved_tag:
-            return None, f'Failed to resolve latest GitHub release for {repo}: {detail}'
+            return None, f'Failed to resolve latest GitHub release for {repo}: {detail}', 'unknown'
         tag = resolved_tag
 
     archive_dir = temp_root / 'release-archive'
@@ -284,25 +284,29 @@ def materialize_release_source(source: str, temp_root: Path) -> tuple[Path | Non
             f'Failed to download GitHub release archive {repo}@{tag}. '
             'Make sure the employee has access to lbai-workspace-kit and has run the README Git token setup. '
             + '; '.join(item for item in download_details if item)
-        )
+        ), 'unknown'
 
     unpack_root = temp_root / 'release-unpacked'
     unpack_root.mkdir(parents=True, exist_ok=True)
     try:
         shutil.unpack_archive(str(archive_path), str(unpack_root))
     except Exception as exc:
-        return None, f'Failed to unpack GitHub release archive {repo}@{tag}: {exc}'
-    return kit_template_root(release_archive_root(unpack_root)), f'github-release:{repo}:{tag}'
+        return None, f'Failed to unpack GitHub release archive {repo}@{tag}: {exc}', 'unknown'
+    archive_root = release_archive_root(unpack_root)
+    source_version = kit_version_from_tree(archive_root)
+    if source_version == 'unknown':
+        source_version = normalize_version(tag)
+    return kit_template_root(archive_root), f'github-release:{repo}:{tag}', source_version
 
 
-def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
+def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str, str]:
     if source.startswith('github-release:'):
         return materialize_release_source(source, temp_root)
 
     local = Path(source).expanduser()
     if local.exists():
         resolved = kit_template_root(local.resolve())
-        return resolved, f'local:{resolved}'
+        return resolved, f'local:{resolved}', kit_version_from_tree(resolved)
 
     target = temp_root / 'lbai-workspace-kit'
     clone = subprocess.run(
@@ -312,8 +316,9 @@ def materialize_source(source: str, temp_root: Path) -> tuple[Path | None, str]:
     )
     if clone.returncode != 0:
         detail = (clone.stdout + clone.stderr).strip()
-        return None, f'Failed to clone workflow kit source: {detail}'
-    return kit_template_root(target), source
+        return None, f'Failed to clone workflow kit source: {detail}', 'unknown'
+    resolved = kit_template_root(target)
+    return resolved, source, kit_version_from_tree(resolved)
 
 
 def validate_source(source_root: Path) -> list[str]:
@@ -324,15 +329,58 @@ def validate_source(source_root: Path) -> list[str]:
     return missing
 
 
-def version_from(root: Path) -> str:
-    version_file = root / 'lbai_system' / 'VERSION'
-    value = read_text(version_file).strip()
-    if value:
-        return value
-    result = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=root, capture_output=True, text=True)
-    if result.returncode == 0 and result.stdout.strip():
-        return result.stdout.strip()
+def normalize_version(value: str) -> str:
+    return value.strip().lstrip('v')
+
+
+def workspace_kit_version(root: Path) -> str:
+    metadata_path = root / '.lbai' / 'workspace.json'
+    if metadata_path.exists():
+        try:
+            data = json.loads(metadata_path.read_text(encoding='utf-8'))
+            version = str(data.get('workspaceKitVersion', '')).strip()
+            if version:
+                return normalize_version(version)
+        except (json.JSONDecodeError, OSError):
+            pass
+    legacy_path = root / 'lbai_system' / 'VERSION'
+    if legacy_path.exists():
+        value = read_text(legacy_path).strip()
+        if value:
+            return normalize_version(value)
     return 'unknown'
+
+
+def kit_version_from_tree(source_root: Path) -> str:
+    for candidate in [source_root, *source_root.parents]:
+        version_file = candidate / 'VERSION'
+        if not version_file.is_file():
+            continue
+        if (candidate / 'workspace_template').is_dir() or candidate.name == 'workspace_template':
+            value = read_text(version_file).strip()
+            if value:
+                return normalize_version(value)
+    return 'unknown'
+
+
+def write_workspace_kit_version(root: Path, version: str) -> None:
+    version = normalize_version(version)
+    metadata_path = root / '.lbai' / 'workspace.json'
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    data: dict[str, object] = {}
+    if metadata_path.exists():
+        try:
+            data = json.loads(metadata_path.read_text(encoding='utf-8'))
+        except json.JSONDecodeError:
+            data = {}
+    data['workspaceKitVersion'] = version
+    data.setdefault('coreVersionRequired', '>=0.1.0')
+    data.setdefault('templateSource', DEFAULT_REPO)
+    data.setdefault(
+        'managedPaths',
+        [rel(path) for path in MANAGED_DIRS + MANAGED_FILES],
+    )
+    metadata_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
 def remove_path(path: Path):
@@ -397,6 +445,15 @@ def changed_managed_files(root: Path) -> list[str]:
     return sorted(files)
 
 
+def post_update_changed_files(root: Path) -> list[str]:
+    files = changed_managed_files(root)
+    metadata = '.lbai/workspace.json'
+    status = run_git(root, ['status', '--porcelain', '--', metadata])
+    if status.stdout.strip() and metadata not in files:
+        files.append(metadata)
+    return sorted(files)
+
+
 def source_managed_files(source_root: Path) -> list[str]:
     files = []
     for directory in MANAGED_DIRS:
@@ -447,7 +504,7 @@ def git_has_staged_changes(root: Path) -> bool:
 
 
 def stage_managed(root: Path) -> tuple[bool, str]:
-    paths = [rel(p) for p in MANAGED_DIRS + MANAGED_FILES]
+    paths = [rel(p) for p in MANAGED_DIRS + MANAGED_FILES] + ['.lbai/workspace.json']
     result = run_git(root, ['add', '-A', '--', *paths])
     if result.returncode != 0:
         return False, (result.stdout + result.stderr).strip()
@@ -493,7 +550,7 @@ def main():
     args = parser.parse_args()
 
     root = git_root() or Path.cwd()
-    before_version = version_from(root)
+    before_version = workspace_kit_version(root)
     source = source_from_arg(args.source)
     overwrite_managed = args.overwrite_managed or args.allow_dirty_managed
 
@@ -526,7 +583,7 @@ def main():
             return 1
 
     with tempfile.TemporaryDirectory(prefix='lbai-kit-update-') as temp_name:
-        source_root, source_label = materialize_source(source, Path(temp_name))
+        source_root, source_label, source_version = materialize_source(source, Path(temp_name))
         if source_root is None:
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
@@ -552,22 +609,25 @@ def main():
             print_list('findings:', source_findings)
             return 1
 
-        source_version = version_from(source_root)
+        source_version = source_version if source_version != 'unknown' else kit_version_from_tree(source_root)
         touched = sync_managed_paths(root, source_root, args.dry_run)
+        if not args.dry_run:
+            write_workspace_kit_version(root, source_version)
 
     if args.dry_run:
         print('kit_update_status: DRY_RUN')
         print('commit_readiness: READY')
         print('git_status: SKIPPED')
         print(f'workspace_root: {root}')
-        print(f'source: {source}')
-        print(f'current_version: {before_version}')
+        print(f'source: {source_label}')
+        print(f'workspace_kit_version: {before_version}')
+        print(f'release_version: {source_version}')
         print_list('managed_paths_to_sync:', touched)
         print_employee_artifact_note(root)
         return 0
 
-    after_version = version_from(root)
-    changed_files = changed_managed_files(root)
+    after_version = workspace_kit_version(root)
+    changed_files = post_update_changed_files(root)
     findings = hygiene_findings(root, changed_files)
     if findings:
         print('kit_update_status: BLOCKED')
@@ -583,7 +643,7 @@ def main():
         print('git_status: NO_CHANGES')
         print(f'workspace_root: {root}')
         print(f'source: {source_label}')
-        print(f'current_version: {after_version}')
+        print(f'workspace_kit_version: {after_version}')
         print_list('updated_paths:', [])
         print_employee_artifact_note(root)
         return 0
@@ -595,7 +655,7 @@ def main():
         print(f'workspace_root: {root}')
         print(f'source: {source_label}')
         print(f'previous_version: {before_version}')
-        print(f'current_version: {after_version}')
+        print(f'workspace_kit_version: {after_version}')
         if pre_dirty and overwrite_managed:
             print_list('overwritten_local_changes:', pre_dirty)
         print_list('updated_paths:', changed_files)
@@ -620,7 +680,7 @@ def main():
         print(f'workspace_root: {root}')
         print(f'source: {source_label}')
         print(f'previous_version: {before_version}')
-        print(f'current_version: {after_version}')
+        print(f'workspace_kit_version: {after_version}')
         print(f'commit_message: {commit_detail}')
         print('github_sync: skipped_by_flag')
         if pre_dirty and overwrite_managed:
@@ -645,7 +705,7 @@ def main():
     print(f'workspace_root: {root}')
     print(f'source: {source_label}')
     print(f'previous_version: {before_version}')
-    print(f'current_version: {after_version}')
+    print(f'workspace_kit_version: {after_version}')
     print(f'commit_message: {commit_detail}')
     print('github_sync: completed')
     if pre_dirty and overwrite_managed:

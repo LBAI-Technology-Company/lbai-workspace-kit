@@ -76,17 +76,19 @@ chore(lbai): update workflow kit to <version>
 
 ## Version Metadata
 
-Each initialized workspace should include a local metadata file such as:
+Each initialized workspace stores the kit version in:
 
 ```text
 .lbai/workspace.json
 ```
 
+The version comes from the GitHub release tag of `LBAI-Technology-Company/lbai-workspace-kit` (root `VERSION` file). Do not maintain a separate `lbai_system/VERSION`.
+
 Example:
 
 ```json
 {
-  "workspaceKitVersion": "0.1.0",
+  "workspaceKitVersion": "0.1.14",
   "coreVersionRequired": ">=0.1.0",
   "templateSource": "LBAI-Technology-Company/lbai-workspace-kit",
   "managedPaths": [
