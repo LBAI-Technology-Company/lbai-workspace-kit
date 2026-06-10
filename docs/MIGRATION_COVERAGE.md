@@ -19,11 +19,12 @@ Covered:
 - Existing private repo initialization flow
 - `lbai doctor`
 - `lbai update-kit`
-- Daily command routing for `init`, `new-task`, `add-evidence`, `search-artifacts`, and `finish-task`
+- Daily command routing for `init`, `new-task`, `add-evidence`, `search-artifacts`, `finish-task`, and `execute-task`
+- AI enrichment prompts/schemas for employee commands (no rule-based fallback except `update-kit`)
 
 Partially covered:
 
-- `lbai execute-task`: resolves the task and prepares the execution handoff, but still expects Codex or Cursor to generate `task_output.md` because Stage 1 is not a standalone LLM runtime.
+- `lbai execute-task`: Agent writes `execution_plan.md` and `task_output.md` via prompt; no JSON enrichment tool.
 - `lbai auth login`: stores a token outside the workspace in the local LBAI home directory. A future version can use system Keychain or GitHub device login.
 
 Not included by design:
@@ -44,4 +45,5 @@ Not included by design:
 - Ran `lbai new-task`.
 - Ran `lbai update-kit --no-commit`.
 - Ran Python syntax checks for the CLI and migrated workspace tools.
+- Added `tests/` suite (`bash tests/run_tests.sh`) for enrichment validation and isolated workspace integration tests.
 

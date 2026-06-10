@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import subprocess
 import sys
 from datetime import date
@@ -7,7 +8,51 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
+from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
 from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+
+
+ENRICHMENT_VERSION = 'finish_review_enrichment_v1'
+BLOCKED_MESSAGE = (
+    'AI finish review required (--enrichment). Use Cursor or Codex desktop app; '
+    'see lbai_system/prompts/finish_review_enrichment_prompt_v1.md'
+)
+
+
+def validate_finish_review(data: dict) -> str | None:
+    err = require_version(data, ENRICHMENT_VERSION)
+    if err:
+        return err
+    for field in ('finish_verdict', 'completeness_summary', 'gaps', 'overclaim_risks', 'next_step'):
+        if field not in data:
+            return f'missing required field: {field}'
+    if data['finish_verdict'] not in {'APPROVE_FINISH', 'BLOCK_FINISH'}:
+        return 'invalid finish_verdict'
+    for field in ('gaps', 'overclaim_risks'):
+        if not isinstance(data[field], list):
+            return f'{field} must be an array'
+    return None
+
+
+def write_finish_review_artifact(task_dir: Path, data: dict):
+    (task_dir / 'finish_review_enrichment.json').write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + '\n',
+        encoding='utf-8',
+    )
+    summary = str(data.get('completeness_summary', '')).strip()
+    gaps = data.get('gaps') or []
+    risks = data.get('overclaim_risks') or []
+    notes = data.get('review_notes') or []
+    (task_dir / 'finish_review.md').write_text(
+        '# Finish Review\n\n'
+        f'## finish_verdict\n{data["finish_verdict"]}\n\n'
+        f'## completeness_summary\n{summary}\n\n'
+        f'## gaps\n' + ('\n'.join(f'- {item}' for item in gaps) if gaps else '- None') + '\n\n'
+        f'## overclaim_risks\n' + ('\n'.join(f'- {item}' for item in risks) if risks else '- None') + '\n\n'
+        f'## review_notes\n' + ('\n'.join(f'- {item}' for item in notes) if notes else '- None') + '\n\n'
+        f'## next_step\n{data.get("next_step", "None")}\n',
+        encoding='utf-8',
+    )
 
 
 def run_pre_commit_check(root: Path, task_folder: str) -> tuple[int, str]:
@@ -163,7 +208,18 @@ def update_structured_task_ledger(
     task_id = task_dir.name
     artifacts = list_task_artifacts(task_dir)
     sources = source_artifacts_for_task(task_dir)
-    outputs = [name for name in artifacts if name in {'task_output.md', 'overclaim_check.md', 'release_boundary_check.md', 'founder_review_needed.md'}]
+    outputs = [
+        name for name in artifacts
+        if name in {
+            'task_output.md',
+            'execution_plan.md',
+            'finish_review.md',
+            'finish_review_enrichment.json',
+            'overclaim_check.md',
+            'release_boundary_check.md',
+            'founder_review_needed.md',
+        }
+    ]
     if not outputs:
         outputs = ['None']
     fields = {
@@ -211,25 +267,42 @@ def update_global_ledger(root: Path, task_folder: str, status: str, commit_readi
 
 def next_dependency_for(status: str, commit_readiness: str, git_status: str, leader_review_reminder: bool = False) -> str:
     if status == 'BLOCKED':
-        return 'Resolve missing task files or missing inputs.'
+        return '先补齐缺失任务文件或缺失输入，再重新运行 /lbai-finish-task。'
     if git_status == 'PUSH_FAILED':
-        return 'Resolve Git push failure and rerun /lbai-finish-task.'
+        return '检查网络、权限或 Git 冲突后，重新运行 /lbai-finish-task。'
     if commit_readiness == 'BLOCKED':
-        return 'Resolve hygiene check blockers.'
+        return '查看下方提交前检查结果，处理敏感信息、临时文件或非本任务变更后重试。'
     if git_status == 'BLOCKED':
-        return 'Resolve Git remote, upstream, or sync blocker and rerun /lbai-finish-task.'
+        return '配置 Git remote/upstream 或处理同步阻塞后，重新运行 /lbai-finish-task。'
     if git_status == 'COMMITTED':
-        return 'Task artifacts committed locally; private GitHub sync status pending.'
+        return '任务已本地提交，之后需要同步到 private GitHub。'
     if leader_review_reminder and status == 'COMPLETED':
         return LEADER_REVIEW_REMINDER
     if git_status == 'PUSHED':
-        return 'Private GitHub artifact ledger synced.'
-    return 'Rerun /lbai-finish-task from the repository root.'
+        return 'private GitHub 任务记录已同步。'
+    return '请在工作区根目录重新运行 /lbai-finish-task。'
+
+
+def employee_summary(status: str, commit_readiness: str, git_status: str, sync_detail: str, next_dependency: str) -> tuple[str, str]:
+    if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
+        return '任务已完成，并已同步到 private GitHub。', '可以继续下一个任务。'
+    if sync_detail.startswith('MISSING_GITHUB_REMOTE'):
+        return '任务已本地更新，但还没有配置 GitHub remote，暂未同步。', '先配置 private repo remote，或运行 lbai doctor 查看工作区状态。'
+    if sync_detail.startswith('MISSING_GIT_UPSTREAM'):
+        return '任务已本地更新，但当前分支没有 upstream，暂未同步。', '设置 upstream 后重新运行 /lbai-finish-task。'
+    if git_status == 'PUSH_FAILED':
+        return '任务已本地提交，但推送 GitHub 失败。', '检查网络、权限或冲突后重新运行 /lbai-finish-task。'
+    if status == 'BLOCKED':
+        return '任务还不能完成。', next_dependency
+    if commit_readiness == 'BLOCKED':
+        return '任务文件已更新，但提交前检查未通过。', next_dependency
+    return '任务已本地更新，但同步状态需要处理。', next_dependency
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('task_folder')
+    parser.add_argument('--enrichment', required=True)
     args = parser.parse_args()
 
     root = workspace_root()
@@ -239,6 +312,25 @@ def main():
         print('commit_readiness: BLOCKED')
         print('reason: task_folder must be an existing task under tasks/ with task_scope.md and task_ledger.md')
         return 1
+
+    enrichment_path = resolve_enrichment_path(root, args.enrichment)
+    review_data, review_error = load_json_file(enrichment_path)
+    if review_data is None:
+        print('task_status: BLOCKED')
+        print('commit_readiness: BLOCKED')
+        print(f'reason: {review_error or BLOCKED_MESSAGE}')
+        print(f'next_step: {BLOCKED_MESSAGE}')
+        return 1
+    validation_error = validate_finish_review(review_data)
+    if validation_error:
+        print('task_status: BLOCKED')
+        print('commit_readiness: BLOCKED')
+        print(f'reason: {validation_error}')
+        print(f'next_step: {BLOCKED_MESSAGE}')
+        return 1
+
+    write_finish_review_artifact(task_dir, review_data)
+    ai_finish_blocked = review_data['finish_verdict'] == 'BLOCK_FINISH'
 
     status = determine_task_status(task_dir)
     needs_leader_review_reminder = review_required(task_dir)
@@ -250,7 +342,12 @@ def main():
         commit_readiness = 'BLOCKED'
         sync_detail = 'Task status is BLOCKED; resolve missing inputs or required files before GitHub sync.'
 
-    if commit_readiness == 'READY' and status != 'BLOCKED':
+    if ai_finish_blocked:
+        commit_readiness = 'BLOCKED'
+        gap_text = '; '.join(str(item) for item in review_data.get('gaps') or []) or review_data.get('completeness_summary', '')
+        sync_detail = f'AI finish review blocked: {gap_text}'
+
+    if commit_readiness == 'READY' and status != 'BLOCKED' and not ai_finish_blocked:
         if not git_remote_available(root):
             commit_readiness = 'BLOCKED'
             sync_detail = 'MISSING_GITHUB_REMOTE: no Git remote configured'
@@ -324,11 +421,16 @@ def main():
                         else:
                             sync_detail = f'{task_commit_message}; {sync_commit_message}'
 
+    summary, employee_next_step = employee_summary(status, commit_readiness, git_status, sync_detail, next_dependency)
+    print(f'结果：{summary}')
+    print(f'下一步：{employee_next_step}')
     print(f'task_status: {status}')
     print(f'commit_readiness: {commit_readiness}')
     print(f'git_status: {git_status}')
     print('updated:')
     print(f'- {args.task_folder}/task_ledger.md')
+    print(f'- {args.task_folder}/finish_review.md')
+    print(f'- {args.task_folder}/finish_review_enrichment.json')
     print('- role_workspace/ledgers/TASK_LEDGER_v1.md')
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
         print('auto_git_sync: completed')

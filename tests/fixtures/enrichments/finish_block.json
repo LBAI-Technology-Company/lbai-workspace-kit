@@ -1,0 +1,9 @@
+{
+  "schema_version": "finish_review_enrichment_v1",
+  "finish_verdict": "BLOCK_FINISH",
+  "completeness_summary": "缺少 completion_conditions 中要求的分类覆盖。",
+  "gaps": ["未覆盖第三类反馈", "缺少下一步动作"],
+  "overclaim_risks": ["引用了未验证的转化率数据"],
+  "review_notes": ["需补充数据来源"],
+  "next_step": "补全 task_output.md 后重新 finish"
+}

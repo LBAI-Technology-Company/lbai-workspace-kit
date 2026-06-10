@@ -6,9 +6,13 @@
 *.token
 *.log
 __pycache__/
+.pytest_cache/
 .venv/
+tests/.venv/
+/role_workspace/
+/tasks/
 dist/
 build/
 node_modules/
 .lbai-local/
-
+/.cursor/

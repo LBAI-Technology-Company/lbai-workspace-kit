@@ -1,48 +1,100 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import sys
 from datetime import date
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from task_utils import LEADER_REVIEW_REMINDER, classify_risk, today_slugged_task_dir, workspace_root, write_if_missing
+from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
+from task_utils import LEADER_REVIEW_REMINDER, today_slugged_task_dir, workspace_root, write_if_missing
 
 
 ROOT = workspace_root()
+ENRICHMENT_VERSION = 'task_intake_enrichment_v1'
+BLOCKED_MESSAGE = (
+    'AI enrichment required (--enrichment). Use Cursor or Codex desktop app; '
+    'see lbai_system/prompts/task_intake_enrichment_prompt_v1.md'
+)
 
 
-def likely_missing_inputs(description: str) -> list[str]:
-    low = description.lower()
-    missing = []
-    if any(k in low for k in ['会议', 'meeting', '纪要', 'action items']):
-        missing.append('会议全文或会议笔记')
-    if any(k in low for k in ['官网', '文案', 'homepage', 'website', '产品说明']):
-        missing.append('产品说明、原始草稿或 approved source')
-    if any(k in low for k in ['用户反馈', '客户反馈', 'feedback']):
-        missing.append('用户反馈原文，敏感信息会自动脱敏')
-    if any(k in low for k in ['周报', 'weekly']):
-        missing.append('本周工作材料或要点')
-    return missing
+def validate_intake(data: dict) -> str | None:
+    err = require_version(data, ENRICHMENT_VERSION)
+    if err:
+        return err
+    required = [
+        'task_description', 'goal', 'expected_output', 'missing_inputs',
+        'status', 'review_needed', 'completion_conditions',
+    ]
+    for field in required:
+        if field not in data:
+            return f'missing required field: {field}'
+    if data['status'] not in {'OPEN', 'BLOCKED'}:
+        return 'invalid status'
+    if not isinstance(data['missing_inputs'], list):
+        return 'missing_inputs must be an array'
+    if not isinstance(data['completion_conditions'], list):
+        return 'completion_conditions must be an array'
+    if not str(data.get('task_description', '')).strip():
+        return 'task_description must be non-empty'
+    if data['status'] == 'OPEN' and data['missing_inputs']:
+        return 'status OPEN requires empty missing_inputs'
+    if data['status'] == 'BLOCKED' and not data['missing_inputs']:
+        return 'status BLOCKED requires missing_inputs'
+    return None
+
+
+def finalize_review(data: dict) -> tuple[bool, str, list[str]]:
+    review_needed = bool(data.get('review_needed'))
+    reasons = [str(item).strip() for item in (data.get('review_reasons') or []) if str(item).strip()]
+    review_reason = '; '.join(reasons) if reasons else (
+        'Review required' if review_needed else 'Internal or low-risk task based on AI intake'
+    )
+    return review_needed, review_reason, reasons
+
+
+def markdown_list(items: list[str]) -> str:
+    cleaned = [str(item).strip() for item in items if str(item).strip()]
+    return '\n'.join(f'- {item}' for item in cleaned) if cleaned else '- None'
+
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('task_description', nargs='*')
     parser.add_argument('--owner', default='<owner>')
+    parser.add_argument('--enrichment', required=True)
     args = parser.parse_args()
-    task_description = ' '.join(args.task_description).strip()
-    if not task_description:
+
+    enrichment_path = resolve_enrichment_path(ROOT, args.enrichment)
+    data, error = load_json_file(enrichment_path)
+    if data is None:
         print('TASK_FOLDER unresolved')
         print('STATUS BLOCKED')
-        print('MISSING task_description')
-        print('NEXT_STEP 请补充任务描述，例如：/lbai-new-task 整理今天市场会议纪要和 action items')
+        print(f'reason: {error or BLOCKED_MESSAGE}')
+        print(f'NEXT_STEP {BLOCKED_MESSAGE}')
         return 2
+
+    validation_error = validate_intake(data)
+    if validation_error:
+        print('TASK_FOLDER unresolved')
+        print('STATUS BLOCKED')
+        print(f'reason: {validation_error}')
+        print(f'NEXT_STEP {BLOCKED_MESSAGE}')
+        return 2
+
+    task_description = str(data['task_description']).strip()
+    goal = str(data['goal']).strip()
+    expected_output = str(data['expected_output']).strip()
+    missing_inputs = [str(item).strip() for item in data['missing_inputs'] if str(item).strip()]
+    status = data['status']
+    completion_conditions = [str(item).strip() for item in data['completion_conditions'] if str(item).strip()]
+    execution_notes = str(data.get('execution_notes') or '').strip()
+    review_needed, review_reason, _ = finalize_review(data)
+    risk_level = 'high' if review_needed else 'low'
 
     task_dir = today_slugged_task_dir(ROOT, task_description)
     task_id = task_dir.name
-    risk_level, review_needed, review_reason = classify_risk(task_description)
-    missing_inputs = likely_missing_inputs(task_description)
-    status = 'BLOCKED' if missing_inputs else 'OPEN'
 
     write_if_missing(task_dir / 'task_scope.md', f"""# Task Scope
 
@@ -53,19 +105,25 @@ def main():
 {task_description}
 
 ## goal
-{task_description}
+{goal}
 
 ## owner
 {args.owner}
 
 ## inputs_available
-- Task description from user chat
+- Task intake enrichment: {enrichment_path.name}
 
 ## inputs_missing
-{chr(10).join(f'- {item}' for item in missing_inputs) if missing_inputs else '- None'}
+{markdown_list(missing_inputs)}
 
 ## expected_output
-<define expected output>
+{expected_output}
+
+## completion_conditions
+{markdown_list(completion_conditions)}
+
+## execution_notes
+{execution_notes or 'None'}
 
 ## risk_level
 {risk_level}
@@ -120,9 +178,10 @@ false
 - task_ledger.md
 
 ## completion_conditions
-- Required input exists
-- task_output.md generated
-- /lbai-finish-task updates ledgers and commit readiness
+{markdown_list(completion_conditions)}
+
+## completion_conditions_source
+task intake enrichment
 """, ROOT)
 
     write_if_missing(task_dir / 'task_ledger.md', f"""# Task Ledger
@@ -137,10 +196,10 @@ false
 {task_description}
 
 ## task_goal
-{task_description}
+{goal}
 
 ## source_artifacts
-- Task description from user chat
+- Task intake enrichment: {enrichment_path.name}
 
 ## agents_or_tools_used
 - /lbai-new-task
@@ -150,6 +209,7 @@ false
 - task_scope.md
 - task_slot.md
 - task_ledger.md
+- task_intake_enrichment.json
 
 ## status
 {status}
@@ -179,24 +239,30 @@ NOT_SYNCED
 {f'请直接粘贴缺失输入，工作区助手应使用 /lbai-add-evidence {task_dir.relative_to(ROOT)} 保存为 evidence 并更新缺口状态。' if missing_inputs else f'Run /lbai-execute-task {task_dir.relative_to(ROOT)}.'}
 """, ROOT)
 
+    (task_dir / 'task_intake_enrichment.json').write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + '\n',
+        encoding='utf-8',
+    )
+
     if missing_inputs:
-        write_if_missing(task_dir / 'missing_inputs.md', "# Missing Inputs\n\n" + "\n".join(f"- {item}" for item in missing_inputs) + "\n", ROOT)
+        write_if_missing(task_dir / 'missing_inputs.md', '# Missing Inputs\n\n' + '\n'.join(f'- {item}\n' for item in missing_inputs) + '\n', ROOT)
 
     if review_needed:
-        write_if_missing(task_dir / 'overclaim_check.md', "# Overclaim Check\n\nReview required. Do not add unapproved public, pricing, legal, investor, media, product capability, or customer promise claims.\n", ROOT)
-        write_if_missing(task_dir / 'release_boundary_check.md', "# Release Boundary Check\n\nThis task is not approved for public release until founder or role owner review is complete.\n", ROOT)
-        write_if_missing(task_dir / 'founder_review_needed.md', "# Founder Review Reminder\n\nRemind the employee: leader review is required before external release. This workflow does not block execution or finish.\n", ROOT)
+        write_if_missing(task_dir / 'overclaim_check.md', '# Overclaim Check\n\nReview required. Do not add unapproved public, pricing, legal, investor, media, product capability, or customer promise claims.\n', ROOT)
+        write_if_missing(task_dir / 'release_boundary_check.md', '# Release Boundary Check\n\nThis task is not approved for public release until founder or role owner review is complete.\n', ROOT)
+        write_if_missing(task_dir / 'founder_review_needed.md', '# Founder Review Reminder\n\nRemind the employee: leader review is required before external release. This workflow does not block execution or finish.\n', ROOT)
 
-    print(f"TASK_FOLDER {task_dir.relative_to(ROOT)}")
-    print(f"STATUS {status}")
-    print(f"REVIEW_NEEDED {str(review_needed).lower()}")
+    print(f'TASK_FOLDER {task_dir.relative_to(ROOT)}')
+    print(f'STATUS {status}')
+    print(f'REVIEW_NEEDED {str(review_needed).lower()}')
     if review_needed:
-        print(f"leader_review_reminder: {LEADER_REVIEW_REMINDER}")
+        print(f'leader_review_reminder: {LEADER_REVIEW_REMINDER}')
     if missing_inputs:
-        print("MISSING " + "; ".join(missing_inputs))
-        print(f"NEXT_STEP 请直接粘贴缺失输入，工作区助手应使用 /lbai-add-evidence {task_dir.relative_to(ROOT)} 保存为 evidence 并更新缺口状态。")
+        print('MISSING ' + '; '.join(missing_inputs))
+        print(f'NEXT_STEP 请直接粘贴缺失输入，工作区助手应使用 /lbai-add-evidence {task_dir.relative_to(ROOT)} 保存为 evidence 并更新缺口状态。')
     else:
-        print(f"NEXT_STEP /lbai-execute-task {task_dir.relative_to(ROOT)}")
+        print(f'NEXT_STEP /lbai-execute-task {task_dir.relative_to(ROOT)}')
+
 
 if __name__ == '__main__':
     raise SystemExit(main() or 0)

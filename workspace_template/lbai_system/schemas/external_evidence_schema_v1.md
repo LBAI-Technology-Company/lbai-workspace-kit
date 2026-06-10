@@ -14,9 +14,16 @@ Each evidence folder must contain:
 input.md
 evidence_metadata.md
 evidence_brief.md
+evidence_enrichment.json
 ```
 
-`evidence_brief.md` is a short employee-readable summary. It should separate usable source-supported information from uncertain or inferred information, list confirmed decisions when present, surface missing information and review risks, show linked task gap coverage, and give the safest next step in plain language. It is an aid for use and search, not a separate source of truth.
+`evidence_enrichment.json` is the AI-generated structured enrichment produced in Cursor or the Codex desktop app before capture. `add_evidence.py` requires it via `--enrichment` and does not provide a rule-based fallback.
+
+Prompt: `lbai_system/prompts/evidence_enrichment_prompt_v1.md`
+
+Schema: `lbai_system/schemas/evidence_enrichment_schema_v1.json`
+
+`evidence_brief.md` is a short employee-readable summary generated from enrichment. It should separate usable source-supported information from uncertain or inferred information, list confirmed decisions when present, surface missing information and review risks, show linked task gap coverage, and give the safest next step in plain language. It is an aid for use and search, not a separate source of truth.
 
 Task-local `input_*.md` files are legacy fallback artifacts only. New user-provided material should be captured through `/lbai-add-evidence` and linked back to a task when applicable.
 
@@ -27,7 +34,8 @@ Each `evidence_metadata.md` file should include:
 - `source_identity`: who or what provided the source
 - `source_kind`: transcript, feedback, interview, draft, data_notes, source, notes, general, or reference
 - `captured_at`: local capture date
-- `admissibility_status`: `CAPTURED`, `NEEDS_REVIEW`, `ADMITTED`, or `REJECTED`
+- `admissibility_status`: `CAPTURED`, `NEEDS_REVIEW`, `ADMITTED`, or `REJECTED` (from AI enrichment; code does not keyword-upgrade)
+- `ai_admissibility_status`: copy of AI judgment before capture
 - `converted_artifact_status`: `REFERENCE_ONLY`, `TASK_SUGGESTED`, `LINKED_TO_TASK`, `CONVERTED_TO_TASK_OUTPUT`, or `CONVERTED_TO_ROLE_DELTA`
 - `usage_intent`: reference, possible_task_input, or task_input
 - `linked_task`: task folder or `None`

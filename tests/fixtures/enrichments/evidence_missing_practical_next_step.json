@@ -1,0 +1,16 @@
+{
+  "schema_version": "evidence_enrichment_v1",
+  "source_kind": "transcript",
+  "usage_intent": "reference",
+  "admissibility_status": "CAPTURED",
+  "brief": {
+    "usable_facts": [],
+    "review_limited": [],
+    "uncertain": [],
+    "decisions": [],
+    "missing_info": [],
+    "action_items": [],
+    "blocked_signals": [],
+    "risks": []
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "schema_version": "evidence_enrichment_v1",
+  "source_kind": "transcript",
+  "usage_intent": "task_input",
+  "admissibility_status": "CAPTURED",
+  "review_reasons": [],
+  "cleaned_content": "补充了上周用户反馈样本。",
+  "brief": {
+    "usable_facts": ["提供了 5 条典型反馈"],
+    "review_limited": [],
+    "uncertain": [],
+    "decisions": [],
+    "missing_info": [],
+    "action_items": [],
+    "blocked_signals": [],
+    "risks": [],
+    "practical_next_step": "继续执行任务"
+  },
+  "gap_analysis": {
+    "covers_gaps": ["用户反馈原始样本"],
+    "remaining_gaps": []
+  }
+}

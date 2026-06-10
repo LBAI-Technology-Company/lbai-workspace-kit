@@ -6,20 +6,30 @@ In this first migrated version, `lbai_core` owns installation, initialization, u
 
 ## Commands
 
+Terminal commands:
+
 ```text
 lbai auth login
 lbai auth doctor
 lbai init-workspace
 lbai doctor
-lbai new-task
-lbai add-evidence
-lbai search-artifacts
-lbai execute-task
-lbai finish-task
 lbai update-kit
 lbai remove-kit
 lbai uninstall
 ```
+
+AI desktop workflow commands are exposed as `/lbai-*` commands in Cursor and the Codex desktop app:
+
+```text
+/lbai-init
+/lbai-add-evidence
+/lbai-search-artifacts
+/lbai-new-task
+/lbai-execute-task
+/lbai-finish-task
+```
+
+These workflows are routed through `lbai_system/tools/`, but commands that need AI-generated enrichment JSON should be launched from Cursor or the Codex desktop app. There is no rule-based fallback.
 
 ## MVP Command Boundaries
 

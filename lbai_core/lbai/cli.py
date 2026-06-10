@@ -686,7 +686,7 @@ def run_workspace_tool(command: str, args: argparse.Namespace, extra: list[str])
 
 def finish_task(args: argparse.Namespace, extra: list[str]) -> int:
     root = find_workspace()
-    if extra:
+    if extra and not extra[0].startswith('-'):
         return run(['python3', 'lbai_system/tools/finish_task.py', *extra], cwd=root).returncode
     resolved = capture(['python3', 'lbai_system/tools/resolve_current_task.py', 'finish'], cwd=root)
     print(resolved.stdout, end='')
@@ -695,7 +695,7 @@ def finish_task(args: argparse.Namespace, extra: list[str]) -> int:
     task = parse_task_folder(resolved.stdout)
     if not task:
         return 2
-    return run(['python3', 'lbai_system/tools/finish_task.py', task], cwd=root).returncode
+    return run(['python3', 'lbai_system/tools/finish_task.py', task, *extra], cwd=root).returncode
 
 
 def execute_task(_args: argparse.Namespace, extra: list[str]) -> int:
@@ -712,9 +712,10 @@ def execute_task(_args: argparse.Namespace, extra: list[str]) -> int:
         rest = []
     if not task:
         return 2
-    print('execute_status: CONTEXT_READY')
-    print(f'task_folder: {task}')
-    print('next_step: open this workspace in Codex or Cursor and run /lbai-execute-task so the model can generate task_output.md from the task contract and evidence.')
+    result = run(['python3', 'lbai_system/tools/prepare_execute_task.py', task], cwd=root)
+    if result.returncode != 0:
+        return result.returncode
+    print('model_handoff: open this workspace in Codex or Cursor and run /lbai-execute-task so the model can write task_output.md from execution_plan.md.')
     if rest:
         print(f'ignored_extra_args: {" ".join(rest)}')
     return 0

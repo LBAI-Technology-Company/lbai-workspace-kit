@@ -55,7 +55,7 @@ During normal discussion, brainstorming, clarification, advice, or task planning
 If there is a recent task that is `BLOCKED`, and the employee pastes or provides information that appears to resolve the missing input:
 
 1. Treat the new chat content as task input.
-2. Run or follow `lbai_system/tools/add_evidence.py <task_folder>` and pass the pasted content.
+2. Follow `/lbai-add-evidence <task_folder>`: produce AI enrichment JSON per `lbai_system/prompts/evidence_enrichment_prompt_v1.md`, then run `python3 lbai_system/tools/add_evidence.py --enrichment <json_path> <task_folder>` with the pasted content.
 3. Save it automatically as evidence under `role_workspace/knowledge/evidence/`, linked to the current task.
 4. Do not require the employee to create the file manually.
 5. Update `missing_inputs.md` to show which gaps were covered and which gaps remain.

@@ -56,31 +56,31 @@ lbai-core + init-workspace installer
 | 依赖 | 说明 |
 |------|------|
 | Git | 安装程序会自动检查；缺失时尝试自动安装 |
-| Python 3 | 安装程序会自动检查；缺失时尝试自动安装 |
+| Python 3.10+ | 安装程序会自动检查；缺失时尝试自动安装 |
 | 网络 | 需能访问 GitHub 或安装镜像 |
 
 安装完成后，本机 `lbai` 命令位于 `~/.lbai/bin/lbai`（Windows 为 `%USERPROFILE%\.lbai\bin\lbai.cmd`）。
 
 ## 员工使用流程
 
-打开终端，按顺序执行下面 3 步。安装程序会**自动检查并安装** Git 和 Python 3（如本机缺失）。
+打开终端，按顺序执行下面 3 步。安装程序会**自动检查并安装** Git 和 Python 3.10+（如本机缺失）。
 
 **第 1 步：安装**
 
 Mac（终端）：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
-安装的是**最新 Release 版本**（`@latest` 始终指向最新 Release，不是 main 开发分支）。完成后会显示：
+安装命令固定到同一个 Release tag，避免不同平台拿到不同版本；安装器会在运行时解析并下载最新 Release 包。完成后会显示：
 
 ```text
 已安装版本: <版本号>
@@ -146,17 +146,73 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 
 ## 日常工作流
 
-在工作区目录内，可使用终端命令或 Cursor / Codex 里的 `/lbai-*` 命令：
+在工作区目录内，可使用终端命令或 Cursor / Codex 桌面 App 里的 `/lbai-*` 命令：
 
 ```bash
-lbai init                  # 首次填写岗位信息
-lbai add-evidence          # 保存资料，不自动建任务
-lbai search-artifacts      # 搜索历史资料
-lbai new-task "任务标题"   # 创建正式任务
-lbai execute-task          # 准备任务，交给 Cursor/Codex 执行
-lbai finish-task           # 完成任务并同步 GitHub
 lbai doctor                # 检查工作区是否正常
+lbai update-kit            # 升级公司模板（纯代码）
 ```
+
+**除 `update-kit` / `doctor` 外，员工向命令请在 Cursor 或 Codex 桌面 App 中使用 `/lbai-*`。** 终端里的 `lbai new-task` 等会因缺少 AI enrichment 而失败。
+
+### 统一模式：AI enrichment + 代码落盘
+
+| 命令 | AI prompt | 代码工具 |
+|------|-----------|----------|
+| `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
+| `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
+| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` → `search_artifacts.py --enrichment` |
+| `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
+| `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent 写 `execution_plan.md` + `task_output.md` |
+| `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
+| `/lbai-update-kit` | 无 | `update_kit.py`（纯代码） |
+
+无 AI enrichment → 对应命令 **BLOCKED**，不降级为规则处理。
+
+Schema 均在 `lbai_system/schemas/*_enrichment_schema_v1.json`。
+
+开发/回归测试（不影响工作区数据）：在 kit 根目录运行 `bash tests/run_tests.sh`。
+
+### 保存资料（`/lbai-add-evidence`）
+
+**请在 Cursor 或 Codex 桌面 App 中使用** `/lbai-add-evidence`，不要单独在终端里裸跑 `lbai add-evidence`。
+
+资料归档是 **AI 增强 + 代码落盘**，没有规则 fallback：
+
+| 步骤 | 谁做 | 做什么 |
+|------|------|--------|
+| 1 | **AI**（Cursor / Codex 桌面） | 读 `lbai_system/prompts/evidence_enrichment_prompt_v1.md`，生成 enrichment JSON |
+| 2 | **代码** | `add_evidence.py --enrichment <json>`：脱敏、写文件、台账、hygiene、git |
+
+AI 负责：Teams 转写清洗、`source_kind` 分类、`evidence_brief` 生成、缺口分析、review 初判。
+
+代码负责：脱敏、目录/台账/git/hygiene。`NEEDS_REVIEW` **仅由 AI enrichment 判定**，代码不做关键词 overlay。
+
+若 AI 不可用（模型不可用、额度用尽、JSON 无效），直接 `evidence_status: BLOCKED`，**不会**降级为规则处理。
+
+Prompt 与 schema：
+
+```text
+lbai_system/prompts/evidence_enrichment_prompt_v1.md
+lbai_system/schemas/evidence_enrichment_schema_v1.json
+```
+
+每个 evidence 目录包含：
+
+```text
+input.md
+evidence_metadata.md
+evidence_brief.md
+evidence_enrichment.json
+```
+
+关联任务时：
+
+```text
+/lbai-add-evidence tasks/<task_folder>
+```
+
+粘贴资料后，AI 会读取 `missing_inputs.md` 并在 enrichment 里填写 `gap_analysis`。
 
 ## GitHub Token 原则
 
@@ -192,7 +248,7 @@ task artifacts
 
 ## 项目目录职责
 
-`install.sh` / `install.ps1`：安装本地 `lbai` 命令，自动检查 Git 和 Python 3，并下载最新 Release。
+`install.sh` / `install.ps1`：安装本地 `lbai` 命令，自动检查 Git 和 Python 3.10+，并下载最新 Release。
 
 `lbai_core/`：轻量 CLI core。第一版负责安装、初始化、升级、doctor，并把日常工作流命令转发到每个工作区里的 `lbai_system/tools/`。
 
@@ -205,7 +261,6 @@ task artifacts
 安装后的 `lbai` CLI 负责确定性流程：
 
 - 初始化工作区
-- 保存 evidence
 - 搜索历史 artifacts
 - 创建任务骨架
 - 运行 hygiene check
@@ -213,7 +268,9 @@ task artifacts
 - 升级 workflow kit
 - 安全 Git 同步
 
-Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、生成任务输出，但底层业务流程应该调用同一个 `lbai_core`，不要在两个平台各写一套规则。
+资料归档（add-evidence）的**落盘、脱敏、台账、git** 由 `add_evidence.py` 完成；**清洗、分类、brief、缺口分析** 必须在 Cursor 或 Codex 桌面 App 中由 AI 先生成 enrichment JSON，无 fallback。
+
+Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、生成 enrichment 与任务输出，但底层业务流程应该调用同一个 `lbai_core`，不要在两个平台各写一套规则。
 
 ## 升级与卸载
 
@@ -228,14 +285,14 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 Mac：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
 ### 升级工作区模板

@@ -12,28 +12,7 @@ REVIEW_TASK_FILES = ['overclaim_check.md', 'release_boundary_check.md', 'founder
 OPTIONAL_REVIEW_TASK_FILES = ['leader_review_request.md']
 REVIEW_ALLOWED_TASK_FILES = REVIEW_TASK_FILES + OPTIONAL_REVIEW_TASK_FILES
 REQUIRED_TASK_FILES = ['task_scope.md', 'task_slot.md', 'task_output.md', 'task_ledger.md']
-
-RISK_KEYWORDS = {
-    'public': ['public-facing', '对外', '公开发布', '官网', 'website', 'homepage', 'landing page'],
-    'pricing': ['pricing', '价格', '报价', '套餐'],
-    'legal': ['legal', 'compliance', '合规', '法律'],
-    'investor': ['investor', '投资人', '融资'],
-    'media': ['media', '媒体', 'press', '新闻稿'],
-    'promise': ['客户承诺', '承诺', 'sla', 'guarantee', 'roadmap', '路线图'],
-    'security': ['security', '安全', '漏洞', 'incident'],
-    'finance': ['finance', '财务', 'revenue', '收入'],
-    'hiring': ['hiring-sensitive', '候选人', '面试评价'],
-}
-
-NEGATION_BY_RISK = {
-    'public': ['不对外发布', 'internal only', 'not public-facing', '内部使用'],
-    'pricing': ['不涉及 pricing', 'no pricing', '不涉及价格', '不涉及 pricing/legal/investor/media', '不涉及 pricing、legal、investor、media'],
-    'legal': ['不涉及 legal', 'no legal', '不涉及合规', '不涉及法律', '不涉及 pricing/legal/investor/media', '不涉及 pricing、legal、investor、media'],
-    'investor': ['不涉及 investor', 'no investor', '不涉及投资人', '不涉及融资', '不涉及 pricing/legal/investor/media', '不涉及 pricing、legal、investor、media'],
-    'media': ['不涉及 media', 'no media', '不涉及媒体', '不涉及 pricing/legal/investor/media', '不涉及 pricing、legal、investor、media'],
-    'security': ['不涉及 security', 'no security', '不涉及安全'],
-    'finance': ['不涉及 finance', 'no finance', '不涉及财务'],
-}
+RECOMMENDED_TASK_FILES = ['execution_plan.md']
 
 SENSITIVE_PATTERNS = [
     r'\b(password|api[_-]?key|access[_-]?token|secret[_-]?token|secret)\b\s*[:=]\s*(?!["\']?(?:[\$<{]|粘贴|YOUR_|your_|xxx|XXX|example|EXAMPLE))[^\s,，。;；]+',
@@ -167,19 +146,6 @@ def task_status(task_dir: Path) -> str:
     return 'OPEN'
 
 
-def classify_risk(text: str) -> tuple[str, bool, str]:
-    low = text.lower()
-    detected = []
-    for risk, keywords in RISK_KEYWORDS.items():
-        if any(k.lower() in low for k in keywords):
-            negated = any(n.lower() in low for n in NEGATION_BY_RISK.get(risk, []))
-            if not negated:
-                detected.append(risk)
-    if detected:
-        return 'high', True, 'High-risk content detected: ' + ', '.join(sorted(set(detected)))
-    return 'low', False, 'Internal or low-risk task based on user description'
-
-
 def review_required(task_path: Path) -> bool:
     combined = f"{read_text(task_path / 'task_scope.md')}\n{read_text(task_path / 'task_ledger.md')}".lower()
     if re.search(r'review_needed\s*\ntrue', combined) or re.search(r'review_needed\s*[:=]\s*true', combined):
@@ -189,10 +155,7 @@ def review_required(task_path: Path) -> bool:
     if re.search(r'review_needed\s*\nfalse', combined) or re.search(r'review_needed\s*[:=]\s*false', combined):
         return False
     risk = markdown_field(combined, 'risk_level')
-    if 'high' in risk:
-        return True
-    risk_level, review, _ = classify_risk(combined)
-    return review or risk_level == 'high'
+    return 'high' in risk
 
 
 def redact_sensitive(text: str) -> tuple[str, list[str]]:

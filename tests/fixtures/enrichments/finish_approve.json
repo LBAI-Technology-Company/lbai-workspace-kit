@@ -1,0 +1,9 @@
+{
+  "schema_version": "finish_review_enrichment_v1",
+  "finish_verdict": "APPROVE_FINISH",
+  "completeness_summary": "交付物覆盖任务目标，结构完整。",
+  "gaps": [],
+  "overclaim_risks": [],
+  "review_notes": ["内部文档，无对外发布"],
+  "next_step": "任务可标记完成"
+}

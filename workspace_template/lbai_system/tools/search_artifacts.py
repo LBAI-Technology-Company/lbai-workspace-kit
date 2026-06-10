@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -7,10 +8,17 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
+from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
 from task_utils import read_text, workspace_root
 
 
 MAX_SNIPPET_CHARS = 220
+CATALOG_EXCERPT_CHARS = 480
+ENRICHMENT_VERSION = 'search_enrichment_v1'
+BLOCKED_MESSAGE = (
+    'AI enrichment required. Use Cursor or Codex desktop app; '
+    'see lbai_system/prompts/search_enrichment_prompt_v1.md'
+)
 
 
 @dataclass
@@ -74,68 +82,58 @@ def strip_code_fences(text: str) -> str:
     return re.sub(r'```.*?```', ' ', text, flags=re.S)
 
 
-def tokenize(query: str) -> list[str]:
-    raw = [part.strip().lower() for part in re.split(r'[\s,，;；]+', query) if part.strip()]
-    terms = []
-    for part in raw:
-        if part not in terms:
-            terms.append(part)
-    compact = re.sub(r'[\s,，;；]+', '', query).lower()
-    if compact and compact not in terms:
-        terms.insert(0, compact)
-    if re.search(r'[\u4e00-\u9fff]', compact) and len(compact) > 2:
-        for idx in range(0, len(compact) - 1):
-            chunk = compact[idx:idx + 2]
-            if chunk not in terms:
-                terms.append(chunk)
-    return terms
-
-
-def score_artifact(artifact: Artifact, terms: list[str]) -> tuple[int, list[str]]:
-    haystack = artifact.search_text.lower()
-    title = artifact.title.lower()
-    path = artifact.path.lower()
-    usage = artifact.usage.lower()
-    reasons = []
-    score = 0
-
-    for term in terms:
-        if not term:
-            continue
-        if term in title:
-            score += 8
-            reasons.append(f'title matches "{term}"')
-        if term in path:
-            score += 5
-            reasons.append(f'path matches "{term}"')
-        if term in usage:
-            score += 3
-            reasons.append(f'usage matches "{term}"')
-        count = haystack.count(term)
-        if count:
-            score += min(count, 6) * 2
-            reasons.append(f'content matches "{term}"')
-
-    if artifact.kind == 'evidence':
-        score += 1
-    if artifact.status.upper() in {'NEEDS_REVIEW', 'WAITING_REVIEW'} or artifact.risk in {'needs_review', 'sensitive_redacted'}:
-        score -= 1
-    return score, reasons[:4]
-
-
-def snippet(text: str, terms: list[str]) -> str:
+def excerpt(text: str, limit: int = CATALOG_EXCERPT_CHARS) -> str:
     compact = re.sub(r'\s+', ' ', strip_code_fences(text)).strip()
     if not compact:
-        return '无可预览内容'
-    low = compact.lower()
-    positions = [low.find(term) for term in terms if term and low.find(term) >= 0]
-    start = max(min(positions) - 70, 0) if positions else 0
-    excerpt = compact[start:start + MAX_SNIPPET_CHARS]
-    if start:
-        excerpt = '...' + excerpt
-    if start + MAX_SNIPPET_CHARS < len(compact):
-        excerpt += '...'
-    return excerpt
+        return ''
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3].rstrip() + '...'
+
+
+def relative_artifact_path(root: Path, path: Path, fallback: str) -> str:
+    try:
+        return path.relative_to(root).as_posix()
+    except ValueError:
+        return fallback
+
+
+def evidence_path_for(root: Path, evidence_id: str) -> Path:
+    direct = root / evidence_id
+    if direct.exists():
+        return direct
+    return root / 'role_workspace' / 'knowledge' / 'evidence' / evidence_id
+
+
+def evidence_artifact(root: Path, evidence_id: str, evidence_path: Path, row: dict[str, str]) -> Artifact:
+    evidence_rel = relative_artifact_path(root, evidence_path, evidence_id)
+    metadata = read_text(evidence_path / 'evidence_metadata.md')
+    brief = read_text(evidence_path / 'evidence_brief.md')
+    body = read_text(evidence_path / 'input.md')
+    kind = clean(row.get('Source Kind', '')) or clean(markdown_field(metadata, 'source_kind'))
+    usage = clean(row.get('Usage Intent', '')) or clean(markdown_field(metadata, 'usage_intent'))
+    status = clean(row.get('Status', '')) or clean(markdown_field(metadata, 'admissibility_status'))
+    linked_task = clean(row.get('Linked Task', '')) or clean(markdown_field(metadata, 'linked_task'))
+    sensitive_capture_status = clean(markdown_field(metadata, 'sensitive_capture_status'))
+    redacted = clean(markdown_field(metadata, 'redacted')).lower() == 'true'
+    if status.upper() == 'NEEDS_REVIEW':
+        risk = 'needs_review'
+    elif sensitive_capture_status.upper() == 'REDACTED' or redacted:
+        risk = 'sensitive_redacted'
+    else:
+        risk = 'normal'
+    title = excerpt(brief.splitlines()[0] if brief else '', 120) or evidence_path.name
+    return Artifact(
+        kind='evidence',
+        artifact_id=evidence_id,
+        path=evidence_rel,
+        title=title,
+        status=status or '-',
+        usage=usage or '-',
+        linked_task=linked_task or '-',
+        risk=risk,
+        search_text=' '.join([evidence_id, evidence_rel, kind, usage, status, linked_task, metadata, brief, body]),
+    )
 
 
 def collect_evidence(root: Path) -> list[Artifact]:
@@ -162,86 +160,6 @@ def collect_evidence(root: Path) -> list[Artifact]:
                 continue
             artifacts.append(evidence_artifact(root, evidence_rel, evidence_path, {}))
     return artifacts
-
-
-def evidence_artifact(root: Path, evidence_id: str, evidence_path: Path, row: dict[str, str]) -> Artifact:
-    evidence_rel = relative_artifact_path(root, evidence_path, evidence_id)
-    metadata = read_text(evidence_path / 'evidence_metadata.md')
-    brief = read_text(evidence_path / 'evidence_brief.md')
-    body = read_text(evidence_path / 'input.md')
-    kind = clean(row.get('Source Kind', '')) or clean(markdown_field(metadata, 'source_kind'))
-    usage = clean(row.get('Usage Intent', '')) or clean(markdown_field(metadata, 'usage_intent'))
-    status = clean(row.get('Status', '')) or clean(markdown_field(metadata, 'admissibility_status'))
-    linked_task = clean(row.get('Linked Task', '')) or clean(markdown_field(metadata, 'linked_task'))
-    sensitive_capture_status = clean(markdown_field(metadata, 'sensitive_capture_status'))
-    redacted = clean(markdown_field(metadata, 'redacted')).lower() == 'true'
-    if status.upper() == 'NEEDS_REVIEW':
-        risk = 'needs_review'
-    elif sensitive_capture_status.upper() == 'REDACTED' or redacted:
-        risk = 'sensitive_redacted'
-    else:
-        risk = 'normal'
-    return Artifact(
-        kind='evidence',
-        artifact_id=evidence_id,
-        path=evidence_rel,
-        title=evidence_path.name or evidence_id.rsplit('/', 1)[-1],
-        status=status or '-',
-        usage=usage or '-',
-        linked_task=linked_task or '-',
-        risk=risk,
-        search_text=' '.join([
-            evidence_id,
-            evidence_rel,
-            kind,
-            usage,
-            status,
-            linked_task,
-            clean(row.get('Covers Gaps', '')),
-            clean(row.get('Next Step', '')),
-            metadata,
-            brief,
-            body,
-        ]),
-    )
-
-
-def evidence_path_for(root: Path, evidence_id: str) -> Path:
-    direct = root / evidence_id
-    if direct.exists():
-        return direct
-    return root / 'role_workspace' / 'knowledge' / 'evidence' / evidence_id
-
-
-def relative_artifact_path(root: Path, path: Path, fallback: str) -> str:
-    try:
-        return path.relative_to(root).as_posix()
-    except ValueError:
-        return fallback
-
-
-def collect_tasks(root: Path) -> list[Artifact]:
-    ledger = root / 'role_workspace' / 'ledgers' / 'TASK_LEDGER_v1.md'
-    artifacts = []
-    seen = set()
-
-    for row in parse_markdown_table(read_text(ledger)):
-        task_id = clean(row.get('Task ID', ''))
-        if not task_id:
-            continue
-        seen.add(task_id)
-        artifacts.append(task_artifact(root, task_id, row))
-
-    tasks_root = root / 'tasks'
-    if tasks_root.exists():
-        for task_dir in sorted(tasks_root.iterdir()):
-            if not task_dir.is_dir() or task_dir.name.startswith('.'):
-                continue
-            rel = f'tasks/{task_dir.name}'
-            if rel in seen or task_dir.name in seen:
-                continue
-            artifacts.append(task_artifact(root, rel, {}))
-    return [artifact for artifact in artifacts if artifact]
 
 
 def task_artifact(root: Path, task_id: str, row: dict[str, str]) -> Artifact:
@@ -277,20 +195,31 @@ def task_artifact(root: Path, task_id: str, row: dict[str, str]) -> Artifact:
         usage=usage or '-',
         linked_task='-',
         risk=risk,
-        search_text=' '.join([
-            rel,
-            goal,
-            status,
-            clean(row.get('Outputs Created', '')),
-            clean(row.get('Next Dependency', '')),
-            usage,
-            scope,
-            ledger,
-            slot,
-            output,
-            ' '.join(task_markdown),
-        ]),
+        search_text=' '.join([rel, goal, status, usage, scope, ledger, slot, output, ' '.join(task_markdown)]),
     )
+
+
+def collect_tasks(root: Path) -> list[Artifact]:
+    ledger = root / 'role_workspace' / 'ledgers' / 'TASK_LEDGER_v1.md'
+    artifacts = []
+    seen = set()
+    for row in parse_markdown_table(read_text(ledger)):
+        task_id = clean(row.get('Task ID', ''))
+        if not task_id:
+            continue
+        seen.add(task_id)
+        artifacts.append(task_artifact(root, task_id, row))
+
+    tasks_root = root / 'tasks'
+    if tasks_root.exists():
+        for task_dir in sorted(tasks_root.iterdir()):
+            if not task_dir.is_dir() or task_dir.name.startswith('.'):
+                continue
+            rel = f'tasks/{task_dir.name}'
+            if rel in seen or task_dir.name in seen:
+                continue
+            artifacts.append(task_artifact(root, rel, {}))
+    return [artifact for artifact in artifacts if artifact]
 
 
 def collect_references(root: Path) -> list[Artifact]:
@@ -317,82 +246,138 @@ def collect_references(root: Path) -> list[Artifact]:
     return artifacts
 
 
-def suggested_use(artifact: Artifact) -> str:
-    if artifact.kind == 'evidence':
-        if artifact.status.upper() == 'NEEDS_REVIEW':
-            return '对外发布前请负责人 review；本流程不阻断执行。'
-        if artifact.risk == 'sensitive_redacted':
-            return '只能使用仓库内脱敏版本；原始内容需走批准的安全渠道。'
-        if artifact.usage == 'possible_task_input':
-            return '可作为新任务候选输入；用户确认后再用 /lbai-new-task。'
-        if artifact.linked_task and artifact.linked_task != '-':
-            return '已关联历史任务；复用前请确认是否适用于当前任务。'
-        return '可作为参考资料；如要驱动任务，需显式关联到当前 task。'
-    if artifact.kind == 'task':
-        if artifact.risk == 'needs_review' or artifact.status.upper() == 'WAITING_REVIEW':
-            return '可参考历史产出；对外发布前请负责人 review。'
-        return '可参考历史任务产出；需要复用时显式写入当前 task 的 source artifacts。'
-    return '可作为长期参考资料；不得自动变成当前任务依据。'
+def collect_all(root: Path) -> list[Artifact]:
+    return collect_evidence(root) + collect_tasks(root) + collect_references(root)
 
 
-def render_results(query: str, matches: list[Artifact], limit: int, terms: list[str]) -> str:
-    if not query.strip():
-        return (
-            'artifact 查询结果：BLOCKED\n'
-            'query: None\n'
-            'matches: None\n'
-            '下一步：请提供查询关键词，例如 /lbai-search-artifacts 用户反馈 官网文案\n'
-        )
+def catalog_entry(root: Path, artifact: Artifact) -> dict:
+    path = root / artifact.path
+    excerpt_source = ''
+    if artifact.kind == 'evidence' and path.is_dir():
+        excerpt_source = read_text(path / 'evidence_brief.md') or read_text(path / 'input.md')
+    elif artifact.kind == 'task' and path.is_dir():
+        excerpt_source = read_text(path / 'task_output.md') or read_text(path / 'task_scope.md')
+    elif path.is_file():
+        excerpt_source = read_text(path)
+    else:
+        excerpt_source = artifact.search_text
+    return {
+        'path': artifact.path,
+        'type': artifact.kind,
+        'title': artifact.title,
+        'status': artifact.status,
+        'usage': artifact.usage,
+        'linked_task': artifact.linked_task,
+        'risk': artifact.risk,
+        'excerpt': excerpt(excerpt_source),
+    }
 
-    if not matches:
+
+def build_catalog(root: Path) -> list[dict]:
+    return [catalog_entry(root, artifact) for artifact in collect_all(root)]
+
+
+def validate_search_enrichment(data: dict, catalog_by_path: dict[str, dict]) -> str | None:
+    err = require_version(data, ENRICHMENT_VERSION)
+    if err:
+        return err
+    for field in ('query', 'result_status', 'matches', 'next_step'):
+        if field not in data:
+            return f'missing required field: {field}'
+    if data['result_status'] not in {'FOUND', 'NO_MATCH'}:
+        return 'invalid result_status'
+    if not isinstance(data['matches'], list):
+        return 'matches must be an array'
+    if data['result_status'] == 'NO_MATCH' and data['matches']:
+        return 'matches must be empty when result_status is NO_MATCH'
+    for item in data['matches']:
+        if not isinstance(item, dict):
+            return 'each match must be an object'
+        for field in ('path', 'match_reason', 'suggested_use', 'preview'):
+            if field not in item:
+                return f'match missing field: {field}'
+        if item['path'] not in catalog_by_path:
+            return f"match path not in catalog: {item['path']}"
+    return None
+
+
+def render_enrichment(data: dict, catalog_by_path: dict[str, dict]) -> str:
+    query = clean(data.get('query', ''))
+    interpretation = clean(data.get('query_interpretation', ''))
+    status = data['result_status']
+    if status == 'NO_MATCH':
         return (
             'artifact 查询结果：NO_MATCH\n'
             f'query: {query}\n'
+            f'query_interpretation: {interpretation or query}\n'
             'matches: None\n'
-            '下一步：如果这是新资料，请用 /lbai-add-evidence 保存；如果是新任务，请用 /lbai-new-task 创建。\n'
+            f'下一步：{data["next_step"]}\n'
         )
 
     lines = [
         'artifact 查询结果：FOUND',
         f'query: {query}',
+        f'query_interpretation: {interpretation or query}',
         'matches:',
     ]
-    for idx, artifact in enumerate(matches[:limit], 1):
+    for idx, item in enumerate(data['matches'], 1):
+        meta = catalog_by_path[item['path']]
         lines.extend([
-            f'{idx}. {artifact.path}',
-            f'   type: {artifact.kind}',
-            f'   title: {artifact.title}',
-            f'   status: {artifact.status}',
-            f'   usage: {artifact.usage}',
-            f'   linked_task: {artifact.linked_task}',
-            f'   risk: {artifact.risk}',
-            f'   match_reason: {artifact.reason or "keyword match"}',
-            f'   preview: {snippet(artifact.search_text, terms)}',
-            f'   suggested_use: {suggested_use(artifact)}',
+            f'{idx}. {item["path"]}',
+            f'   type: {meta["type"]}',
+            f'   title: {meta["title"]}',
+            f'   status: {meta["status"]}',
+            f'   usage: {meta["usage"]}',
+            f'   linked_task: {meta["linked_task"]}',
+            f'   risk: {meta["risk"]}',
+            f'   match_reason: {item["match_reason"]}',
+            f'   preview: {item["preview"]}',
+            f'   suggested_use: {item["suggested_use"]}',
         ])
-    lines.append('下一步：选择候选后，在 /lbai-new-task 或当前 task artifacts 中显式引用；本查询不会自动创建任务、关联资料或更新状态。')
+    lines.append(f'下一步：{data["next_step"]}')
     return '\n'.join(lines) + '\n'
 
 
+def block(message: str) -> int:
+    print('artifact 查询结果：BLOCKED')
+    print('query: None')
+    print('matches: None')
+    print(f'下一步：{message}')
+    return 1
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description='Search prior LBAI evidence, task outputs, and references without mutating artifacts.')
-    parser.add_argument('query', nargs='*', help='Search keywords')
-    parser.add_argument('--limit', type=int, default=8)
+    parser = argparse.ArgumentParser(description='Search prior LBAI artifacts with AI enrichment.')
+    parser.add_argument('--print-catalog', action='store_true', help='Export artifact catalog JSON for AI ranking.')
+    parser.add_argument('--enrichment', help='Path to AI-generated search enrichment JSON.')
+    parser.add_argument('--limit', type=int, default=8, help='Reserved for agent-side match limiting.')
     args = parser.parse_args()
 
-    query = ' '.join(args.query).strip()
-    terms = tokenize(query)
     root = workspace_root()
-    artifacts = collect_evidence(root) + collect_tasks(root) + collect_references(root)
-    matches = []
-    for artifact in artifacts:
-        score, reasons = score_artifact(artifact, terms)
-        if score > 0:
-            artifact.score = score
-            artifact.reason = '; '.join(reasons)
-            matches.append(artifact)
-    matches.sort(key=lambda item: (-item.score, item.kind, item.path))
-    print(render_results(query, matches, max(args.limit, 1), terms), end='')
+
+    if args.print_catalog:
+        catalog = build_catalog(root)
+        print(json.dumps({'schema_version': 'search_catalog_v1', 'artifacts': catalog}, ensure_ascii=False, indent=2))
+        return 0
+
+    if not args.enrichment:
+        return block(BLOCKED_MESSAGE)
+
+    enrichment_path = resolve_enrichment_path(root, args.enrichment)
+    data, error = load_json_file(enrichment_path)
+    if data is None:
+        return block(error or BLOCKED_MESSAGE)
+
+    catalog = build_catalog(root)
+    catalog_by_path = {item['path']: item for item in catalog}
+    validation_error = validate_search_enrichment(data, catalog_by_path)
+    if validation_error:
+        return block(validation_error)
+
+    if args.limit and isinstance(data.get('matches'), list):
+        data['matches'] = data['matches'][: max(args.limit, 1)]
+
+    print(render_enrichment(data, catalog_by_path), end='')
     return 0
 
 

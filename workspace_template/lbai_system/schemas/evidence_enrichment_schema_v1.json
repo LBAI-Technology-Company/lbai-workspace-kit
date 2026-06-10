@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lbai/evidence_enrichment_schema_v1.json",
+  "title": "LBAI Evidence Enrichment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_kind",
+    "usage_intent",
+    "admissibility_status",
+    "brief"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "evidence_enrichment_v1"
+    },
+    "source_kind": {
+      "type": "string",
+      "enum": [
+        "transcript",
+        "feedback",
+        "interview",
+        "draft",
+        "data_notes",
+        "source",
+        "notes",
+        "general",
+        "reference"
+      ]
+    },
+    "usage_intent": {
+      "type": "string",
+      "enum": ["reference", "possible_task_input", "task_input"]
+    },
+    "admissibility_status": {
+      "type": "string",
+      "enum": ["CAPTURED", "NEEDS_REVIEW"]
+    },
+    "review_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "task_suggestion": {
+      "type": ["string", "null"]
+    },
+    "cleaned_content": {
+      "type": "string",
+      "description": "Optional cleaned transcript or notes with UI noise removed. Must not add facts beyond source."
+    },
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usable_facts",
+        "review_limited",
+        "uncertain",
+        "decisions",
+        "missing_info",
+        "action_items",
+        "blocked_signals",
+        "risks",
+        "practical_next_step"
+      ],
+      "properties": {
+        "usable_facts": { "type": "array", "items": { "type": "string" } },
+        "review_limited": { "type": "array", "items": { "type": "string" } },
+        "uncertain": { "type": "array", "items": { "type": "string" } },
+        "decisions": { "type": "array", "items": { "type": "string" } },
+        "missing_info": { "type": "array", "items": { "type": "string" } },
+        "action_items": { "type": "array", "items": { "type": "string" } },
+        "blocked_signals": { "type": "array", "items": { "type": "string" } },
+        "risks": { "type": "array", "items": { "type": "string" } },
+        "practical_next_step": { "type": "string" }
+      }
+    },
+    "gap_analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["covers_gaps", "remaining_gaps"],
+      "properties": {
+        "covers_gaps": { "type": "array", "items": { "type": "string" } },
+        "remaining_gaps": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

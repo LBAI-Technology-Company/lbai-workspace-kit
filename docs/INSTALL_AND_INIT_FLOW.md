@@ -2,12 +2,12 @@
 
 ## Public Install Command
 
-Employee install commands (auto-check Git and Python 3):
+Employee install commands (auto-check Git and Python 3.10+):
 
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
@@ -16,7 +16,7 @@ lbai init-workspace
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
 Close and reopen PowerShell after install, then run:
@@ -26,7 +26,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3 and attempts to install them when missing.
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing.
 
 ## Authentication
 

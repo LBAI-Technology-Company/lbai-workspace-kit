@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Task Intake Enrichment v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_description",
+    "goal",
+    "expected_output",
+    "missing_inputs",
+    "status",
+    "review_needed",
+    "completion_conditions"
+  ],
+  "properties": {
+    "schema_version": { "const": "task_intake_enrichment_v1" },
+    "task_description": { "type": "string" },
+    "goal": { "type": "string" },
+    "expected_output": { "type": "string" },
+    "missing_inputs": { "type": "array", "items": { "type": "string" } },
+    "status": { "enum": ["OPEN", "BLOCKED"] },
+    "review_needed": { "type": "boolean" },
+    "review_reasons": { "type": "array", "items": { "type": "string" } },
+    "completion_conditions": { "type": "array", "items": { "type": "string" } },
+    "execution_notes": { "type": "string" }
+  }
+}

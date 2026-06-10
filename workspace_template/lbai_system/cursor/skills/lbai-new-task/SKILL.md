@@ -1,10 +1,5 @@
----
-name: lbai-new-task
-description: Start an LBAI formal task by following the shared LBAI command contract.
----
-
 # LBAI New Task Skill
 
-This Cursor skill is a thin adapter.
+Read `lbai_system/runner_contracts/lbai_command_contract_v1.md` and `lbai_system/prompts/task_intake_enrichment_prompt_v1.md`.
 
-Read `lbai_system/runner_contracts/lbai_command_contract_v1.md` and follow the `/lbai-new-task` section. Use existing tools under `lbai_system/tools/`. Do not duplicate command logic here.
+Flow: AI task intake JSON → `new_task.py --enrichment`. No fallback.

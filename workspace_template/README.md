@@ -62,7 +62,7 @@ tasks/          每天产生的任务记录和结果
 ### 1.3 核心功能
 
 - 同时支持 Cursor 和 Codex，使用同一套 `/lbai-*` 命令和任务合同。
-- 用 `/lbai-add-evidence` 保存会议记录、反馈、草稿、SOP、日志和背景资料，不自动创建任务。
+- 用 `/lbai-add-evidence` 保存会议记录、反馈、草稿、SOP、日志和背景资料，不自动创建任务。资料归档需先在 **Cursor 或 Codex 桌面 App** 中由 AI 生成 enrichment JSON，再由代码落盘；无规则 fallback。
 - 用 `/lbai-search-artifacts` 查询历史 evidence、参考资料和任务产出，不自动关联或改状态。
 - 用三步任务生命周期把工作从聊天转成正式记录：建档、执行、收尾。
 - 自动识别常见缺失资料，并把补充内容保存为 evidence 后关联到任务缺口。
@@ -163,14 +163,14 @@ lbai-workspace-zhangsan
 Mac：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
 Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行 `lbai auth login` 和 `lbai init-workspace`。
@@ -260,7 +260,7 @@ README.md
 /lbai-update-kit
 ```
 
-如果看不到这些命令，重启 Cursor，或运行 Cursor 的 Reload Window。Codex 里不一定显示 Cursor 式 slash command 菜单，但在本项目中直接输入 `/lbai-add-evidence ...`、`/lbai-search-artifacts ...`、`/lbai-new-task ...` 等命令即可触发工作流。
+如果看不到这些命令，重启 Cursor，或运行 Cursor 的 Reload Window。在 **Codex 桌面 App** 中打开同一工作区，输入 `/lbai-add-evidence` 等命令即可触发工作流（不使用 Codex CLI）。
 
 ---
 
@@ -308,7 +308,7 @@ role_workspace/archive/
 
 ### 4.0 可选：先保存资料或知识
 
-如果你只是想提交会议记录、用户反馈、邮件、草稿、SOP、日志或背景资料，不想立刻创建任务，运行：
+如果你只是想提交会议记录、用户反馈、邮件、草稿、SOP、日志或背景资料，不想立刻创建任务，在 **Cursor 或 Codex 桌面 App** 中运行：
 
 ```text
 /lbai-add-evidence
@@ -316,14 +316,51 @@ role_workspace/archive/
 
 然后直接粘贴资料。
 
-它会：
+**不要**在终端单独运行 `lbai add-evidence`；也不要使用 Codex CLI。AI 不可用时会直接失败，不会降级为规则处理。
+
+### 4.0a 资料归档怎么分工
+
+| 环节 | 执行方 | 说明 |
+|------|--------|------|
+| Teams 转写清洗 | AI | 去掉 UI 垃圾、时间戳噪声，写入 `cleaned_content` |
+| `source_kind` 分类 | AI | 例如 transcript、feedback、draft |
+| `evidence_brief` | AI | 可用事实、行动项、blocked 信号、风险提示 |
+| 关联任务缺口 | AI | 读 `missing_inputs.md`，填 `gap_analysis` |
+| review 初判 | AI | `admissibility_status`、`review_reasons` |
+| review 判定 | AI | enrichment 中 `admissibility_status` / `review_needed`；代码不做关键词 overlay |
+| 脱敏 | 代码 | 密钥、手机号等正则替换 |
+| 目录 / 台账 / git / hygiene | 代码 | 确定性落盘与同步 |
+
+AI 必须先按 prompt 产出 JSON：
+
+```text
+lbai_system/prompts/evidence_enrichment_prompt_v1.md
+lbai_system/schemas/evidence_enrichment_schema_v1.json
+```
+
+然后调用：
+
+```bash
+python3 lbai_system/tools/add_evidence.py --enrichment <json_path> --content "..."
+```
+
+Cursor / Codex 桌面里的助手会自动完成「生成 JSON + 调脚本」两步；员工只需粘贴资料。
+
+落盘后每个 evidence 目录包含：
+
+```text
+input.md
+evidence_metadata.md
+evidence_brief.md
+evidence_enrichment.json
+```
+
+还会：
 
 - 保存到 `role_workspace/knowledge/evidence/`
-- 生成 `input.md` 和 `evidence_metadata.md`
 - evidence folder 使用日期、资料类型和短 hash 命名，不把原始资料正文放进路径
 - 更新 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
-- 尽量自动脱敏
-- 判断资料类型和用途，例如 `transcript`、`feedback`、`draft`、`source`、`reference`
+- 代码侧自动脱敏
 - 标记资料状态，例如 `CAPTURED` 或 `NEEDS_REVIEW`
 - 标记转换状态，例如 `REFERENCE_ONLY`、`TASK_SUGGESTED` 或 `LINKED_TO_TASK`
 - 如果资料适合形成任务，只给出建议，不自动创建任务
@@ -354,29 +391,19 @@ gap_record.md: latest evidence and remaining gaps
 
 ### 4.0b 可选：查询历史 artifact
 
-如果你要开始新任务，或者想知道以前有没有相关资料、旧结论、历史任务产出，运行：
+在 **Cursor 或 Codex 桌面 App** 中运行：
 
 ```text
-/lbai-search-artifacts 用户反馈 官网文案
+/lbai-search-artifacts 记忆单元 ladder
 ```
 
-它会只读查询：
+流程：
 
-- `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
-- `role_workspace/knowledge/evidence/`
-- `role_workspace/knowledge/references/`
-- `role_workspace/ledgers/TASK_LEDGER_v1.md`
-- `tasks/` 下的任务 scope、ledger、slot 和 output
+1. Agent 运行 `python3 lbai_system/tools/search_artifacts.py --print-catalog` 导出 catalog JSON
+2. Agent 按 `lbai_system/prompts/search_enrichment_prompt_v1.md` 做语义排序
+3. Agent 运行 `python3 lbai_system/tools/search_artifacts.py --enrichment <json>`
 
-它会返回候选 artifact、匹配原因、状态、review 风险和建议用途。
-
-它不会：
-
-- 自动创建任务
-- 自动关联到当前任务
-- 自动更新缺口或任务状态
-- 自动修改 role world model
-- 自动提交或同步 GitHub
+只读，不会改任务状态或自动关联。
 
 如果你决定使用某个候选资料，需要在 `/lbai-new-task` 或当前任务 artifacts 中明确引用。
 
@@ -438,7 +465,7 @@ input_user_provided.md
 
 如果有多个任务，工作区助手会列出来让你选择，不会随便猜。
 
-`/lbai-execute-task` 会读取任务要求、linked evidence、旧版 task-local 输入、岗位记忆和公司边界，然后生成 `task_output.md`。如果还有缺口，它应继续更新任务 artifacts，而不是只把缺口留在聊天里。
+`/lbai-execute-task` 会读取任务要求、linked evidence、旧版 task-local 输入、岗位记忆和公司边界，先写入 `execution_plan.md`，再生成 `task_output.md`。如果还有缺口，它应继续更新任务 artifacts，而不是只把缺口留在聊天里。
 
 ### 4.4 第四步：收尾并同步
 

@@ -1,0 +1,11 @@
+{
+  "schema_version": "task_intake_enrichment_v1",
+  "task_description": "汇总 Q2 客户访谈",
+  "goal": "整理访谈要点",
+  "expected_output": "task_output.md",
+  "missing_inputs": ["完整访谈转写文本", "客户名单确认"],
+  "status": "BLOCKED",
+  "review_needed": false,
+  "completion_conditions": ["task_output.md 覆盖全部访谈"],
+  "execution_notes": "等待员工补充原始材料"
+}

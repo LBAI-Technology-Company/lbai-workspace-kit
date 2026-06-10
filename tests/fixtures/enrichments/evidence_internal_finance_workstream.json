@@ -1,0 +1,23 @@
+{
+  "schema_version": "evidence_enrichment_v1",
+  "source_kind": "transcript",
+  "usage_intent": "reference",
+  "admissibility_status": "CAPTURED",
+  "review_reasons": [],
+  "cleaned_content": "并行推进产品迭代与财务的对接，内部同步进度。",
+  "brief": {
+    "usable_facts": ["产品迭代与财务对接为并行工作流"],
+    "review_limited": [],
+    "uncertain": [],
+    "decisions": [],
+    "missing_info": [],
+    "action_items": [],
+    "blocked_signals": [],
+    "risks": [],
+    "practical_next_step": "归档为内部参考资料"
+  },
+  "gap_analysis": {
+    "covers_gaps": [],
+    "remaining_gaps": []
+  }
+}

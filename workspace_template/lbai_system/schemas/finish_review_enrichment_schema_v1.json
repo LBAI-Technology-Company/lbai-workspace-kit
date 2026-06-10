@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Finish Review Enrichment v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "finish_verdict",
+    "completeness_summary",
+    "gaps",
+    "overclaim_risks",
+    "next_step"
+  ],
+  "properties": {
+    "schema_version": { "const": "finish_review_enrichment_v1" },
+    "finish_verdict": { "enum": ["APPROVE_FINISH", "BLOCK_FINISH"] },
+    "completeness_summary": { "type": "string" },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "overclaim_risks": { "type": "array", "items": { "type": "string" } },
+    "review_notes": { "type": "array", "items": { "type": "string" } },
+    "next_step": { "type": "string" }
+  }
+}

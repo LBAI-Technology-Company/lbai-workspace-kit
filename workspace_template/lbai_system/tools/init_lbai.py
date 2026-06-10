@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import json
 import re
 import sys
 from datetime import datetime
@@ -7,7 +8,15 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
+from enrichment_utils import load_json_file, require_version, resolve_enrichment_path
 from task_utils import redact_sensitive, workspace_root
+
+
+ENRICHMENT_VERSION = 'init_enrichment_v1'
+BLOCKED_MESSAGE = (
+    'AI enrichment required (--enrichment). Use Cursor or Codex desktop app; '
+    'see lbai_system/prompts/init_enrichment_prompt_v1.md'
+)
 
 
 QUESTIONS = """# /lbai-init 岗位设定问题
@@ -225,34 +234,58 @@ Do not write secrets, passwords, API keys, access tokens, legal privileged commu
     return [world_model, boundary, priorities, archive]
 
 
+def validate_init_enrichment(data: dict) -> tuple[dict[str, str] | None, str | None]:
+    err = require_version(data, ENRICHMENT_VERSION)
+    if err:
+        return None, err
+    sections = data.get('sections')
+    if not isinstance(sections, dict):
+        return None, 'sections must be an object'
+    missing = [name for name in REQUIRED_SECTION_NAMES if not str(sections.get(name, '')).strip()]
+    if missing:
+        return None, 'missing required sections: ' + ', '.join(missing)
+    cleaned = {name: str(sections.get(name, '')).strip() for name in SECTION_NAMES}
+    return cleaned, None
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--print-questions', action='store_true')
+    parser.add_argument('--enrichment', help='Path to AI-generated init enrichment JSON.')
     args = parser.parse_args()
     if args.print_questions:
         print(QUESTIONS)
         return 0
 
-    text = __import__('sys').stdin.read().strip()
-    if not text:
-        print(QUESTIONS)
+    if not args.enrichment:
+        print('STATUS BLOCKED')
+        print(f'reason: {BLOCKED_MESSAGE}')
+        print('NEXT_STEP 在 Cursor 或 Codex 桌面 App 中完成岗位问答并生成 init enrichment JSON。')
         return 2
 
     root = workspace_root()
-    sections = parse_sections(text)
-    missing = [name for name in REQUIRED_SECTION_NAMES if not sections.get(name, '').strip()]
-    if missing:
+    enrichment_path = resolve_enrichment_path(root, args.enrichment)
+    data, error = load_json_file(enrichment_path)
+    if data is None:
         print('STATUS BLOCKED')
-        print('MISSING_REQUIRED_FIELDS')
-        for item in missing:
-            print(f'- {item}')
-        print('OPTIONAL_FIELDS')
-        for item in OPTIONAL_SECTION_NAMES:
-            print(f'- {item}')
-        print('NEXT_STEP 请补充以上必答问题后再次运行 /lbai-init。选答问题可以空着。')
+        print(f'reason: {error or BLOCKED_MESSAGE}')
+        print('NEXT_STEP 请重新生成 init enrichment JSON 后重试。')
+        return 1
+
+    sections, validation_error = validate_init_enrichment(data)
+    if sections is None:
+        print('STATUS BLOCKED')
+        print(f'reason: {validation_error}')
+        print('NEXT_STEP 请补全必答 section 后重试。')
         return 1
 
     written = write_role_files(root, sections)
+    archive_dir = root / 'role_workspace' / 'archive'
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime('%Y_%m_%d_%H%M%S')
+    archive = archive_dir / f'init_enrichment_{stamp}.json'
+    archive.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    written.append(archive)
     print('STATUS UPDATED')
     print('UPDATED_FILES')
     for path in written:

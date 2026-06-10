@@ -1,0 +1,24 @@
+{
+  "schema_version": "evidence_enrichment_v1",
+  "source_kind": "transcript",
+  "usage_intent": "reference",
+  "admissibility_status": "CAPTURED",
+  "review_reasons": [],
+  "task_suggestion": null,
+  "cleaned_content": "会议讨论了用户反馈分类标准，团队同意先整理标签清单。",
+  "brief": {
+    "usable_facts": ["团队需要统一反馈分类标准", "下一步是整理标签清单"],
+    "review_limited": [],
+    "uncertain": [],
+    "decisions": ["先整理标签清单再试点"],
+    "missing_info": [],
+    "action_items": ["输出标签清单草案"],
+    "blocked_signals": [],
+    "risks": [],
+    "practical_next_step": "归档为参考资料，供后续任务引用"
+  },
+  "gap_analysis": {
+    "covers_gaps": [],
+    "remaining_gaps": []
+  }
+}

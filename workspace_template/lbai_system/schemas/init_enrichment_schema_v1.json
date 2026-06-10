@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Init Enrichment v1",
+  "type": "object",
+  "required": ["schema_version", "sections"],
+  "properties": {
+    "schema_version": { "const": "init_enrichment_v1" },
+    "sections": {
+      "type": "object",
+      "required": [
+        "岗位名称",
+        "主要职责",
+        "常见任务",
+        "常用资料来源",
+        "常见输出",
+        "不能自行决定的事项",
+        "需要负责人 review 的情况",
+        "当前 1-2 周优先级"
+      ],
+      "properties": {
+        "岗位名称": { "type": "string" },
+        "主要职责": { "type": "string" },
+        "常见任务": { "type": "string" },
+        "常用资料来源": { "type": "string" },
+        "常见输出": { "type": "string" },
+        "不能自行决定的事项": { "type": "string" },
+        "需要负责人 review 的情况": { "type": "string" },
+        "当前 1-2 周优先级": { "type": "string" },
+        "常协作的人或团队": { "type": "string" },
+        "其他补充": { "type": "string" }
+      }
+    }
+  }
+}

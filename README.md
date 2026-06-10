@@ -41,7 +41,7 @@ The project intentionally starts as one public repository. Installer, CLI core, 
 
 Stage 1 provides the core installer and workspace bootstrap flow.
 
-Supported commands:
+Terminal commands:
 
 ```bash
 lbai auth login
@@ -51,14 +51,20 @@ lbai doctor
 lbai update-kit
 lbai remove-kit
 lbai uninstall
-lbai init
-lbai new-task
-lbai add-evidence
-lbai search-artifacts
-lbai execute-task
-lbai finish-task
 lbai serve-dashboard
 ```
+
+AI desktop workflow commands:
+
+```text
+/lbai-init
+/lbai-new-task
+/lbai-search-artifacts
+/lbai-execute-task
+/lbai-finish-task
+```
+
+`/lbai-add-evidence` is available in Cursor and the Codex desktop app only (AI enrichment required). It is not listed as a standalone terminal workflow here.
 
 Not in scope yet:
 
@@ -75,19 +81,19 @@ Supported platforms: **macOS** and **Windows**.
 | Dependency | Notes |
 |------------|-------|
 | Git | Checked by the installer; auto-installed when possible |
-| Python 3 | Checked by the installer; auto-installed when possible |
+| Python 3.10+ | Checked by the installer; auto-installed when possible |
 | Network | Access to GitHub or install mirrors |
 
 After install, the CLI lives at `~/.lbai/bin/lbai` on macOS/Linux and `%USERPROFILE%\.lbai\bin\lbai.cmd` on Windows.
 
 ## Install
 
-Recommended release install. The installer checks for Git and Python 3 and attempts to install them when missing.
+Recommended release install. The installer checks for Git and Python 3.10+ and attempts to install them when missing.
 
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
@@ -96,7 +102,7 @@ lbai init-workspace
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
 Close and reopen PowerShell after install, then run:
@@ -106,7 +112,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The `@latest` URL serves the newest GitHub release. The installer also resolves the latest release at runtime and prints the installed version when finished, for example:
+The install URL is pinned to the same release tag for macOS/Linux and Windows. The installer also resolves the latest release package at runtime and prints the installed version when finished, for example:
 
 ```text
 Installed version: <version>
@@ -238,40 +244,89 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 
 Run these commands inside an initialized LBAI workspace.
 
+**Use `/lbai-*` in Cursor or the Codex desktop app for employee workflows.** Terminal `lbai new-task` and similar commands fail without AI enrichment JSON.
+
+### Unified pattern: AI enrichment + code capture
+
+| Command | AI prompt | Code tool |
+|---------|-----------|-----------|
+| `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
+| `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
+| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` → `--enrichment` |
+| `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
+| `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent writes `execution_plan.md` + `task_output.md` |
+| `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
+| `/lbai-update-kit` | none | `update_kit.py` (code only) |
+
+No enrichment → **BLOCKED**. No rule-based fallback.
+
 Initialize role context:
 
-```bash
-lbai init
+```text
+/lbai-init
 ```
 
-Save source material without creating a task:
+Save source material without creating a task.
 
-```bash
-lbai add-evidence --kind meeting --content "meeting notes..."
+Use **`/lbai-add-evidence` in Cursor or the Codex desktop app**. Do not run bare `lbai add-evidence` from the terminal without AI enrichment.
+
+Capture is **AI enrichment + deterministic capture**. There is **no rule-based fallback**.
+
+| Step | Owner | Action |
+|------|-------|--------|
+| 1 | **AI** (Cursor / Codex desktop) | Read `lbai_system/prompts/evidence_enrichment_prompt_v1.md` and produce enrichment JSON |
+| 2 | **Code** | Run `add_evidence.py --enrichment <json>` for redaction, files, ledger, hygiene, and git |
+
+AI handles transcript cleanup, `source_kind`, `evidence_brief`, gap analysis, and initial review judgment.
+
+Code handles redaction, folder/ledger/git/hygiene. `NEEDS_REVIEW` follows **AI enrichment only**; no keyword overlay in code.
+
+If AI enrichment is unavailable, the workflow returns `evidence_status: BLOCKED`.
+
+Prompt and schema:
+
+```text
+lbai_system/prompts/evidence_enrichment_prompt_v1.md
+lbai_system/schemas/evidence_enrichment_schema_v1.json
+```
+
+Each evidence folder includes:
+
+```text
+input.md
+evidence_metadata.md
+evidence_brief.md
+evidence_enrichment.json
+```
+
+To link evidence to an existing task:
+
+```text
+/lbai-add-evidence tasks/<task_folder>
 ```
 
 Search prior evidence, task outputs, and references:
 
-```bash
-lbai search-artifacts customer-feedback --limit 5
+```text
+/lbai-search-artifacts customer-feedback
 ```
 
 Create a formal task record:
 
-```bash
-lbai new-task "Summarize this week's customer feedback"
+```text
+/lbai-new-task Summarize this week's customer feedback
 ```
 
 Prepare the selected task for model execution:
 
-```bash
-lbai execute-task
+```text
+/lbai-execute-task
 ```
 
 Finish the selected task and run checks:
 
-```bash
-lbai finish-task
+```text
+/lbai-finish-task
 ```
 
 Open the local dashboard:
@@ -289,14 +344,14 @@ If the local `lbai` command is broken or outdated, rerun the installer:
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@v0.1.16/install.ps1 | iex
 ```
 
 Update an employee workspace template from the installed kit:

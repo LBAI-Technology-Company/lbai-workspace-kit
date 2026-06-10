@@ -8,7 +8,7 @@ from typing import Optional
 
 sys.dont_write_bytecode = True
 
-from task_utils import REQUIRED_TASK_FILES, REVIEW_TASK_FILES, SENSITIVE_PATTERNS, is_task_dir, read_text, review_required
+from task_utils import REQUIRED_TASK_FILES, REVIEW_TASK_FILES, SENSITIVE_PATTERNS, is_task_dir, read_text, review_required, RECOMMENDED_TASK_FILES
 
 TEMP_PATTERNS = ['.DS_Store', '__pycache__', 'node_modules', '.env', '.pem', '.key', '.log']
 ALLOWED_TASK_COMMIT_PREFIXES = ('tasks/',)
@@ -88,6 +88,12 @@ def main():
             if not (task_path/name).exists():
                 missing_review.append(str((task_path/name).relative_to(root)))
 
+    recommended_missing=[]
+    if (task_path / 'task_output.md').exists():
+        for name in RECOMMENDED_TASK_FILES:
+            if not (task_path / name).exists():
+                recommended_missing.append(str((task_path / name).relative_to(root)))
+
     sensitive=[]
     temp=[]
     unsafe_changes=[]
@@ -137,6 +143,12 @@ def main():
         print('## 缺少的审核文件')
         for m in missing_review: print(f'- {m}')
         if not missing_review: print('- 无')
+    print('')
+    print('## 推荐文件（非阻断）')
+    for m in recommended_missing:
+        print(f'- 缺少 {m}（/lbai-execute-task 应先写 execution_plan.md）')
+    if not recommended_missing:
+        print('- 无')
     print('')
     print('## 敏感信息')
     for s in sensitive: print(f'- {s}')

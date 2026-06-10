@@ -33,7 +33,7 @@ function Ensure-WingetPackage([string]$Id) {
 }
 
 function Ensure-Prerequisites {
-    Write-Info "正在检查运行环境（Git、Python 3）..."
+    Write-Info "正在检查运行环境（Git、Python 3.10+）..."
 
     if (-not (Test-Command git)) {
         if (-not (Ensure-WingetPackage "Git.Git")) {
@@ -43,7 +43,7 @@ function Ensure-Prerequisites {
 
     if (-not (Test-Command py) -and -not (Test-Command python)) {
         if (-not (Ensure-WingetPackage "Python.Python.3.12")) {
-            Fail "未检测到 Python 3。请打开 https://www.python.org/downloads/ 安装后重试，或确认 winget 可用。"
+            Fail "未检测到 Python 3.10+。请打开 https://www.python.org/downloads/ 安装后重试，或确认 winget 可用。"
         }
     }
 
@@ -54,16 +54,18 @@ function Ensure-Prerequisites {
     if (-not (Test-Command git)) {
         Fail "Git 仍未可用，请关闭并重新打开 PowerShell 后重试。"
     }
-    if (-not (Test-Command py) -and -not (Test-Command python)) {
-        Fail "Python 3 仍未可用，请关闭并重新打开 PowerShell 后重试。"
+    if (-not (Resolve-PythonCommand -Quiet)) {
+        Fail "Python 3.10+ 仍未可用，请关闭并重新打开 PowerShell 后重试。"
     }
 
     Write-Info "环境检查通过：$(git --version)"
-    if (Test-Command py) {
-        Write-Info "环境检查通过：$(py -3 --version)"
-    } else {
-        Write-Info "环境检查通过：$(python --version)"
+    $pythonCommand = Resolve-PythonCommand
+    $pythonArgs = @()
+    if ($pythonCommand.Count -gt 1) {
+        $pythonArgs = $pythonCommand[1..($pythonCommand.Count - 1)]
     }
+    $pythonExe = $pythonCommand[0]
+    Write-Info "环境检查通过：$(& $pythonExe @pythonArgs --version)"
 }
 
 function Get-LatestReleaseTag {
@@ -78,14 +80,38 @@ function Get-LatestReleaseTag {
     }
 }
 
+function Test-PythonVersion([string[]]$Command) {
+    try {
+        $pythonArgs = @()
+        if ($Command.Count -gt 1) {
+            $pythonArgs = $Command[1..($Command.Count - 1)]
+        }
+        $pythonExe = $Command[0]
+        & $pythonExe @pythonArgs -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)" | Out-Null
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
 function Resolve-PythonCommand {
+    param([switch]$Quiet)
     if (Test-Command py) {
-        return @("py", "-3")
+        $cmd = @("py", "-3")
+        if (Test-PythonVersion $cmd) {
+            return $cmd
+        }
     }
     if (Test-Command python) {
-        return @("python")
+        $cmd = @("python")
+        if (Test-PythonVersion $cmd) {
+            return $cmd
+        }
     }
-    Fail "Python 3 is required"
+    if ($Quiet) {
+        return $null
+    }
+    Fail "Python 3.10+ is required"
 }
 
 function Install-KitFromRelease([string]$Tag) {
@@ -126,25 +152,24 @@ function Ensure-UserPath {
     }
 }
 
-function Write-LbaiLauncher {
+function Write-LbaiLauncher([string[]]$PythonCommand) {
     $launcher = Join-Path $BinDir "lbai.cmd"
+    $pythonLine = ($PythonCommand -join " ")
     @"
 @echo off
 setlocal
 set "LBAI_KIT_ROOT=$InstallDir"
 set "PYTHONPATH=$InstallDir\lbai_core;%PYTHONPATH%"
-py -3 -m lbai.cli %*
-if errorlevel 1 (
-  python -m lbai.cli %*
-)
+$pythonLine -m lbai.cli %*
 "@ | Set-Content -Path $launcher -Encoding ASCII
 }
 
 Ensure-Prerequisites
+$pythonCommand = Resolve-PythonCommand
 $releaseTag = Get-LatestReleaseTag
 Write-Info "Latest release: $releaseTag"
 Install-KitFromRelease -Tag $releaseTag
-Write-LbaiLauncher
+Write-LbaiLauncher -PythonCommand $pythonCommand
 Ensure-UserPath
 
 $kitVersion = "unknown"

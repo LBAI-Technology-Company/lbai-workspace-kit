@@ -1,0 +1,133 @@
+"""Quality checks: shipped prompts, schemas, and workspace bootstrap."""
+from __future__ import annotations
+
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+from tests.helpers.tool_runner import parse_task_folder, run_tool
+from tests.helpers.workspace import kit_root, template_root
+
+pytestmark = pytest.mark.quality
+
+PROMPTS = template_root() / 'lbai_system' / 'prompts'
+SCHEMAS = template_root() / 'lbai_system' / 'schemas'
+CONTRACT = template_root() / 'lbai_system' / 'runner_contracts' / 'lbai_command_contract_v1.md'
+
+EXPECTED_PROMPTS = {
+    'evidence_enrichment_prompt_v1.md': 'evidence_enrichment_v1',
+    'search_enrichment_prompt_v1.md': 'search_enrichment_v1',
+    'task_intake_enrichment_prompt_v1.md': 'task_intake_enrichment_v1',
+    'finish_review_enrichment_prompt_v1.md': 'finish_review_enrichment_v1',
+    'init_enrichment_prompt_v1.md': 'init_enrichment_v1',
+    'execute_task_plan_prompt_v1.md': None,
+}
+
+EXPECTED_SCHEMAS = [
+    'evidence_enrichment_schema_v1.json',
+    'search_enrichment_schema_v1.json',
+    'task_intake_enrichment_schema_v1.json',
+    'finish_review_enrichment_schema_v1.json',
+    'init_enrichment_schema_v1.json',
+]
+
+
+class TestPromptSchemaInventory:
+    @pytest.mark.parametrize('filename,version', list(EXPECTED_PROMPTS.items()))
+    def test_prompts_exist(self, filename, version):
+        path = PROMPTS / filename
+        assert path.exists(), f'missing prompt: {path}'
+        text = path.read_text(encoding='utf-8')
+        assert len(text) > 200, f'prompt too short: {filename}'
+        if version:
+            assert version in text, f'{filename} should mention {version}'
+
+    @pytest.mark.parametrize('filename', EXPECTED_SCHEMAS)
+    def test_schemas_exist_and_valid_json(self, filename):
+        path = SCHEMAS / filename
+        assert path.exists()
+        data = json.loads(path.read_text(encoding='utf-8'))
+        assert 'schema_version' in str(data) or 'properties' in data
+
+    def test_runner_contract_mentions_enrichment(self):
+        text = CONTRACT.read_text(encoding='utf-8')
+        for token in (
+            'evidence_enrichment',
+            'search_enrichment',
+            'task_intake_enrichment',
+            'finish_review_enrichment',
+            'init_enrichment',
+            '--enrichment',
+        ):
+            assert token in text, f'contract missing {token}'
+
+    def test_cursor_commands_present(self):
+        cursor_cmds = template_root() / '.cursor' / 'commands'
+        expected = {
+            'lbai-add-evidence.md',
+            'lbai-search-artifacts.md',
+            'lbai-init.md',
+            'lbai-new-task.md',
+            'lbai-execute-task.md',
+            'lbai-finish-task.md',
+            'lbai-update-kit.md',
+        }
+        existing = {p.name for p in cursor_cmds.glob('*.md')}
+        missing = expected - existing
+        assert not missing, f'missing cursor commands: {missing}'
+
+    def test_execute_task_adapter_mentions_prepare_tool(self):
+        for rel in (
+            '.cursor/commands/lbai-execute-task.md',
+            'lbai_system/cursor/commands/lbai-execute-task.md',
+            '.agents/skills/lbai-execute-task/SKILL.md',
+            'lbai_system/cursor/skills/lbai-execute-task/SKILL.md',
+        ):
+            text = (template_root() / rel).read_text(encoding='utf-8')
+            assert 'prepare_execute_task.py' in text, f'{rel} should call prepare_execute_task.py'
+
+    def test_pipe_install_does_not_misdetect_current_directory(self):
+        text = (kit_root() / 'install.sh').read_text(encoding='utf-8')
+        assert 'detect_script_dir()' in text
+        assert 'SCRIPT_DIR="$(detect_script_dir || true)"' in text
+        assert 'SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"' not in text
+
+
+class TestBootstrapInIsolatedWorkspace:
+    def test_codex_adapter_passes(self, isolated_workspace):
+        result = run_tool(isolated_workspace, 'check_codex_adapter.py')
+        assert result.returncode == 0, result.output
+        assert 'STATUS OK' in result.stdout
+
+    def test_cursor_commands_check_passes(self, isolated_workspace):
+        result = run_tool(isolated_workspace, 'check_cursor_commands.py')
+        assert result.returncode == 0, result.output
+
+    def test_hygiene_check_blocks_incomplete_task(self, isolated_workspace, fixtures):
+        enrich = json.loads((Path(__file__).parents[1] / 'fixtures/enrichments/task_intake_open.json').read_text())
+        created = run_tool(
+            isolated_workspace,
+            'new_task.py',
+            '--enrichment',
+            str(Path(__file__).parents[1] / 'fixtures/enrichments/task_intake_open.json'),
+        )
+        task_rel = parse_task_folder(created.stdout)
+        result = run_tool(isolated_workspace, 'hygiene_check.py', task_rel)
+        assert result.returncode != 0
+        assert 'commit_readiness: BLOCKED' in result.stdout
+
+    def test_hygiene_check_ready_with_output(self, isolated_workspace, fixtures):
+        created = run_tool(
+            isolated_workspace,
+            'new_task.py',
+            '--enrichment',
+            str(Path(__file__).parents[1] / 'fixtures/enrichments/task_intake_open.json'),
+        )
+        task_rel = parse_task_folder(created.stdout)
+        (isolated_workspace / task_rel / 'task_output.md').write_text('# out\n', encoding='utf-8')
+        result = run_tool(isolated_workspace, 'hygiene_check.py', task_rel)
+        assert 'commit_readiness: READY' in result.stdout
+        assert '推荐文件（非阻断）' in result.stdout
+        assert 'execution_plan.md' in result.stdout

@@ -1,10 +1,5 @@
----
-name: lbai-execute-task
-description: Execute an LBAI task contract by following the shared LBAI command contract.
----
-
 # LBAI Execute Task Skill
 
-This Cursor skill is a thin adapter.
+Read `lbai_system/runner_contracts/lbai_command_contract_v1.md` and `lbai_system/prompts/execute_task_plan_prompt_v1.md`.
 
-Read `lbai_system/runner_contracts/lbai_command_contract_v1.md` and follow the `/lbai-execute-task` section. Use existing tools under `lbai_system/tools/`. Do not duplicate command logic here.
+Run `python3 lbai_system/tools/prepare_execute_task.py <task_folder>` first. Then read `execution_plan.md` and write `task_output.md`.

@@ -50,4 +50,17 @@ Supported employee-facing commands:
 /lbai-update-kit
 ```
 
-Codex can execute these commands when the user types them or describes them in natural language. This project adapter does not provide Cursor-style slash command UI suggestions.
+Codex can execute these commands when the user types them or describes them in natural language. Use the **Codex desktop app only** (not Codex CLI).
+
+## AI enrichment commands (no fallback)
+
+| Command | Prompt | Tool |
+|---------|--------|------|
+| `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
+| `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
+| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` then `--enrichment` |
+| `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
+| `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | write `execution_plan.md` + `task_output.md` |
+| `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
+
+`/lbai-update-kit` remains code-only via `update_kit.py`.

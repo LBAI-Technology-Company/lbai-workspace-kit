@@ -1,0 +1,17 @@
+{
+  "schema_version": "wrong_version",
+  "source_kind": "transcript",
+  "usage_intent": "reference",
+  "admissibility_status": "CAPTURED",
+  "brief": {
+    "usable_facts": [],
+    "review_limited": [],
+    "uncertain": [],
+    "decisions": [],
+    "missing_info": [],
+    "action_items": [],
+    "blocked_signals": [],
+    "risks": [],
+    "practical_next_step": "x"
+  }
+}

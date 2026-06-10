@@ -21,12 +21,12 @@ have_cmd() {
 }
 
 resolve_python_bin() {
-  if have_cmd python3; then
+  if have_cmd python3 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
     printf 'python3'
     return 0
   fi
   if have_cmd python; then
-    python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1 || return 1
+    python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1 || return 1
     printf 'python'
     return 0
   fi
@@ -52,11 +52,11 @@ ensure_python_macos() {
     return 0
   fi
   if have_cmd brew; then
-    info "未检测到 Python 3，正在通过 Homebrew 安装..."
+    info "未检测到 Python 3.10+，正在通过 Homebrew 安装..."
     brew install python
     return 0
   fi
-  fail "未检测到 Python 3。请先打开 https://www.python.org/downloads/ 安装，或安装 Homebrew 后重试。"
+  fail "未检测到 Python 3.10+。请先打开 https://www.python.org/downloads/ 安装，或安装 Homebrew 后重试。"
 }
 
 ensure_prerequisites_macos() {
@@ -68,7 +68,7 @@ ensure_prerequisites_linux() {
   if have_cmd git && resolve_python_bin >/dev/null 2>&1; then
     return 0
   fi
-  info "未检测到 Git 或 Python 3，正在尝试自动安装..."
+  info "未检测到 Git 或 Python 3.10+，正在尝试自动安装..."
   if have_cmd apt-get; then
     sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq
     sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip curl ca-certificates
@@ -86,12 +86,12 @@ ensure_prerequisites_linux() {
     sudo apk add --no-cache git python3 curl ca-certificates
     return 0
   fi
-  fail "请手动安装 git、python3 和 curl 后重试。"
+  fail "请手动安装 git、Python 3.10+ 和 curl 后重试。"
 }
 
 ensure_prerequisites() {
   os="$(uname -s 2>/dev/null || true)"
-  info "正在检查运行环境（Git、Python 3）..."
+  info "正在检查运行环境（Git、Python 3.10+）..."
   case "$os" in
     Darwin)
       ensure_prerequisites_macos
@@ -100,17 +100,17 @@ ensure_prerequisites() {
       ensure_prerequisites_linux
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@latest/install.ps1 | iex"
+      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@v0.1.16/install.ps1 | iex"
       ;;
     *)
-      fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3。"
+      fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3.10+。"
       ;;
   esac
   if ! have_cmd git; then
     fail "Git 仍未可用，请完成安装后重试。"
   fi
   if ! resolve_python_bin >/dev/null 2>&1; then
-    fail "Python 3 仍未可用，请完成安装后重试。"
+    fail "Python 3.10+ 仍未可用，请完成安装后重试。"
   fi
   if ! have_cmd curl; then
     fail "未检测到 curl，无法下载安装包。"
@@ -168,6 +168,14 @@ read_kit_version() {
   else
     printf 'unknown'
   fi
+}
+
+detect_script_dir() {
+  if [ -f "$0" ]; then
+    CDPATH= cd -- "$(dirname -- "$0")" && pwd
+    return 0
+  fi
+  return 1
 }
 
 resolve_latest_release_tag() {
@@ -284,10 +292,10 @@ download_and_install() {
 ensure_prerequisites
 
 PYTHON_BIN="$(resolve_python_bin)"
-[ -n "$PYTHON_BIN" ] || fail "Python 3 is required"
+[ -n "$PYTHON_BIN" ] || fail "Python 3.10+ is required"
 
-SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
+SCRIPT_DIR="$(detect_script_dir || true)"
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
   info "Installing from local checkout: $SCRIPT_DIR"
   install_from_dir "$SCRIPT_DIR"
   if [ -f "$SCRIPT_DIR/VERSION" ]; then
