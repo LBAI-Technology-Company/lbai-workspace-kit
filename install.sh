@@ -16,6 +16,109 @@ fail() {
   exit 1
 }
 
+have_cmd() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+resolve_python_bin() {
+  if have_cmd python3; then
+    printf 'python3'
+    return 0
+  fi
+  if have_cmd python; then
+    python -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 8) else 1)' >/dev/null 2>&1 || return 1
+    printf 'python'
+    return 0
+  fi
+  return 1
+}
+
+ensure_git_macos() {
+  if have_cmd git && git --version >/dev/null 2>&1; then
+    return 0
+  fi
+  if have_cmd brew; then
+    info "未检测到 Git，正在通过 Homebrew 安装..."
+    brew install git
+    return 0
+  fi
+  info "未检测到 Git，正在打开系统安装窗口（Xcode 命令行工具）..."
+  xcode-select --install >/dev/null 2>&1 || true
+  fail "请先在弹出窗口中完成 Git 安装，然后重新运行本安装命令。"
+}
+
+ensure_python_macos() {
+  if resolve_python_bin >/dev/null 2>&1; then
+    return 0
+  fi
+  if have_cmd brew; then
+    info "未检测到 Python 3，正在通过 Homebrew 安装..."
+    brew install python
+    return 0
+  fi
+  fail "未检测到 Python 3。请先打开 https://www.python.org/downloads/ 安装，或安装 Homebrew 后重试。"
+}
+
+ensure_prerequisites_macos() {
+  ensure_git_macos
+  ensure_python_macos
+}
+
+ensure_prerequisites_linux() {
+  if have_cmd git && resolve_python_bin >/dev/null 2>&1; then
+    return 0
+  fi
+  info "未检测到 Git 或 Python 3，正在尝试自动安装..."
+  if have_cmd apt-get; then
+    sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip curl ca-certificates
+    return 0
+  fi
+  if have_cmd dnf; then
+    sudo dnf install -y git python3 curl ca-certificates
+    return 0
+  fi
+  if have_cmd yum; then
+    sudo yum install -y git python3 curl ca-certificates
+    return 0
+  fi
+  if have_cmd apk; then
+    sudo apk add --no-cache git python3 curl ca-certificates
+    return 0
+  fi
+  fail "请手动安装 git、python3 和 curl 后重试。"
+}
+
+ensure_prerequisites() {
+  os="$(uname -s 2>/dev/null || true)"
+  info "正在检查运行环境（Git、Python 3）..."
+  case "$os" in
+    Darwin)
+      ensure_prerequisites_macos
+      ;;
+    Linux)
+      ensure_prerequisites_linux
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@latest/install.ps1 | iex"
+      ;;
+    *)
+      fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3。"
+      ;;
+  esac
+  if ! have_cmd git; then
+    fail "Git 仍未可用，请完成安装后重试。"
+  fi
+  if ! resolve_python_bin >/dev/null 2>&1; then
+    fail "Python 3 仍未可用，请完成安装后重试。"
+  fi
+  if ! have_cmd curl; then
+    fail "未检测到 curl，无法下载安装包。"
+  fi
+  info "环境检查通过：$(git --version 2>/dev/null | head -n 1)"
+  info "环境检查通过：$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
+}
+
 PATH_MARKER="# LBAI Workspace Kit CLI"
 
 detect_shell_rc() {
@@ -178,6 +281,11 @@ download_and_install() {
   clone_and_install "$tmp" || fail "download failed; check network and retry"
 }
 
+ensure_prerequisites
+
+PYTHON_BIN="$(resolve_python_bin)"
+[ -n "$PYTHON_BIN" ] || fail "Python 3 is required"
+
 SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 if [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
   info "Installing from local checkout: $SCRIPT_DIR"
@@ -199,7 +307,7 @@ cat > "$BIN_DIR/lbai" <<EOF
 set -eu
 export LBAI_KIT_ROOT="$INSTALL_DIR"
 export PYTHONPATH="$INSTALL_DIR/lbai_core\${PYTHONPATH:+:\$PYTHONPATH}"
-exec python3 -m lbai.cli "\$@"
+exec $PYTHON_BIN -m lbai.cli "\$@"
 EOF
 chmod +x "$BIN_DIR/lbai"
 ensure_shell_path

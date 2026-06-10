@@ -1,0 +1,164 @@
+$ErrorActionPreference = "Stop"
+
+$Repo = "LBAI-Technology-Company/lbai-workspace-kit"
+$LbaiHome = Join-Path $env:USERPROFILE ".lbai"
+$InstallDir = Join-Path $LbaiHome "kit"
+$BinDir = Join-Path $LbaiHome "bin"
+$PathMarker = "# LBAI Workspace Kit CLI"
+
+function Write-Info($Message) {
+    Write-Host $Message
+}
+
+function Fail($Message) {
+    Write-Error $Message
+    exit 1
+}
+
+function Test-Command($Name) {
+    return [bool](Get-Command $Name -ErrorAction SilentlyContinue)
+}
+
+function Ensure-WingetPackage([string]$Id) {
+    if (-not (Test-Command winget)) {
+        return $false
+    }
+    winget list --id $Id -e --accept-source-agreements | Out-Null
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+    Write-Info "正在安装 $Id ..."
+    winget install --id $Id -e --accept-package-agreements --accept-source-agreements --disable-interactivity
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Ensure-Prerequisites {
+    Write-Info "正在检查运行环境（Git、Python 3）..."
+
+    if (-not (Test-Command git)) {
+        if (-not (Ensure-WingetPackage "Git.Git")) {
+            Fail "未检测到 Git。请打开 https://git-scm.com/download/win 安装后重试，或确认 winget 可用。"
+        }
+    }
+
+    if (-not (Test-Command py) -and -not (Test-Command python)) {
+        if (-not (Ensure-WingetPackage "Python.Python.3.12")) {
+            Fail "未检测到 Python 3。请打开 https://www.python.org/downloads/ 安装后重试，或确认 winget 可用。"
+        }
+    }
+
+    $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machinePath;$userPath"
+
+    if (-not (Test-Command git)) {
+        Fail "Git 仍未可用，请关闭并重新打开 PowerShell 后重试。"
+    }
+    if (-not (Test-Command py) -and -not (Test-Command python)) {
+        Fail "Python 3 仍未可用，请关闭并重新打开 PowerShell 后重试。"
+    }
+
+    Write-Info "环境检查通过：$(git --version)"
+    if (Test-Command py) {
+        Write-Info "环境检查通过：$(py -3 --version)"
+    } else {
+        Write-Info "环境检查通过：$(python --version)"
+    }
+}
+
+function Get-LatestReleaseTag {
+    if ($env:LBAI_VERSION) {
+        return $env:LBAI_VERSION
+    }
+    try {
+        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -TimeoutSec 30
+        return $release.tag_name
+    } catch {
+        Fail "无法获取最新 Release，请检查网络后重试。"
+    }
+}
+
+function Resolve-PythonCommand {
+    if (Test-Command py) {
+        return @("py", "-3")
+    }
+    if (Test-Command python) {
+        return @("python")
+    }
+    Fail "Python 3 is required"
+}
+
+function Install-KitFromRelease([string]$Tag) {
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("lbai-install-" + [guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    $archive = Join-Path $tmp "lbai-workspace-kit.zip"
+    $url = "https://github.com/$Repo/archive/refs/tags/$Tag.zip"
+
+    Write-Info "Downloading LBAI Workspace Kit $Tag ..."
+    Invoke-WebRequest -Uri $url -OutFile $archive -TimeoutSec 600
+    Expand-Archive -Path $archive -DestinationPath $tmp -Force
+    $src = Get-ChildItem -Path $tmp -Directory | Where-Object { $_.Name -like "lbai-workspace-kit-*" } | Select-Object -First 1
+    if (-not $src) {
+        Fail "下载包内容无效。"
+    }
+
+    if (Test-Path $InstallDir) {
+        Remove-Item -Recurse -Force $InstallDir
+    }
+    New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
+    Copy-Item -Path (Join-Path $src.FullName "*") -Destination $InstallDir -Recurse -Force
+}
+
+function Ensure-UserPath {
+    $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    if ($userPath -notlike "*$BinDir*") {
+        if ([string]::IsNullOrWhiteSpace($userPath)) {
+            $newPath = $BinDir
+        } else {
+            $newPath = "$userPath;$BinDir"
+        }
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+        $env:Path = "$env:Path;$BinDir"
+        Write-Info "已将 lbai 加入用户 PATH。"
+    } else {
+        Write-Info "PATH 已包含 lbai。"
+    }
+}
+
+function Write-LbaiLauncher {
+    $launcher = Join-Path $BinDir "lbai.cmd"
+    @"
+@echo off
+setlocal
+set "LBAI_KIT_ROOT=$InstallDir"
+set "PYTHONPATH=$InstallDir\lbai_core;%PYTHONPATH%"
+py -3 -m lbai.cli %*
+if errorlevel 1 (
+  python -m lbai.cli %*
+)
+"@ | Set-Content -Path $launcher -Encoding ASCII
+}
+
+Ensure-Prerequisites
+$releaseTag = Get-LatestReleaseTag
+Write-Info "Latest release: $releaseTag"
+Install-KitFromRelease -Tag $releaseTag
+Write-LbaiLauncher
+Ensure-UserPath
+
+$kitVersion = "unknown"
+$versionFile = Join-Path $InstallDir "VERSION"
+if (Test-Path $versionFile) {
+    $kitVersion = (Get-Content $versionFile -Raw).Trim()
+}
+
+Write-Info "LBAI Workspace Kit installed."
+Write-Info "已安装版本: $kitVersion"
+Write-Info "Release: $releaseTag"
+Write-Info "lbai path: $(Join-Path $BinDir 'lbai.cmd')"
+Write-Info ""
+Write-Info "Next steps:"
+Write-Info "  关闭并重新打开 PowerShell"
+Write-Info "  lbai auth login"
+Write-Info "  lbai init-workspace"

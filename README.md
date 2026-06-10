@@ -69,11 +69,21 @@ Not in scope yet:
 
 ## Install
 
-Recommended release install:
+Recommended release install. The installer checks for Git and Python 3 and attempts to install them when missing.
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
+lbai auth login
+lbai init-workspace
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 lbai auth login
 lbai init-workspace
 ```

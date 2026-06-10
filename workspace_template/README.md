@@ -160,9 +160,17 @@ lbai-workspace-zhangsan
 
 公司安装命令：
 
+Mac：
+
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
+```
+
+Windows（PowerShell）：
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
 ```
 
 Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项目通过 `AGENTS.md` 和 `lbai_system/codex/skills/lbai-workflow/SKILL.md` 提供项目级适配，只影响当前仓库；`.agents/skills/` 是项目内薄适配文件，只做命令入口转发准备，真实规则仍以共享契约为准。当前稳定入口是 `/lbai-*`，不是 `$lbai-*`。

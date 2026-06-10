@@ -2,7 +2,9 @@
 
 ## Public Install Command
 
-Employee install command:
+Employee install commands (auto-check Git and Python 3):
+
+macOS / Linux:
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
@@ -11,7 +13,15 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the release package through internal mirrors when needed. Employees only need the one command above.
+Windows (PowerShell):
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+lbai auth login
+lbai init-workspace
+```
+
+The installer downloads the latest release package through internal mirrors when needed.
 
 ## Authentication
 

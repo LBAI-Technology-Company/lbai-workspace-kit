@@ -50,18 +50,24 @@ lbai-core + init-workspace installer
 
 ## 员工使用流程
 
-打开「终端」，按顺序执行下面 3 步。
+打开终端，按顺序执行下面 3 步。安装程序会**自动检查并安装** Git 和 Python 3（如本机缺失）。
 
 **第 1 步：安装**
 
-复制下面整行，粘贴到终端，按回车：
+Mac（终端）：
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 ```
 
-安装的是**最新 Release 版本**（不是 main 开发分支）。完成后终端会显示 `已安装版本` 和 `Release`。
+Windows（PowerShell）：
+
+```powershell
+irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
+
+安装的是**最新 Release 版本**。完成后会显示 `已安装版本` 和 `Release`。如提示安装 Git / Python，按窗口指引完成后**重新运行同一条安装命令**。
 
 **第 2 步：登录 GitHub**
 
