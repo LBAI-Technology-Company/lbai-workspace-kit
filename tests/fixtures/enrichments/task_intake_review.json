@@ -3,7 +3,15 @@
   "task_description": "撰写官网首页文案",
   "goal": "完成首页文案初稿",
   "expected_output": "task_output.md 含首页文案草案",
+  "known_information": [
+    {
+      "summary": "任务是撰写官网首页文案初稿",
+      "source_kind": "conversation_context",
+      "source_ref": "employee task request"
+    }
+  ],
   "missing_inputs": [],
+  "recommended_inputs": ["如有品牌定位、目标客户和已批准产品表述，可提高文案准确性"],
   "status": "OPEN",
   "review_needed": true,
   "review_reasons": ["涉及官网对外发布内容"],

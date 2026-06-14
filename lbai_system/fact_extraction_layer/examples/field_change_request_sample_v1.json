@@ -1,0 +1,62 @@
+{
+  "schema_version": "fact_extraction_output_v1",
+  "task_type": "receivable_review",
+  "raw_evidence": [
+    {
+      "source": "user_text",
+      "text": "这是一个海外项目，但合同主体在中国，回款走境外付款流程。"
+    }
+  ],
+  "base_facts": {
+    "project.region_type": {
+      "value": "overseas",
+      "source": "user_text",
+      "evidence_text": "海外项目",
+      "confidence": 0.9
+    }
+  },
+  "derived_facts": {},
+  "unmapped_facts": [
+    {
+      "text": "合同主体在中国，回款走境外付款流程",
+      "reason": "现有字段 project.region_type 只能表达项目区域，无法表达付款路径。",
+      "possible_field": "receivable.payment_flow_type",
+      "decision_impact": "may_affect_decision"
+    }
+  ],
+  "field_change_requests": [
+    {
+      "change_type": "create_field",
+      "field_id": "receivable.payment_flow_type",
+      "suggested_field": {
+        "id": "receivable.payment_flow_type",
+        "title": "应收付款流程类型",
+        "layer": "base_facts",
+        "lifecycle": "candidate",
+        "type": "enum",
+        "enum": ["domestic_payment", "cross_border_payment", "unknown"],
+        "definition": "应收账款实际适用的付款流程类型。"
+      },
+      "reason": "项目区域和付款流程可能不一致，现有字段无法表达。",
+      "decision_impact": "可能影响催收周期、材料要求和人工复核路径。",
+      "consumers_to_update": [
+        "fact_catalog",
+        "rule_engine",
+        "validator",
+        "regression_tests",
+        "explanation_template"
+      ],
+      "sample_cases": [
+        "海外项目但合同主体在中国，走境外付款流程。",
+        "国内项目但客户要求境外主体付款。"
+      ]
+    }
+  ],
+  "decision_state": {
+    "state": "needs_schema_change",
+    "missing_facts": [],
+    "blocked_by": ["现有字段无法表达付款流程类型"],
+    "next_action": "propose_schema_change"
+  }
+}
+

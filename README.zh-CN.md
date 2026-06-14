@@ -16,10 +16,11 @@
    irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
    ```
 2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token，或已登录 `gh` 时直接回车）。
-3. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
-4. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
-5. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
-6. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`。
+3. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
+4. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
+5. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
+6. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
+7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`。
 
 > 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -53,6 +54,7 @@ lbai-core + init-workspace installer
 需要支持：
 
 - `lbai auth login`
+- `lbai auth backend-login`
 - `lbai init-workspace`
 - `lbai doctor`
 - `lbai update-kit`
@@ -118,6 +120,14 @@ lbai auth login
 - 已保存过 Token：直接回车保持不变
 - 已通过 `gh auth login` 登录：直接回车即可，无需重复配置
 
+如需使用后端知识检索，再运行：
+
+```bash
+lbai auth backend-login
+```
+
+这个服务端 API Key 只保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入工作区 Git 仓库。
+
 可先运行 `lbai auth doctor` 检查认证状态。
 
 **第 3 步：初始化工作区**
@@ -140,7 +150,17 @@ lbai init-workspace
 7. 运行 lbai doctor。
 ```
 
-初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写岗位信息。
+初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写用户姓名、岗位信息和对话习惯。
+
+如需使用后端知识检索，先运行：
+
+```bash
+lbai auth backend-login
+```
+
+服务端 API Key 会保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入 workspace repo、`.lbai/workspace.json`、`role_workspace/` 或 `tasks/`，`lbai update-kit` 也不会清除它。
+
+`.lbai/workspace.json` 保存技术身份和非敏感后端服务配置，例如 `employee_user_id`、邮箱/部门、`workspace_repo_id` 和 `knowledge_service`；`ROLE_PROFILE_v1.json` 保存面向模型上下文的岗位画像，例如用户姓名、岗位名称和对话习惯。
 
 ### 打开正确的 Cursor 工作区目录
 
@@ -180,7 +200,7 @@ lbai update-kit            # 升级公司模板（纯代码）
 |------|-----------|----------|
 | `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
 | `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
-| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` → `search_artifacts.py --enrichment` |
+| `/lbai-search-artifacts` | `backend_search_query_plan_prompt_v1.md` | `search_artifacts.py --enrichment`（仅后端搜索） |
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent 写 `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
@@ -188,9 +208,18 @@ lbai update-kit            # 升级公司模板（纯代码）
 
 无 AI enrichment → 对应命令 **BLOCKED**，不降级为规则处理。
 
-Schema 均在 `lbai_system/schemas/*_enrichment_schema_v1.json`。
+Schema 均在 `lbai_system/schemas/`；其中搜索命令使用后端 query plan schema，其余 AI 命令使用 enrichment schema。
 
 开发/回归测试（不影响工作区数据）：在 kit 根目录运行 `bash tests/run_tests.sh`。
+
+### 创建任务（`/lbai-new-task`）
+
+`/lbai-new-task` 不只是创建文件夹。它会先结合当前对话、岗位上下文和可检索的历史资料评估任务：
+
+- 已知信息：标明来源是当前对话、公司知识库、角色上下文、已归档 evidence、外部来源或假设。
+- 必要缺口：缺了就不能正式执行，会写入 `missing_inputs.md` 并阻止 `/lbai-execute-task`。
+- 推荐补充：有助于提高质量，但不阻止先出初稿，会写入 `recommended_inputs.md` 或任务范围。
+- 补充方式：普通说明、偏好、决策可直接在对话框补充，并关闭对应缺口；会议纪要、客户材料、邮件、原始研究等资料型来源才使用 `/lbai-add-evidence` 归档。
 
 ### 保存资料（`/lbai-add-evidence`）
 
@@ -203,7 +232,7 @@ Schema 均在 `lbai_system/schemas/*_enrichment_schema_v1.json`。
 | 1 | **AI**（Cursor / Codex 桌面） | 读 `lbai_system/prompts/evidence_enrichment_prompt_v1.md`，生成 enrichment JSON |
 | 2 | **代码** | `add_evidence.py --enrichment <json>`：脱敏、写文件、台账、hygiene、git |
 
-AI 负责：Teams 转写清洗、`source_kind` 分类、`evidence_brief` 生成、缺口分析、review 初判。
+AI 只负责补齐轻量元数据，例如标题、资料类型、可见范围、关联对象和后端入库提示。员工端插件不再生成 reusable facts、decisions、action items、risks 或缺口分析。
 
 代码负责：脱敏、目录/台账/git/hygiene。`NEEDS_REVIEW` **仅由 AI enrichment 判定**，代码不做关键词 overlay。
 
@@ -219,19 +248,14 @@ lbai_system/schemas/evidence_enrichment_schema_v1.json
 每个 evidence 目录包含：
 
 ```text
-input.md
-evidence_metadata.md
-evidence_brief.md
+raw.md
+metadata.json
 evidence_enrichment.json
 ```
 
-关联任务时：
+`metadata.json` 和 `EVIDENCE_LEDGER_v1.md` 会写入员工身份和后端入库状态。资料 push 到 GitHub 后，后端可异步读取并入库。
 
-```text
-/lbai-add-evidence tasks/<task_folder>
-```
-
-粘贴资料后，AI 会读取 `missing_inputs.md` 并在 enrichment 里填写 `gap_analysis`。
+Evidence 与 task 保持独立：`/lbai-add-evidence` 只归档资料，不记录 `related_tasks`，也不会自动修改 `missing_inputs.md`、`task_scope.md`、`task_ledger.md` 或 `gap_record.md`。如果一份资料能帮助当前任务，请在任务对话里明确说明它补充了哪项信息；任务是否可执行仍由 `/lbai-new-task` 和 `/lbai-execute-task` 判断。
 
 ## GitHub Token 原则
 
@@ -280,14 +304,14 @@ task artifacts
 安装后的 `lbai` CLI 负责确定性流程：
 
 - 初始化工作区
-- 搜索历史 artifacts
+- 调用后端知识检索
 - 创建任务骨架
 - 运行 hygiene check
 - 更新 ledger
 - 升级 workflow kit
 - 安全 Git 同步
 
-资料归档（add-evidence）的**落盘、脱敏、台账、git** 由 `add_evidence.py` 完成；**清洗、分类、brief、缺口分析** 必须在 Cursor 或 Codex 桌面 App 中由 AI 先生成 enrichment JSON，无 fallback。
+资料归档（add-evidence）的**落盘、脱敏、台账、git** 由 `add_evidence.py` 完成；**轻量元数据补齐** 必须在 Cursor 或 Codex 桌面 App 中由 AI 先生成 enrichment JSON，无 fallback。员工端不再做事实抽取、brief 生成或缺口分析。
 
 Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、生成 enrichment 与任务输出，但底层业务流程应该调用同一个 `lbai_core`，不要在两个平台各写一套规则。
 
@@ -363,6 +387,7 @@ README.md
 .agents/
 lbai_system/
 workspace_dashboard.html
+.lbai/workspace.json
 ```
 
 不能覆盖：

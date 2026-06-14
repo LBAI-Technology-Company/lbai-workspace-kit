@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 from tests.helpers.workspace import create_isolated_workspace, fixtures_root, kit_root
+
+sys.dont_write_bytecode = True
 
 
 @pytest.fixture

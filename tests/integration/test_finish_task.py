@@ -45,6 +45,20 @@ class TestFinishTask:
         ledger = (task_dir := isolated_workspace / task_rel) / 'task_ledger.md'
         assert 'BLOCKED' in ledger.read_text(encoding='utf-8') or 'commit_readiness' in ledger.read_text(encoding='utf-8')
 
+    def test_non_task_changes_warn_but_do_not_block_commit_readiness(self, isolated_workspace, fixtures):
+        task_rel = _create_ready_task(isolated_workspace, fixtures)
+        extra = isolated_workspace / 'role_workspace' / 'knowledge' / 'evidence' / 'manual_test' / 'raw.md'
+        extra.parent.mkdir(parents=True, exist_ok=True)
+        extra.write_text('manual evidence that should be synced separately', encoding='utf-8')
+
+        enrich = enrichment_path(fixtures, 'finish_approve.json')
+        result = run_tool(isolated_workspace, 'finish_task.py', task_rel, '--enrichment', str(enrich))
+
+        assert result.returncode != 0
+        assert 'commit_readiness: READY' in result.stdout
+        assert 'manual_test/raw.md' in result.stdout
+        assert '仅提示，不阻断' in result.stdout
+
     def test_invalid_task_folder(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'finish_approve.json')
         result = run_tool(isolated_workspace, 'finish_task.py', 'tasks/not_a_real_task', '--enrichment', str(enrich))

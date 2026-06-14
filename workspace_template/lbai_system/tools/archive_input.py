@@ -42,17 +42,8 @@ def classify_kind(text: str, task_context: str = '') -> str:
     return 'general'
 
 
-def missing_item_matches_kind(item: str, kind: str) -> bool:
-    low = item.lower()
-    if any(k in low for k in ['会议', 'meeting', '纪要', 'transcript', 'action item']):
-        return kind in {'transcript', 'notes'}
-    if any(k in low for k in ['用户反馈', '客户反馈', 'feedback', 'complaint']):
-        return kind == 'feedback'
-    if any(k in low for k in ['官网', '文案', 'homepage', 'website', '产品说明', 'source', '草稿', 'approved source']):
-        return kind in {'source', 'draft'}
-    if any(k in low for k in ['周报', 'weekly']):
-        return kind in {'notes', 'data_notes', 'general'}
-    return False
+def normalize_missing_item(value: str) -> str:
+    return ' '.join(value.strip().lower().split())
 
 
 def next_available(path: Path) -> Path:
@@ -67,29 +58,33 @@ def next_available(path: Path) -> Path:
     raise RuntimeError(f'No available input filename for {path}')
 
 
-def update_task_state(task_dir: Path, kind: str) -> str:
+def update_task_state(task_dir: Path, kind: str, explicit_resolves: list[str]) -> str:
     remaining = unresolved_missing_inputs(task_dir)
-    resolved = [item for item in remaining if missing_item_matches_kind(item, kind)]
+    explicit = {normalize_missing_item(item) for item in explicit_resolves if item.strip()}
+    resolved = [
+        item for item in remaining
+        if normalize_missing_item(item) in explicit
+    ]
     unresolved = [item for item in remaining if item not in resolved]
     missing = task_dir / 'missing_inputs.md'
 
     if not remaining:
-        status = 'READY_TO_EXECUTE'
+        status = 'OPEN'
     elif unresolved:
         status = 'BLOCKED'
         missing.write_text(
             '# Missing Inputs\n\n'
-            + ''.join(f'- Resolved: {item}\n' for item in resolved)
+            + ''.join(f'- Resolved: {item} (covered by task-local input)\n' for item in resolved)
             + ''.join(f'- {item}\n' for item in unresolved)
             + f'\nSaved input kind: {kind}. The task remains blocked until the remaining missing inputs are provided.\n',
             encoding='utf-8',
         )
     else:
-        status = 'READY_TO_EXECUTE'
+        status = 'OPEN'
         if missing.exists():
             missing.write_text(
                 '# Missing Inputs\n\n'
-                + ''.join(f'- Resolved: {item}\n' for item in resolved)
+                + ''.join(f'- Resolved: {item} (covered by task-local input)\n' for item in resolved)
                 + f'\nSaved input kind: {kind}. If more context is needed, the workspace assistant should ask for the exact missing item.\n',
                 encoding='utf-8',
             )
@@ -107,6 +102,12 @@ def main():
     parser.add_argument('task_folder')
     parser.add_argument('--kind', choices=sorted(KIND_TO_FILE.keys()) + ['auto'], default='auto')
     parser.add_argument('--content', default='')
+    parser.add_argument(
+        '--resolves',
+        action='append',
+        default=[],
+        help='Exact missing input item resolved by this chat input. Can be provided multiple times.',
+    )
     args = parser.parse_args()
 
     root = workspace_root()
@@ -150,13 +151,15 @@ NOT_CONVERTED
 ## content
 {redacted.strip()}
 """, encoding='utf-8')
-    status = update_task_state(task_dir, kind)
+    status = update_task_state(task_dir, kind, args.resolves)
 
     print(f'SAVED {path.relative_to(root)}')
     print(f'INPUT_KIND {kind}')
+    if args.resolves:
+        print('RESOLVES ' + '; '.join(args.resolves))
     print(f'REDACTED {"true" if findings else "false"}')
     print(f'STATUS {status}')
-    if status == 'READY_TO_EXECUTE':
+    if status == 'OPEN':
         print(f'NEXT_STEP /lbai-execute-task {task_dir.relative_to(root)}')
     else:
         print('NEXT_STEP 请确认剩余缺失输入；资料齐全后再运行 /lbai-execute-task。')

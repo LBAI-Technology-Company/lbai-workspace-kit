@@ -42,6 +42,8 @@ Remind them: run these in the **Codex desktop app** with this workspace folder o
 - Do not invent source facts, data, metrics, success stories, customer evidence, product capabilities, pricing, legal positions, approvals, or company commitments.
 - Any metric, benchmark, case result, market claim, performance claim, or customer claim must trace to task inputs, approved references, or explicitly cited external sources when browsing is allowed.
 - If required inputs are missing, state the exact missing materials, background, decisions, or source documents.
+- Direct employee clarifications, preferences, and decisions can be saved as task-local context with `archive_input.py --resolves "<exact missing input>"`. Use `/lbai-add-evidence` only for source material that should be archived as reusable evidence.
+- `/lbai-new-task` must separate known information by source, blocking gaps, and recommended non-blocking context before execution.
 - Recommendations must be feasible under stated constraints. If feasibility is unverified, label it as an assumption and provide a validation step.
 
 ## Boundaries
@@ -74,7 +76,7 @@ Codex can execute these commands when the user types them or describes them in n
 |---------|--------|------|
 | `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
 | `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
-| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` then `--enrichment` |
+| `/lbai-search-artifacts` | `backend_search_query_plan_prompt_v1.md` | backend search query plan via `search_artifacts.py --enrichment`; backend-only, display-only when backend is unavailable or has no matches |
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | write `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |

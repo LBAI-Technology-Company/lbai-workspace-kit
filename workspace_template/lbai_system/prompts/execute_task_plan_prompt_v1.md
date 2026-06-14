@@ -19,7 +19,11 @@ Do not skip step 2. `/lbai-finish-task` may compare output against the plan when
 - `tasks/<task_folder>/task_scope.md`
 - `tasks/<task_folder>/task_slot.md`
 - `tasks/<task_folder>/missing_inputs.md`
-- Linked evidence: read `evidence_brief.md` first, not raw `input.md` unless needed
+- `tasks/<task_folder>/recommended_inputs.md`
+- explicit backend search results pasted by the employee, if present in the conversation
+- `tasks/<task_folder>/role_memory_context.md` if present. Treat it as backend-summarized role experience for this task type, not as authoritative local role rules.
+- Linked evidence: read `metadata.json` and `raw.md`; legacy `evidence_brief.md` may exist in older workspaces
+- Task-local chat clarifications saved under the task folder, such as `input_user_provided.md`, `input_notes.md`, or `input_draft.md`
 - Role world model files
 
 ## Plan file template (`execution_plan.md`)
@@ -55,5 +59,7 @@ You may also summarize the plan in chat, but the file must exist before `task_ou
 ## Then write task_output.md
 
 Follow `task_slot.md`, enterprise execution standard, and the sections listed in `execution_plan.md`.
+
+If the employee provides missing details in chat during execution, treat concise clarifications, preferences, and decisions as task-local context. Save them with `archive_input.py --resolves "<exact missing input>"` so the matching blocking gap is closed. Do not force `/lbai-add-evidence` unless the employee provides source material that should be archived as reusable evidence.
 
 No enrichment JSON required for execute-task; deliverables are `execution_plan.md` and `task_output.md`.

@@ -8,6 +8,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -25,6 +26,9 @@ EMPLOYEE_DEFAULT_PATHS = [
     'role_workspace',
     'tasks',
 ]
+KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
+KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
+KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
 
 COMMAND_TO_TOOL = {
     'init': 'init_lbai.py',
@@ -65,6 +69,10 @@ def auth_token_path() -> Path:
     return lbai_home() / 'auth' / 'github_token'
 
 
+def knowledge_service_auth_path() -> Path:
+    return lbai_home() / 'auth' / 'knowledge_service.json'
+
+
 def saved_token() -> str:
     path = auth_token_path()
     if path.exists():
@@ -97,6 +105,31 @@ def auth_source_label() -> str:
     if gh_authenticated():
         return 'github_cli:gh auth login'
     return ''
+
+
+def read_knowledge_service_auth() -> dict:
+    path = knowledge_service_auth_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def write_knowledge_service_auth(api_key: str, api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER) -> Path:
+    path = knowledge_service_auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        'schema_version': 'knowledge_service_auth_v1',
+        'api_key': api_key.strip(),
+        'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
+        'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+    return path
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = False) -> subprocess.CompletedProcess:
@@ -177,12 +210,12 @@ def copy_template_into_workspace(workspace: Path, overwrite_managed: bool) -> li
 
     metadata_path = workspace / '.lbai' / 'workspace.json'
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
-    metadata = {
+    metadata = merged_workspace_metadata(workspace, {
         'workspaceKitVersion': read_version(),
         'coreVersionRequired': '>=0.1.0',
         'templateSource': 'LBAI-Technology-Company/lbai-workspace-kit',
         'managedPaths': MANAGED_PATHS,
-    }
+    })
     old = metadata_path.read_text(encoding='utf-8') if metadata_path.exists() else ''
     new = json.dumps(metadata, ensure_ascii=False, indent=2) + '\n'
     if old != new:
@@ -190,6 +223,70 @@ def copy_template_into_workspace(workspace: Path, overwrite_managed: bool) -> li
         changed.append('.lbai/workspace.json')
 
     return sorted(set(changed))
+
+
+def default_employee_user_id(workspace: Path) -> str:
+    raw = workspace.name.lower()
+    cleaned = ''.join(ch if ch.isalnum() else '-' for ch in raw).strip('-')
+    return cleaned or 'employee'
+
+
+def default_workspace_metadata(workspace: Path) -> dict:
+    repo_id = workspace.name
+    return {
+        'employee_identity': {
+            'employee_user_id': default_employee_user_id(workspace),
+            'display_name': '',
+            'email': '',
+            'department': '',
+        },
+        'knowledge_service': {
+            'enabled': True,
+            'base_url': KNOWLEDGE_SERVICE_BASE_URL,
+            'api_key_header': KNOWLEDGE_SERVICE_API_KEY_HEADER,
+            'auth_mode': 'local_api_key',
+            'workspace_repo_id': repo_id,
+            'search_timeout_seconds': 20,
+        },
+    }
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def merged_workspace_metadata(workspace: Path, base_metadata: dict) -> dict:
+    metadata_path = workspace / '.lbai' / 'workspace.json'
+    existing = {}
+    if metadata_path.exists():
+        try:
+            loaded = json.loads(metadata_path.read_text(encoding='utf-8'))
+            if isinstance(loaded, dict):
+                existing = loaded
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+    metadata = deep_merge(deep_merge(base_metadata, default_workspace_metadata(workspace)), existing)
+    knowledge = metadata.setdefault('knowledge_service', {})
+    if isinstance(knowledge, dict):
+        legacy_key = str(knowledge.pop('api_key', '') or '').strip()
+        if legacy_key and not read_knowledge_service_auth().get('api_key'):
+            write_knowledge_service_auth(legacy_key, str(knowledge.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER))
+        knowledge['enabled'] = True
+        knowledge['base_url'] = KNOWLEDGE_SERVICE_BASE_URL
+        knowledge['api_key_header'] = KNOWLEDGE_SERVICE_API_KEY_HEADER
+        knowledge['auth_mode'] = 'local_api_key'
+        env_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
+        if env_key and not read_knowledge_service_auth().get('api_key'):
+            write_knowledge_service_auth(env_key, KNOWLEDGE_SERVICE_API_KEY_HEADER)
+        knowledge.setdefault('workspace_repo_id', workspace.name)
+        knowledge.setdefault('search_timeout_seconds', 20)
+    return metadata
 
 
 def snapshot_path(path: Path) -> str:
@@ -250,6 +347,7 @@ def uninstall(args: argparse.Namespace) -> int:
     kit_dir = lbai_kit_install_path()
     bin_path = lbai_bin_path()
     token_path = auth_token_path()
+    backend_auth_path = knowledge_service_auth_path()
 
     removed = []
     for path in [kit_dir, bin_path]:
@@ -263,6 +361,10 @@ def uninstall(args: argparse.Namespace) -> int:
     if args.purge_auth and token_path.exists():
         token_path.unlink()
         removed.append(str(token_path))
+    if args.purge_auth and backend_auth_path.exists():
+        backend_auth_path.unlink()
+        removed.append(str(backend_auth_path))
+    if args.purge_auth:
         auth_dir = token_path.parent
         if auth_dir.exists() and not any(auth_dir.iterdir()):
             auth_dir.rmdir()
@@ -279,10 +381,12 @@ def uninstall(args: argparse.Namespace) -> int:
     print('removed:')
     for item in removed:
         print(f'- {item}')
-    if not args.purge_auth and token_path.exists():
+    kept_auth = [path for path in (token_path, backend_auth_path) if path.exists()]
+    if not args.purge_auth and kept_auth:
         print('kept:')
-        print(f'- {token_path}')
-        print('note: GitHub token kept for reinstall. Use --purge-auth to delete it.')
+        for path in kept_auth:
+            print(f'- {path}')
+        print('note: auth files kept for reinstall. Use --purge-auth to delete them.')
     print('not_removed:')
     print('- employee workspace folders')
     print('- employee private GitHub repos')
@@ -321,17 +425,56 @@ def auth_login(_args: argparse.Namespace) -> int:
     return 0
 
 
+def auth_backend_login(args: argparse.Namespace) -> int:
+    existing = read_knowledge_service_auth()
+    if existing.get('api_key'):
+        print('backend_auth_check: already configured')
+        print(f'backend_auth_store: {knowledge_service_auth_path()}')
+        print('如需重新配置请输入新 API Key；直接回车保持不变。')
+        prompt = 'LBAI backend API key: '
+    else:
+        print('LBAI backend API key will be saved outside the workspace.')
+        print('It will not be written to workspace files, Git commits, role_workspace, or tasks.')
+        prompt = 'Paste LBAI backend API key: '
+
+    api_key = (args.api_key or '').strip()
+    if not api_key:
+        api_key = getpass.getpass(prompt).strip()
+    if not api_key:
+        if args.optional:
+            print('backend_auth_status: SKIPPED')
+            print('next_step: lbai auth backend-login')
+            return 0
+        if existing.get('api_key'):
+            print('backend_auth_status: UNCHANGED')
+            print('next_step: lbai init-workspace')
+            return 0
+        print('backend_auth_status: BLOCKED')
+        print('reason: empty API key')
+        return 2
+
+    path = write_knowledge_service_auth(api_key, args.api_key_header)
+    print('backend_auth_status: SAVED')
+    print(f'backend_auth_store: {path}')
+    print('next_step: lbai init-workspace')
+    return 0
+
+
 def auth_doctor(_args: argparse.Namespace) -> int:
     token = read_token()
     gh = shutil.which('gh')
     gh_ok = gh_authenticated() if gh else False
     source = auth_source_label()
+    backend_auth = read_knowledge_service_auth()
     print('auth_check:')
     print(f'- token_available: {"yes" if token else "no"}')
     print(f'- gh_available: {"yes" if gh else "no"}')
     print(f'- gh_auth_status: {"ok" if gh_ok else "not_authenticated"}')
+    print(f'- backend_api_key_available: {"yes" if backend_auth.get("api_key") else "no"}')
     if source:
         print(f'- auth_source: {source}')
+    if backend_auth.get('api_key'):
+        print(f'- backend_auth_source: {knowledge_service_auth_path()}')
     if token or gh_ok:
         print('auth_status: READY')
         return 0
@@ -480,7 +623,7 @@ def init_workspace(args: argparse.Namespace) -> int:
 
         if not args.no_commit:
             stage_paths = [p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json'] if (local_path / p).exists()]
-            run(['git', 'add', '--', *stage_paths], cwd=local_path)
+            run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
             status = capture(['git', 'status', '--porcelain'], cwd=local_path)
             if status.stdout.strip():
                 commit = run(['git', 'commit', '-m', 'chore(lbai): initialize workspace kit'], cwd=local_path)
@@ -744,6 +887,10 @@ def build_parser() -> argparse.ArgumentParser:
     auth = sub.add_parser('auth')
     auth_sub = auth.add_subparsers(dest='auth_command')
     auth_sub.add_parser('login')
+    backend_login = auth_sub.add_parser('backend-login')
+    backend_login.add_argument('--api-key')
+    backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
+    backend_login.add_argument('--optional', action='store_true')
     auth_sub.add_parser('doctor')
 
     init = sub.add_parser('init-workspace')
@@ -796,9 +943,11 @@ def main(argv: list[str] | None = None) -> int:
     if known.command == 'auth':
         if known.auth_command == 'login':
             return auth_login(known)
+        if known.auth_command == 'backend-login':
+            return auth_backend_login(known)
         if known.auth_command == 'doctor':
             return auth_doctor(known)
-        parser.error('auth requires login or doctor')
+        parser.error('auth requires login, backend-login, or doctor')
     if known.command == 'init-workspace':
         return init_workspace(known)
     if known.command == 'doctor':

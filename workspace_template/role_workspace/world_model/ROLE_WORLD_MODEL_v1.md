@@ -1,5 +1,8 @@
 # ROLE_WORLD_MODEL_v1
 
+## User Name
+<fill user name>
+
 ## Role Name
 <fill role name>
 
@@ -8,6 +11,9 @@
 
 ## Role Goal
 <fill role goal>
+
+## Conversation Preference
+<fill concise or detailed preference>
 
 ## Task Execution Standard
 
@@ -26,9 +32,7 @@ Default posture:
 - When information is missing, name the exact missing materials, knowledge, background, decisions, or source documents needed to finish responsibly.
 - Avoid inventing facts, claims, sources, metrics, approvals, product capabilities, pricing, legal positions, or customer promises.
 - Prefer clear, useful output over performative tone. Be rigorous, calm, and concise.
-
-## Current Priorities
-See ROLE_CURRENT_PRIORITIES_v1.md.
+- Follow the employee conversation preference unless it conflicts with accuracy, safety, or review requirements.
 
 ## Blocked / Unclear Items
 See BLOCKED_ITEMS_v1.md.

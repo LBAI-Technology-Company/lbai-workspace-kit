@@ -3,51 +3,56 @@
 External evidence and reference material are saved first under:
 
 ```text
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/
 ```
 
-The folder name must not include raw evidence content. Use source kind plus a short non-reversible hash or sequence id.
+The folder name must not include raw evidence content. Use source type plus a short non-reversible hash or sequence id.
 
-Each evidence folder must contain:
+Each new evidence folder must contain:
 
 ```text
-input.md
-evidence_metadata.md
-evidence_brief.md
+raw.md
+metadata.json
 evidence_enrichment.json
 ```
 
-`evidence_enrichment.json` is the AI-generated structured enrichment produced in Cursor or the Codex desktop app before capture. `add_evidence.py` requires it via `--enrichment` and does not provide a rule-based fallback.
+`evidence_enrichment.json` is the AI-generated metadata enrichment produced in Cursor or the Codex desktop app before capture. `add_evidence.py` requires it via `--enrichment` and does not provide a rule-based fallback.
 
 Prompt: `lbai_system/prompts/evidence_enrichment_prompt_v1.md`
 
 Schema: `lbai_system/schemas/evidence_enrichment_schema_v1.json`
 
-`evidence_brief.md` is a short employee-readable summary generated from enrichment. It should separate usable source-supported information from uncertain or inferred information, list confirmed decisions when present, surface missing information and review risks, show linked task gap coverage, and give the safest next step in plain language. It is an aid for use and search, not a separate source of truth.
+Legacy folders may contain `input.md`, `evidence_metadata.md`, or `evidence_brief.md`. Backend ingestion may read them for migration compatibility, but employee-side search must not use local fallback and new captures should not create them.
 
-Task-local `input_*.md` files are legacy fallback artifacts only. New user-provided material should be captured through `/lbai-add-evidence` and linked back to a task when applicable.
+Task-local `input_*.md` files are legacy fallback artifacts only. New user-provided material should be captured through `/lbai-add-evidence` and related back to a task when applicable.
 
 ## Required Metadata
 
-Each `evidence_metadata.md` file should include:
+Each `metadata.json` file should include:
 
-- `source_identity`: who or what provided the source
-- `source_kind`: transcript, feedback, interview, draft, data_notes, source, notes, general, or reference
-- `captured_at`: local capture date
-- `admissibility_status`: `CAPTURED`, `NEEDS_REVIEW`, `ADMITTED`, or `REJECTED` (from AI enrichment; code does not keyword-upgrade)
-- `ai_admissibility_status`: copy of AI judgment before capture
-- `converted_artifact_status`: `REFERENCE_ONLY`, `TASK_SUGGESTED`, `LINKED_TO_TASK`, `CONVERTED_TO_TASK_OUTPUT`, or `CONVERTED_TO_ROLE_DELTA`
-- `usage_intent`: reference, possible_task_input, or task_input
-- `linked_task`: task folder or `None`
-- `covers_gaps`: covered task gaps or `None`
-- `remaining_gaps`: remaining task gaps or `None`
-- `redacted`: `true` or `false`
-- `sensitive_capture_status`: `NONE` or `REDACTED`
-- `sync_status`: `PUSHED`, `PUSH_FAILED`, `BLOCKED`, `NOT_SYNCED`, or `NO_CHANGES`
-- `evidence_brief`: path to the generated `evidence_brief.md`
+- `schema_version`: `employee_evidence_metadata_v1`
+- `evidence_id`: evidence folder id
+- `title`: short human-readable title
+- `source_type`: meeting_note, chat_record, customer_feedback, interview, draft, data_note, policy, reference, task_material, or general
+- `source_origin`: where the material came from
+- `source_occurred_at`: source event date/time or `unknown`
+- `submitted_at`: capture timestamp
+- `submitted_by`: employee id from `.lbai/workspace.json`
+- `submitted_by_display_name`: optional display name
+- `submitted_by_email`: optional email
+- `employee_user_name`: role profile name from `/lbai-init`
+- `employee_position`: role profile position from `/lbai-init`
+- `source_visibility`: private, team, or company
+- `related_objects`: optional business objects
+- `content_files`: raw content files, normally `raw.md`
+- `content_hash`: sha256 hash of redacted content
+- `sensitive_scan_status`: passed or redacted
+- `redacted`: true or false
+- `backend_ingestion_status`: normally `PENDING_GITHUB_SYNC`
+- `backend_ingestion_hint`: backend handling hint
 
 ## Boundary
 
-Captured evidence is not company state by itself. It becomes usable task state only after it is saved as an artifact, checked for admissibility and sensitive data, linked to the relevant task or ledger, and safely synced when possible.
+Captured evidence is not company state by itself. The employee client only saves redacted source material and metadata to GitHub. Backend services later ingest, extract facts, resolve conflicts, and return evidence packs.
 
-Reference-only evidence must not directly update `ROLE_WORLD_MODEL_v1.md`. If evidence should change role memory, create or approve a separate role-delta task.
+Reference-only evidence must not directly update `ROLE_WORLD_MODEL_v1.md`. If evidence should change role memory, create or approve a separate role feedback or task flow.

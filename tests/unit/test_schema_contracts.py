@@ -25,6 +25,7 @@ FIXTURE_SCHEMA_MAP = {
 
 INVALID_FIXTURES = {
     'evidence_invalid_schema.json',
+    'evidence_missing_practical_next_step.json',
     'init_missing_key.json',
 }
 
@@ -43,6 +44,7 @@ def test_invalid_fixtures_fail_schema(fixture_name):
     fixture = json.loads((FIXTURES / fixture_name).read_text(encoding='utf-8'))
     schema_file = {
         'evidence_invalid_schema.json': 'evidence_enrichment_schema_v1.json',
+        'evidence_missing_practical_next_step.json': 'evidence_enrichment_schema_v1.json',
         'init_missing_key.json': 'init_enrichment_schema_v1.json',
     }[fixture_name]
     schema = json.loads((SCHEMAS / schema_file).read_text(encoding='utf-8'))

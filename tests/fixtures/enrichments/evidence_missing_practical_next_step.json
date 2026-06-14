@@ -1,16 +1,7 @@
 {
   "schema_version": "evidence_enrichment_v1",
-  "source_kind": "transcript",
-  "usage_intent": "reference",
-  "admissibility_status": "CAPTURED",
-  "brief": {
-    "usable_facts": [],
-    "review_limited": [],
-    "uncertain": [],
-    "decisions": [],
-    "missing_info": [],
-    "action_items": [],
-    "blocked_signals": [],
-    "risks": []
-  }
+  "source_type": "meeting_note",
+  "source_origin": "测试",
+  "source_occurred_at": "2026-06-10",
+  "source_visibility": "team"
 }

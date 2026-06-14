@@ -1,9 +1,14 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$LbaiHome = Join-Path $env:USERPROFILE ".lbai"
+if ($env:LBAI_HOME) {
+    $LbaiHome = $env:LBAI_HOME
+} else {
+    $LbaiHome = Join-Path $env:USERPROFILE ".lbai"
+}
 $InstallDir = Join-Path $LbaiHome "kit"
 $BinDir = Join-Path $LbaiHome "bin"
+$VenvDir = Join-Path $LbaiHome "venv"
 $PathMarker = "# LBAI Workspace Kit CLI"
 
 function Write-Info($Message) {
@@ -152,15 +157,44 @@ function Ensure-UserPath {
     }
 }
 
-function Write-LbaiLauncher([string[]]$PythonCommand) {
+function New-PythonRuntime([string[]]$PythonCommand) {
+    if (Test-Path $VenvDir) {
+        Remove-Item -Recurse -Force $VenvDir
+    }
+
+    $pythonArgs = @()
+    if ($PythonCommand.Count -gt 1) {
+        $pythonArgs = $PythonCommand[1..($PythonCommand.Count - 1)]
+    }
+    $pythonExe = $PythonCommand[0]
+    & $pythonExe @pythonArgs -m venv $VenvDir | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "could not create Python runtime at $VenvDir. Install Python venv support and rerun install.ps1."
+    }
+
+    $venvPython = Join-Path $VenvDir "Scripts\python.exe"
+    if (-not (Test-Path $venvPython)) {
+        Fail "Python runtime was created but $venvPython was not found."
+    }
+
+    $requirements = Join-Path $InstallDir "lbai_core\requirements.txt"
+    & $venvPython -m pip install --quiet --disable-pip-version-check -r $requirements | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        Fail "could not install Python dependencies into $VenvDir. Check network or pip configuration, then rerun install.ps1."
+    }
+
+    return $venvPython
+}
+
+function Write-LbaiLauncher([string]$RuntimePython) {
     $launcher = Join-Path $BinDir "lbai.cmd"
-    $pythonLine = ($PythonCommand -join " ")
     @"
 @echo off
 setlocal
+set "LBAI_HOME=$LbaiHome"
 set "LBAI_KIT_ROOT=$InstallDir"
 set "PYTHONPATH=$InstallDir\lbai_core;%PYTHONPATH%"
-$pythonLine -m lbai.cli %*
+"$RuntimePython" -m lbai.cli %*
 "@ | Set-Content -Path $launcher -Encoding ASCII
 }
 
@@ -169,22 +203,14 @@ $pythonCommand = Resolve-PythonCommand
 $releaseTag = Get-LatestReleaseTag
 Write-Info "Latest release: $releaseTag"
 Install-KitFromRelease -Tag $releaseTag
-Write-LbaiLauncher -PythonCommand $pythonCommand
+$runtimePython = New-PythonRuntime -PythonCommand $pythonCommand
+Write-LbaiLauncher -RuntimePython $runtimePython
 Ensure-UserPath
+Write-Info "Installed Python runtime and dependencies (jsonschema)."
 
-$pythonArgs = @()
-if ($pythonCommand.Count -gt 1) {
-    $pythonArgs = $pythonCommand[1..($pythonCommand.Count - 1)]
-}
-$pythonExe = $pythonCommand[0]
-$requirements = Join-Path $InstallDir "lbai_core\requirements.txt"
-if (Test-Path $requirements) {
-    try {
-        & $pythonExe @pythonArgs -m pip install --quiet --disable-pip-version-check -r $requirements | Out-Null
-        Write-Info "Installed Python dependencies (jsonschema)."
-    } catch {
-        Write-Info "Warning: could not install jsonschema via pip; run: $pythonExe -m pip install jsonschema"
-    }
+if (-not $env:LBAI_SKIP_BACKEND_AUTH -and -not [Console]::IsInputRedirected) {
+    Write-Info "Optional backend knowledge service setup."
+    & (Join-Path $BinDir "lbai.cmd") auth backend-login --optional
 }
 
 $kitVersion = "unknown"
@@ -201,4 +227,5 @@ Write-Info ""
 Write-Info "Next steps:"
 Write-Info "  关闭并重新打开 PowerShell"
 Write-Info "  lbai auth login"
+Write-Info "  lbai auth backend-login"
 Write-Info "  lbai init-workspace"

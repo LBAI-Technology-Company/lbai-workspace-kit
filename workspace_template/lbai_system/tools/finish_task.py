@@ -3,7 +3,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -47,6 +47,38 @@ def write_finish_review_artifact(task_dir: Path, data: dict):
         f'## next_step\n{data.get("next_step", "None")}\n',
         encoding='utf-8',
     )
+
+
+def write_role_memory_feedback(root: Path, task_dir: Path, data: dict) -> list[str]:
+    candidates = data.get('role_memory_feedback_candidates') or []
+    if not candidates:
+        return []
+    task_rel = str(task_dir.relative_to(root))
+    feedback_id = f'fb_{datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")}_{task_dir.name}'
+    payload = {
+        'schema_version': 'role_memory_feedback_v1',
+        'feedback_id': feedback_id,
+        'source_task': task_rel,
+        'confirmed_by_user': True,
+        'created_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
+        'feedback_items': candidates[:3],
+        'note': 'Feedback candidate for backend aggregation. Not a local authoritative role rule.',
+    }
+    json_path = task_dir / 'role_memory_feedback.json'
+    md_path = task_dir / 'role_memory_feedback.md'
+    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    lines = [
+        '# Role Memory Feedback',
+        '',
+        'These are feedback candidates for backend aggregation, not local authoritative role rules.',
+        '',
+        '## feedback_items',
+    ]
+    for item in candidates[:3]:
+        lines.append(f'- {item.get("title", item.get("type", "feedback"))}: {item.get("content", "")}')
+    lines.append('')
+    md_path.write_text('\n'.join(lines), encoding='utf-8')
+    return [json_path.name, md_path.name]
 
 
 def run_pre_commit_check(root: Path, task_folder: str) -> tuple[int, str]:
@@ -212,6 +244,8 @@ def update_structured_task_ledger(
             'overclaim_check.md',
             'release_boundary_check.md',
             'founder_review_needed.md',
+            'role_memory_feedback.json',
+            'role_memory_feedback.md',
         }
     ]
     if not outputs:
@@ -265,7 +299,11 @@ def next_dependency_for(status: str, commit_readiness: str, git_status: str, lea
     if git_status == 'PUSH_FAILED':
         return '检查网络、权限或 Git 冲突后，重新运行 /lbai-finish-task。'
     if commit_readiness == 'BLOCKED':
-        return '查看下方提交前检查结果，处理敏感信息、临时文件或非本任务变更后重试。'
+        return (
+            '查看下方提交前检查结果。若出现“非本任务变更”，请先用对应流程同步或提交这些内容：'
+            '/lbai-add-evidence 处理资料、/lbai-init 处理岗位记忆、/lbai-update-kit 处理工作流文件；'
+            '也可以移走临时文件后重试 /lbai-finish-task。'
+        )
     if git_status == 'BLOCKED':
         return '配置 Git remote/upstream 或处理同步阻塞后，重新运行 /lbai-finish-task。'
     if git_status == 'COMMITTED':
@@ -324,6 +362,7 @@ def main():
         return 1
 
     write_finish_review_artifact(task_dir, review_data)
+    role_memory_files = write_role_memory_feedback(root, task_dir, review_data)
     ai_finish_blocked = review_data['finish_verdict'] == 'BLOCK_FINISH'
 
     status = determine_task_status(task_dir)
@@ -425,6 +464,8 @@ def main():
     print(f'- {args.task_folder}/task_ledger.md')
     print(f'- {args.task_folder}/finish_review.md')
     print(f'- {args.task_folder}/finish_review_enrichment.json')
+    for name in role_memory_files:
+        print(f'- {args.task_folder}/{name}')
     print('- role_workspace/ledgers/TASK_LEDGER_v1.md')
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
         print('auto_git_sync: completed')

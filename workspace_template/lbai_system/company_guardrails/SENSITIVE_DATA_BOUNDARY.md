@@ -14,7 +14,7 @@ Do not write the following into repo artifacts:
 - Financial account information
 - Legal privileged communication
 - Candidate sensitive personal information beyond necessity
-- Unnecessary personal data such as email addresses or phone numbers
+- Unnecessary personal data such as phone numbers
 - Private source code without approval
 
 ## Redaction

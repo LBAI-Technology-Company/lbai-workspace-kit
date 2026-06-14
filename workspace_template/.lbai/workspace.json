@@ -1,0 +1,28 @@
+{
+  "workspaceKitVersion": "1.0.0",
+  "coreVersionRequired": ">=0.1.0",
+  "templateSource": "LBAI-Technology-Company/lbai-workspace-kit",
+  "managedPaths": [
+    "AGENTS.md",
+    "README.md",
+    ".gitignore",
+    ".cursor",
+    ".agents",
+    "lbai_system",
+    "workspace_dashboard.html"
+  ],
+  "employee_identity": {
+    "employee_user_id": "employee",
+    "display_name": "",
+    "email": "",
+    "department": ""
+  },
+  "knowledge_service": {
+    "enabled": true,
+    "base_url": "https://workflow-kit.lbai.ai",
+    "api_key_header": "X-LBAI-API-Key",
+    "auth_mode": "local_api_key",
+    "workspace_repo_id": "lbai-workspace",
+    "search_timeout_seconds": 20
+  }
+}

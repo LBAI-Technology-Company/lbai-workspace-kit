@@ -45,6 +45,7 @@ Terminal commands:
 
 ```bash
 lbai auth login
+lbai auth backend-login
 lbai auth doctor
 lbai init-workspace
 lbai doctor
@@ -58,13 +59,15 @@ AI desktop workflow commands:
 
 ```text
 /lbai-init
+/lbai-add-evidence
 /lbai-new-task
 /lbai-search-artifacts
 /lbai-execute-task
 /lbai-finish-task
+/lbai-update-kit
 ```
 
-`/lbai-add-evidence` is available in Cursor and the Codex desktop app only (AI enrichment required). It is not listed as a standalone terminal workflow here.
+These employee workflow commands are available through Cursor and the Codex desktop app project adapters. AI enrichment is required where listed below; terminal-only workflow commands such as bare `lbai add-evidence` or `lbai new-task` are intentionally blocked without enrichment.
 
 Not in scope yet:
 
@@ -96,6 +99,7 @@ macOS / Linux:
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
 source ~/.zshrc
 lbai auth login
+lbai auth backend-login
 lbai init-workspace
 ```
 
@@ -109,6 +113,7 @@ Close and reopen PowerShell after install, then run:
 
 ```powershell
 lbai auth login
+lbai auth backend-login
 lbai init-workspace
 ```
 
@@ -154,6 +159,7 @@ Use authentication as a separate step:
 
 ```bash
 lbai auth login
+lbai auth backend-login
 lbai auth doctor
 ```
 
@@ -176,6 +182,14 @@ saved token at ~/.lbai/auth/github_token
 -> GITHUB_TOKEN / GH_TOKEN environment variables
 -> GitHub CLI (gh auth login)
 ```
+
+Backend knowledge search uses a separate local API key:
+
+```bash
+lbai auth backend-login
+```
+
+That key is stored at `~/.lbai/auth/knowledge_service.json` with user-only file permissions. It is not written into the workspace repository, `.lbai/workspace.json`, `role_workspace/`, or `tasks/`, and `lbai update-kit` does not remove it.
 
 The saved token file is restricted to the current user. The token needs permission to clone, commit, and push to the employee private workspace repository.
 
@@ -204,7 +218,7 @@ Initialization will:
 1. clone the private repository if the local path is empty
 2. copy `workspace_template/` into the repository
 3. preserve employee-owned default folders such as `role_workspace/` and `tasks/`
-4. write `.lbai/workspace.json`
+4. write `.lbai/workspace.json` with kit version, employee identity defaults, and optional backend knowledge service configuration
 5. stage the generated workspace files
 6. commit with `chore(lbai): initialize workspace kit`
 7. push to the private repository
@@ -252,7 +266,7 @@ Run these commands inside an initialized LBAI workspace.
 |---------|-----------|-----------|
 | `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
 | `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
-| `/lbai-search-artifacts` | `search_enrichment_prompt_v1.md` | `--print-catalog` → `--enrichment` |
+| `/lbai-search-artifacts` | `backend_search_query_plan_prompt_v1.md` | `search_artifacts.py --enrichment` (backend only) |
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent writes `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
@@ -266,6 +280,23 @@ Initialize role context:
 /lbai-init
 ```
 
+`/lbai-init` captures the employee user name, position, and conversation preference in `ROLE_PROFILE_v1.json`.
+
+`.lbai/workspace.json` stores technical identity and non-secret backend settings, including `employee_user_id`, optional display/email/department fields, `workspace_repo_id`, and `knowledge_service` configuration. The backend API key is stored locally under `~/.lbai/auth/knowledge_service.json`, not in the workspace repo. `ROLE_PROFILE_v1.json` stores role-facing profile fields for model context.
+
+Create a formal task record:
+
+```text
+/lbai-new-task Summarize this week's customer feedback
+```
+
+`/lbai-new-task` first evaluates the task against the current conversation, role context, and relevant searchable artifacts:
+
+- Known information is recorded with its source: conversation context, company knowledge, role context, linked evidence, external source, or assumption.
+- Required gaps block execution and go to `missing_inputs.md`.
+- Recommended gaps improve quality but do not block execution.
+- Direct clarifications, preferences, and decisions can be supplied in chat as task-local context and used to close the matching gap. Use `/lbai-add-evidence` only for source material that should be archived as reusable evidence.
+
 Save source material without creating a task.
 
 Use **`/lbai-add-evidence` in Cursor or the Codex desktop app**. Do not run bare `lbai add-evidence` from the terminal without AI enrichment.
@@ -277,7 +308,7 @@ Capture is **AI enrichment + deterministic capture**. There is **no rule-based f
 | 1 | **AI** (Cursor / Codex desktop) | Read `lbai_system/prompts/evidence_enrichment_prompt_v1.md` and produce enrichment JSON |
 | 2 | **Code** | Run `add_evidence.py --enrichment <json>` for redaction, files, ledger, hygiene, and git |
 
-AI handles transcript cleanup, `source_kind`, `evidence_brief`, gap analysis, and initial review judgment.
+AI only fills lightweight metadata such as title, source type, visibility, related tasks, and ingestion hint. It must not generate reusable facts, decisions, action items, risks, or gap analysis in the employee plugin.
 
 Code handles redaction, folder/ledger/git/hygiene. `NEEDS_REVIEW` follows **AI enrichment only**; no keyword overlay in code.
 
@@ -293,29 +324,22 @@ lbai_system/schemas/evidence_enrichment_schema_v1.json
 Each evidence folder includes:
 
 ```text
-input.md
-evidence_metadata.md
-evidence_brief.md
+raw.md
+metadata.json
 evidence_enrichment.json
 ```
 
-To link evidence to an existing task:
+`metadata.json` and `EVIDENCE_LEDGER_v1.md` include employee identity and backend ingestion status. The backend can asynchronously index pushed evidence after GitHub sync.
 
-```text
-/lbai-add-evidence tasks/<task_folder>
-```
+Evidence and tasks are independent. `/lbai-add-evidence` archives source material, does not record `related_tasks`, and does not update `missing_inputs.md`, `task_scope.md`, `task_ledger.md`, or `gap_record.md`; `/lbai-new-task` and `/lbai-execute-task` still decide locally whether required inputs are missing.
 
-Search prior evidence, task outputs, and references:
+Search backend knowledge:
 
 ```text
 /lbai-search-artifacts customer-feedback
 ```
 
-Create a formal task record:
-
-```text
-/lbai-new-task Summarize this week's customer feedback
-```
+Search calls the configured backend knowledge service and prints FOUND / NO_MATCH / ERROR status. If the backend is disabled, unavailable, or has no matches, the command displays the result only, does not scan local workspace artifacts, and does not automatically block or advance other task flows.
 
 Prepare the selected task for model execution:
 

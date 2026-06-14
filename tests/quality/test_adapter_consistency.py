@@ -42,3 +42,28 @@ def test_commands_manifest_lists_all_commands():
     data = json.loads(MANIFEST.read_text(encoding='utf-8'))
     listed = {item['name'] for item in data['commands']}
     assert listed == set(COMMANDS)
+
+
+def test_commands_manifest_has_routing_metadata():
+    import json
+
+    data = json.loads(MANIFEST.read_text(encoding='utf-8'))
+    required = {
+        'name',
+        'slug',
+        'tool',
+        'category',
+        'display_order',
+        'prompt',
+        'schema',
+        'requires_enrichment',
+        'mutates',
+        'backend_required',
+    }
+    for item in data['commands']:
+        assert required <= set(item), f'manifest command missing metadata: {item}'
+    search = next(item for item in data['commands'] if item['slug'] == '/lbai-search-artifacts')
+    assert search['backend_required'] is True
+    assert search['mutates'] is False
+    assert search['prompt'] == 'backend_search_query_plan_prompt_v1.md'
+    assert search['schema'] == 'backend_search_query_plan_schema_v1.json'

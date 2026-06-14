@@ -6,10 +6,12 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -19,6 +21,9 @@ from task_utils import SENSITIVE_PATTERNS, git_root, read_text
 
 DEFAULT_REPO = 'LBAI-Technology-Company/lbai-workspace-kit'
 DEFAULT_SOURCE = f'github-release:{DEFAULT_REPO}:latest'
+KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
+KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
+KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
 MANAGED_DIRS = [Path('.cursor'), Path('.agents'), Path('lbai_system')]
 MANAGED_FILES = [
     Path('.gitignore'),
@@ -223,11 +228,11 @@ def has_required_source_paths(source_root: Path) -> bool:
 
 
 def kit_template_root(source_root: Path) -> Path:
-    if has_required_source_paths(source_root):
-        return source_root
     nested = source_root / KIT_TEMPLATE_DIR
     if nested.is_dir() and has_required_source_paths(nested):
         return nested
+    if has_required_source_paths(source_root):
+        return source_root
     return source_root
 
 
@@ -363,6 +368,27 @@ def kit_version_from_tree(source_root: Path) -> str:
     return 'unknown'
 
 
+def lbai_home() -> Path:
+    return Path(os.environ.get('LBAI_HOME', '~/.lbai')).expanduser()
+
+
+def knowledge_service_auth_path() -> Path:
+    return lbai_home() / 'auth' / 'knowledge_service.json'
+
+
+def write_knowledge_service_auth(api_key: str, api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER) -> None:
+    path = knowledge_service_auth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    data = {
+        'schema_version': 'knowledge_service_auth_v1',
+        'api_key': api_key.strip(),
+        'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
+        'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+    }
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    path.chmod(stat.S_IRUSR | stat.S_IWUSR)
+
+
 def write_workspace_kit_version(root: Path, version: str) -> None:
     version = normalize_version(version)
     metadata_path = root / '.lbai' / 'workspace.json'
@@ -380,6 +406,20 @@ def write_workspace_kit_version(root: Path, version: str) -> None:
         'managedPaths',
         [rel(path) for path in MANAGED_DIRS + MANAGED_FILES],
     )
+    knowledge = data.setdefault('knowledge_service', {})
+    if isinstance(knowledge, dict):
+        legacy_key = str(knowledge.pop('api_key', '') or '').strip()
+        if legacy_key:
+            write_knowledge_service_auth(legacy_key, str(knowledge.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER))
+        knowledge['enabled'] = True
+        knowledge['base_url'] = KNOWLEDGE_SERVICE_BASE_URL
+        knowledge['api_key_header'] = KNOWLEDGE_SERVICE_API_KEY_HEADER
+        knowledge['auth_mode'] = 'local_api_key'
+        env_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
+        if env_key:
+            write_knowledge_service_auth(env_key, KNOWLEDGE_SERVICE_API_KEY_HEADER)
+        knowledge.setdefault('workspace_repo_id', root.name)
+        knowledge.setdefault('search_timeout_seconds', 20)
     metadata_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
 
@@ -505,7 +545,7 @@ def git_has_staged_changes(root: Path) -> bool:
 
 def stage_managed(root: Path) -> tuple[bool, str]:
     paths = [rel(p) for p in MANAGED_DIRS + MANAGED_FILES] + ['.lbai/workspace.json']
-    result = run_git(root, ['add', '-A', '--', *paths])
+    result = run_git(root, ['add', '-A', '-f', '--', *paths])
     if result.returncode != 0:
         return False, (result.stdout + result.stderr).strip()
     return True, ''
@@ -539,6 +579,31 @@ def print_list(title: str, items: list[str]):
         print('- 无')
 
 
+def print_contract_summary(
+    status: str,
+    commit_readiness: str,
+    git_status: str,
+    version: str,
+    updated_paths: list[str],
+    sync_detail: str,
+    confirmation: str = '无',
+    next_step: str = '无',
+) -> None:
+    print(f'工作流更新完成：{status}')
+    print(f'commit_readiness: {commit_readiness}')
+    print(f'git_status: {git_status}')
+    print(f'当前版本：{version}')
+    print('已更新：')
+    if updated_paths:
+        for item in updated_paths:
+            print(f'- {item}')
+    else:
+        print('- 无')
+    print(f'GitHub 同步：{sync_detail}')
+    print(f'如需确认：{confirmation}')
+    print(f'下一步：{next_step}')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--source', help='lbai-workspace-kit release source, Git URL, or local folder. Employees usually leave this empty.')
@@ -556,6 +621,16 @@ def main():
 
     pre_dirty = dirty_managed_paths(root)
     if pre_dirty and not overwrite_managed:
+        print_contract_summary(
+            'BLOCKED',
+            'BLOCKED',
+            'BLOCKED',
+            before_version,
+            [],
+            'blocked_or_failed: managed workflow files have local changes',
+            '覆盖升级 | 暂不升级',
+            '选择“覆盖升级”后重新运行 /lbai-update-kit，或选择“暂不升级”保留当前文件。',
+        )
         print('kit_update_status: BLOCKED')
         print('commit_readiness: BLOCKED')
         print('git_status: BLOCKED')
@@ -570,12 +645,14 @@ def main():
 
     if not args.no_commit and not args.no_push:
         if not git_remote_available(root):
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: MISSING_GITHUB_REMOTE', '无', '配置 GitHub remote 后重新运行 /lbai-update-kit。')
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
             print('git_status: BLOCKED')
             print('reason: MISSING_GITHUB_REMOTE: no Git remote configured')
             return 1
         if not git_upstream_available(root):
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: MISSING_GIT_UPSTREAM', '无', '设置当前分支 upstream 后重新运行 /lbai-update-kit。')
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
             print('git_status: BLOCKED')
@@ -585,6 +662,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix='lbai-kit-update-') as temp_name:
         source_root, source_label, source_version = materialize_source(source, Path(temp_name))
         if source_root is None:
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], f'blocked_or_failed: {source_label}', '无', '检查更新源后重新运行 /lbai-update-kit。')
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
             print('git_status: BLOCKED')
@@ -593,6 +671,7 @@ def main():
 
         missing = validate_source(source_root)
         if missing:
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: workflow kit source is missing required paths', '无', '更换有效的 workflow kit source 后重试。')
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
             print('git_status: BLOCKED')
@@ -602,6 +681,7 @@ def main():
 
         source_findings = hygiene_findings(source_root, source_managed_files(source_root))
         if source_findings:
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: workflow kit source contains sensitive or temporary managed files', '无', '清理更新源中的敏感或临时文件后重试。')
             print('kit_update_status: BLOCKED')
             print('commit_readiness: BLOCKED')
             print('git_status: BLOCKED')
@@ -615,6 +695,7 @@ def main():
             write_workspace_kit_version(root, source_version)
 
     if args.dry_run:
+        print_contract_summary('DRY_RUN', 'READY', 'SKIPPED', before_version, touched, 'skipped: dry-run only', '无', '确认列表后，不带 --dry-run 重新运行 /lbai-update-kit。')
         print('kit_update_status: DRY_RUN')
         print('commit_readiness: READY')
         print('git_status: SKIPPED')
@@ -630,6 +711,7 @@ def main():
     changed_files = post_update_changed_files(root)
     findings = hygiene_findings(root, changed_files)
     if findings:
+        print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', after_version, changed_files, 'blocked_or_failed: managed workflow update introduced sensitive or temporary files', '无', '清理敏感或临时文件后重试 /lbai-update-kit。')
         print('kit_update_status: BLOCKED')
         print('commit_readiness: BLOCKED')
         print('git_status: BLOCKED')
@@ -638,6 +720,7 @@ def main():
         return 1
 
     if not changed_files:
+        print_contract_summary('NO_CHANGES', 'READY', 'NO_CHANGES', after_version, [], 'completed: no managed workflow changes', '无', '无')
         print('kit_update_status: NO_CHANGES')
         print('commit_readiness: READY')
         print('git_status: NO_CHANGES')
@@ -649,6 +732,7 @@ def main():
         return 0
 
     if args.no_commit:
+        print_contract_summary('UPDATED', 'READY', 'COMMIT_SKIPPED', after_version, changed_files, 'skipped: --no-commit', '无', '如需同步到 GitHub，请提交并推送这些 workflow 更新。')
         print('kit_update_status: UPDATED')
         print('commit_readiness: READY')
         print('git_status: COMMIT_SKIPPED')
@@ -665,6 +749,7 @@ def main():
     message = f'chore(lbai): update workflow kit to {source_version}'
     commit_ok, commit_detail = commit_managed(root, message)
     if not commit_ok:
+        print_contract_summary('UPDATED', 'BLOCKED', 'BLOCKED', after_version, changed_files, f'blocked_or_failed: {commit_detail}', '无', '处理本地 Git 提交失败后重试 /lbai-update-kit。')
         print('kit_update_status: UPDATED')
         print('commit_readiness: BLOCKED')
         print('git_status: BLOCKED')
@@ -674,6 +759,7 @@ def main():
         return 1
 
     if args.no_push:
+        print_contract_summary('UPDATED', 'READY', 'COMMITTED', after_version, changed_files, 'skipped: --no-push', '无', '之后需要 push 到 private GitHub。')
         print('kit_update_status: UPDATED')
         print('commit_readiness: READY')
         print('git_status: COMMITTED')
@@ -691,6 +777,7 @@ def main():
 
     push_ok, push_detail = push_current(root)
     if not push_ok:
+        print_contract_summary('UPDATED', 'READY', 'PUSH_FAILED', after_version, changed_files, f'blocked_or_failed: {push_detail}', '无', '检查网络、权限或冲突后重新运行 /lbai-update-kit。')
         print('kit_update_status: UPDATED')
         print('commit_readiness: READY')
         print('git_status: PUSH_FAILED')
@@ -699,6 +786,7 @@ def main():
         print_employee_artifact_note(root)
         return 3
 
+    print_contract_summary('UPDATED', 'READY', 'PUSHED', after_version, changed_files, 'completed', '无', '可以继续使用最新工作流。')
     print('kit_update_status: UPDATED')
     print('commit_readiness: READY')
     print('git_status: PUSHED')

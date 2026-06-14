@@ -1,0 +1,11 @@
+{
+  "schema_version": "role_profile_v1",
+  "employee_user_name": "<fill user name>",
+  "employee_position": "<fill role name>",
+  "conversation_preference": "<fill concise or detailed preference>",
+  "main_responsibilities": "",
+  "common_tasks": "",
+  "common_sources": "",
+  "common_outputs": "",
+  "collaborators": ""
+}

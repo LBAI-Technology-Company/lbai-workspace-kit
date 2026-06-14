@@ -17,7 +17,7 @@ Evidence intake smoke test:
 /lbai-add-evidence 保存这份会议记录，不创建任务：今天讨论运营计划和 action items。
 ```
 
-Expected: the workspace assistant saves evidence under `role_workspace/knowledge/evidence/`, generates `evidence_brief.md`, updates `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`, suggests a task if useful, and does not create a `tasks/` folder unless the employee explicitly confirms `/lbai-new-task`.
+Expected: the workspace assistant saves evidence under `role_workspace/knowledge/evidence/`, writes `raw.md`, `metadata.json`, and `evidence_enrichment.json`, updates `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`, prints `backend_ingestion_status=PENDING_GITHUB_SYNC`, and does not create a `tasks/` folder unless the employee explicitly confirms `/lbai-new-task`.
 
 Artifact search smoke test:
 
@@ -25,7 +25,7 @@ Artifact search smoke test:
 /lbai-search-artifacts 运营计划 action items
 ```
 
-Expected: the workspace assistant returns candidate evidence, references, or task outputs if available. It must not create a task, link artifacts, update gaps, change task state, or run Git sync.
+Expected: the workspace assistant returns backend FOUND / NO_MATCH status when the knowledge service is enabled, or display-only ERROR when it is disabled or unavailable. It must not search local workspace artifacts, create a task, link artifacts, update gaps, change task state, write retrieved context, or run Git sync.
 
 1. Ask in Cursor or Codex:
 

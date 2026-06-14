@@ -27,6 +27,9 @@ QUESTIONS = """# /lbai-init 岗位设定问题
 - 标注“必答”的问题请尽量填写，工作区助手会根据这些内容更新岗位设定。
 - 标注“选答”的问题可以空着，后续岗位变化时也可以再次运行 `/lbai-init` 补充。
 
+## 用户姓名
+必答。例：张三 / Alice
+
 ## 岗位名称
 必答。例：办公室文职 / 内容助理 / 市场运营
 
@@ -48,8 +51,8 @@ QUESTIONS = """# /lbai-init 岗位设定问题
 ## 需要负责人 review 的情况
 必答。例：官网文案、媒体材料、客户承诺、投资人材料
 
-## 当前 1-2 周优先级
-必答。例：完成会议纪要流程测试、整理用户反馈分类
+## 对话习惯
+必答。例：简洁 / 详细 / 先给结论再给依据 / 中文为主
 
 ## 常协作的人或团队
 选答。例：市场团队、产品团队、负责人姓名
@@ -60,6 +63,7 @@ QUESTIONS = """# /lbai-init 岗位设定问题
 
 
 SECTION_NAMES = [
+    '用户姓名',
     '岗位名称',
     '主要职责',
     '常见任务',
@@ -67,13 +71,13 @@ SECTION_NAMES = [
     '常见输出',
     '不能自行决定的事项',
     '需要负责人 review 的情况',
-    '当前 1-2 周优先级',
+    '对话习惯',
     '常协作的人或团队',
     '其他补充',
 ]
 
-REQUIRED_SECTION_NAMES = SECTION_NAMES[:8]
-OPTIONAL_SECTION_NAMES = SECTION_NAMES[8:]
+REQUIRED_SECTION_NAMES = SECTION_NAMES[:9]
+OPTIONAL_SECTION_NAMES = SECTION_NAMES[9:]
 
 
 def parse_sections(text: str) -> dict[str, str]:
@@ -115,12 +119,13 @@ def paragraph_or_placeholder(value: str, placeholder: str) -> str:
 def write_role_files(root: Path, sections: dict[str, str]):
     world_model = root / 'role_workspace' / 'world_model' / 'ROLE_WORLD_MODEL_v1.md'
     boundary = root / 'role_workspace' / 'world_model' / 'ROLE_BOUNDARY_v1.md'
-    priorities = root / 'role_workspace' / 'world_model' / 'ROLE_CURRENT_PRIORITIES_v1.md'
+    role_profile = root / 'role_workspace' / 'world_model' / 'ROLE_PROFILE_v1.json'
     archive_dir = root / 'role_workspace' / 'archive'
     archive_dir.mkdir(parents=True, exist_ok=True)
-    for path in [world_model, boundary, priorities]:
+    for path in [world_model, boundary, role_profile]:
         path.parent.mkdir(parents=True, exist_ok=True)
 
+    user_name = paragraph_or_placeholder(sections.get('用户姓名', ''), '<fill user name>')
     role_name = paragraph_or_placeholder(sections.get('岗位名称', ''), '<fill role name>')
     responsibilities = list_or_placeholder(sections.get('主要职责', ''), '<fill responsibilities>')
     common_tasks = list_or_placeholder(sections.get('常见任务', ''), '<fill common tasks>')
@@ -128,11 +133,26 @@ def write_role_files(root: Path, sections: dict[str, str]):
     outputs = list_or_placeholder(sections.get('常见输出', ''), '<fill common outputs>')
     not_allowed = list_or_placeholder(sections.get('不能自行决定的事项', ''), 'Public-facing claims, pricing, legal/compliance, investor material, media statements, customer-facing promises, and official product capability claims')
     review_needed = list_or_placeholder(sections.get('需要负责人 review 的情况', ''), 'Public-facing, pricing, legal/compliance, investor, media, customer promise, finance-sensitive, security-sensitive, or hiring-sensitive content')
-    current_priorities = list_or_placeholder(sections.get('当前 1-2 周优先级', ''), 'Use LBAI three-command task lifecycle.')
+    conversation_preference = paragraph_or_placeholder(sections.get('对话习惯', ''), 'Concise by default; expand details when needed.')
     collaborators = list_or_placeholder(sections.get('常协作的人或团队', ''), '<fill collaborators>')
     notes = paragraph_or_placeholder(sections.get('其他补充', ''), 'None.')
 
+    role_profile.write_text(json.dumps({
+        'schema_version': 'role_profile_v1',
+        'employee_user_name': user_name,
+        'employee_position': role_name,
+        'conversation_preference': conversation_preference,
+        'main_responsibilities': sections.get('主要职责', '').strip(),
+        'common_tasks': sections.get('常见任务', '').strip(),
+        'common_sources': sections.get('常用资料来源', '').strip(),
+        'common_outputs': sections.get('常见输出', '').strip(),
+        'collaborators': sections.get('常协作的人或团队', '').strip(),
+    }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
     world_model.write_text(f"""# ROLE_WORLD_MODEL_v1
+
+## User Name
+{user_name}
 
 ## Role Name
 {role_name}
@@ -158,6 +178,9 @@ Support the role responsibilities below while keeping work traceable, reviewable
 ## Collaborators
 {collaborators}
 
+## Conversation Preference
+{conversation_preference}
+
 ## Task Execution Standard
 
 Treat every `/lbai-execute-task` run as internal company work, not casual chat.
@@ -172,9 +195,7 @@ Default posture:
 - Do not fabricate numbers, success stories, rankings, conversion rates, growth rates, financial results, customer logos, adoption claims, or evidence-like details.
 - Recommendations must be feasible under stated constraints. If feasibility cannot be verified, label the recommendation as an assumption and provide the validation step.
 - When information is missing, name the exact missing materials, background, decisions, or source documents needed to finish responsibly.
-
-## Current Priorities
-See ROLE_CURRENT_PRIORITIES_v1.md.
+- Follow the employee conversation preference unless it conflicts with accuracy, safety, or review requirements.
 
 ## Blocked / Unclear Items
 See BLOCKED_ITEMS_v1.md.
@@ -210,20 +231,6 @@ See BLOCKED_ITEMS_v1.md.
 Do not write secrets, passwords, API keys, access tokens, legal privileged communication, confidential customer data, financial account information, or unnecessary personal data into repo artifacts.
 """, encoding='utf-8')
 
-    priorities.write_text(f"""# ROLE_CURRENT_PRIORITIES_v1
-
-## Current Priorities
-
-{current_priorities}
-
-## Operating Habits
-
-1. Use `/lbai-new-task`, `/lbai-execute-task`, and `/lbai-finish-task` for formal work.
-2. Keep important work in `tasks/` artifacts.
-3. Update task ledger through `/lbai-finish-task`.
-4. Use `/lbai-init` again when the role, responsibilities, review boundary, sources, or priorities change.
-""", encoding='utf-8')
-
     stamp = datetime.now().strftime('%Y_%m_%d_%H%M%S')
     archive = archive_dir / f'init_lbai_answers_{stamp}.md'
     archive_text = '# /lbai-init Answers Archive\n\n' + '\n\n'.join(
@@ -231,7 +238,7 @@ Do not write secrets, passwords, API keys, access tokens, legal privileged commu
     ) + '\n'
     archive_redacted, _ = redact_sensitive(archive_text)
     archive.write_text(archive_redacted, encoding='utf-8')
-    return [world_model, boundary, priorities, archive]
+    return [role_profile, world_model, boundary, archive]
 
 
 def validate_init_enrichment(root: Path, data: dict) -> tuple[dict[str, str] | None, str | None]:

@@ -1,23 +1,13 @@
 {
   "schema_version": "evidence_enrichment_v1",
-  "source_kind": "transcript",
-  "usage_intent": "reference",
+  "title": "产品迭代与财务对接内部同步",
+  "source_type": "meeting_note",
+  "source_origin": "内部同步记录",
+  "source_occurred_at": "2026-06-10",
+  "source_visibility": "private",
+  "related_objects": ["product_iteration", "finance_workstream"],
+  "language": "zh-CN",
+  "backend_ingestion_hint": "source_for_company_knowledge",
   "admissibility_status": "CAPTURED",
-  "review_reasons": [],
-  "cleaned_content": "并行推进产品迭代与财务的对接，内部同步进度。",
-  "brief": {
-    "usable_facts": ["产品迭代与财务对接为并行工作流"],
-    "review_limited": [],
-    "uncertain": [],
-    "decisions": [],
-    "missing_info": [],
-    "action_items": [],
-    "blocked_signals": [],
-    "risks": [],
-    "practical_next_step": "归档为内部参考资料"
-  },
-  "gap_analysis": {
-    "covers_gaps": [],
-    "remaining_gaps": []
-  }
+  "review_reasons": []
 }

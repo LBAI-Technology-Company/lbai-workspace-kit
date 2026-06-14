@@ -74,7 +74,7 @@ Behavior:
 
 1. If input is empty, show questions via `python3 lbai_system/tools/init_lbai.py --print-questions` and collect answers in chat.
 2. Produce AI init enrichment JSON with cleaned `sections`.
-3. Call `init_lbai.py --enrichment <json_path>`. Code writes role files and archive copy.
+3. Call `init_lbai.py --enrichment <json_path>`. Code writes role files, `ROLE_PROFILE_v1.json`, and archive copy.
 4. If AI enrichment is unavailable, return `岗位设定更新：BLOCKED`.
 
 Response format:
@@ -111,16 +111,23 @@ Behavior:
 
 1. If input is empty but the current conversation contains exactly one clear task, use that description for intake enrichment.
 2. If input is empty and the task is unclear, ask for one concise task description.
-3. Read role context and optional prior artifacts; produce task intake enrichment JSON.
-4. Call `new_task.py --enrichment <json_path>`. Code creates task folder from AI `review_needed`, writes `task_intake_enrichment.json`.
-5. If required information is missing, create `missing_inputs.md` and mark the task `BLOCKED`.
-6. If review is required, create review reminder files. Do not mark the task `WAITING_REVIEW` solely for review-sensitive content.
+3. Read role context, current conversation context, and relevant prior artifacts. Search existing artifacts first when the task may depend on company knowledge.
+4. Produce task intake enrichment JSON that separates:
+   - known information and source kind (`conversation_context`, `company_knowledge`, `role_context`, `linked_evidence`, `external_source`, or `assumption`)
+   - `missing_inputs`: blocking gaps only
+   - `recommended_inputs`: useful non-blocking context
+   - goal, expected output, review risk, and completion conditions
+5. Treat direct employee clarifications as task-local context. Do not force them into `/lbai-add-evidence`.
+6. Use `/lbai-add-evidence` only for source materials that should be archived as reusable evidence, such as meeting notes, customer materials, emails, raw transcripts, research, or approved reference documents.
+7. Call `new_task.py --enrichment <json_path>`. Code creates task folder from AI `review_needed`, writes `task_intake_enrichment.json`.
+8. If required information is missing, create `missing_inputs.md` and mark the task `BLOCKED`.
+9. If review is required, create review reminder files. Do not mark the task `WAITING_REVIEW` solely for review-sensitive content.
 
 Response format:
 
 ```text
 任务已建档：<task_folder>
-状态：<OPEN | BLOCKED | READY_TO_EXECUTE>
+状态：<OPEN | BLOCKED>
 leader_review_reminder: <reminder or None>
 已创建：
 - <files>
@@ -153,48 +160,45 @@ Behavior:
 1. If input is empty, ask the employee to paste the evidence or reference material.
 2. Read `lbai_system/prompts/evidence_enrichment_prompt_v1.md` and produce AI enrichment JSON matching `lbai_system/schemas/evidence_enrichment_schema_v1.json`.
 3. If AI enrichment is unavailable (model unavailable, quota exhausted, invalid JSON), stop with `evidence_status: BLOCKED`. Do **not** call `add_evidence.py` without enrichment.
-4. If input starts with `tasks/<task_folder>`, link the saved evidence to that task. Read `missing_inputs.md` first; enrichment must include `gap_analysis` with `covers_gaps` and `remaining_gaps`.
+4. Treat the command input as evidence content. Evidence is independent from tasks and does not record task links.
 5. Call `add_evidence.py` with `--enrichment <json_path>` and the raw evidence content. Code handles redaction, file writes, ledger updates, hygiene check, and git sync.
-6. Save standalone evidence under `role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/`. Do not put raw evidence content into folder names.
-7. Create `input.md`, `evidence_metadata.md`, `evidence_brief.md`, and `evidence_enrichment.json`.
-8. Update `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`.
-9. If linked to a task, update that task's `missing_inputs.md`, `task_scope.md`, `task_ledger.md`, and `gap_record.md` using enrichment gap analysis.
-10. If all required missing inputs are covered, mark the task `READY_TO_EXECUTE`; otherwise keep it `BLOCKED`.
-11. If evidence appears review-sensitive, keep `admissibility_status` as `NEEDS_REVIEW`, set `leader_review_reminder`, and do not treat it as approved source. AI provides the review judgment in enrichment JSON; code does not upgrade or downgrade it via keyword rules. Do not block the linked task solely for review-sensitive evidence.
-12. If evidence appears useful for a new task, suggest a task in enrichment but do not create one automatically.
-13. Run the evidence hygiene check and safely sync only the evidence folder, `EVIDENCE_LEDGER_v1.md`, and linked task gap/ledger files when applicable. If sync is blocked after local capture succeeds, report `sync_status: BLOCKED` or `PUSH_FAILED` without treating the local capture as failed.
+6. Save evidence under `role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/`. Do not put raw evidence content into folder names.
+7. Create `raw.md`, `metadata.json`, and `evidence_enrichment.json`. Do not create new `evidence_brief.md`.
+8. Include technical identity from `.lbai/workspace.json` and role profile fields from `ROLE_PROFILE_v1.json` in `metadata.json`.
+9. Update `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`.
+10. Do not update task `missing_inputs.md`, `task_scope.md`, `task_ledger.md`, or `gap_record.md`; task readiness remains owned by `/lbai-new-task` and `/lbai-execute-task`.
+11. If evidence appears review-sensitive, keep `admissibility_status` as `NEEDS_REVIEW`; AI provides the review judgment in enrichment JSON and code does not apply keyword overlay.
+12. Run the evidence hygiene check and safely sync only the evidence folder and `EVIDENCE_LEDGER_v1.md`. If sync is blocked after local capture succeeds, report `sync_status: BLOCKED` or `PUSH_FAILED` without treating the local capture as failed.
 
 Response format:
 
 ```text
 资料归档完成：<evidence_folder>
-evidence_brief: <evidence_folder>/evidence_brief.md
-evidence_status: <CAPTURED | NEEDS_REVIEW | ADMITTED | REJECTED | BLOCKED>
-source_kind: <transcript | feedback | interview | draft | data_notes | source | notes | general | reference>
-converted_artifact_status: <REFERENCE_ONLY | TASK_SUGGESTED | LINKED_TO_TASK | CONVERTED_TO_TASK_OUTPUT | CONVERTED_TO_ROLE_DELTA>
+raw: <evidence_folder>/raw.md
+metadata: <evidence_folder>/metadata.json
+evidence_status: <CAPTURED | NEEDS_REVIEW | BLOCKED>
+employee_user_id: <employee id or None>
+employee_user_name: <employee user name or None>
+employee_position: <employee position or None>
+source_type: <meeting_note | chat_record | customer_feedback | interview | draft | data_note | policy | reference | task_material | general>
+source_visibility: <private | team | company>
+backend_ingestion_status: <PENDING_GITHUB_SYNC>
 sensitive_capture_status: <NONE | REDACTED>
-linked_task: <task_folder or None>
-covers_gaps:
-- <gap or None>
-remaining_gaps:
-- <gap or None>
-leader_review_reminder: <reminder or None>
-task_suggestion: <suggestion or None>
 sync_status: <PUSHED | PUSH_FAILED | BLOCKED | NOT_SYNCED | NO_CHANGES>
 下一步：<exact next step>
 ```
 
 ## /lbai-search-artifacts
 
-Search prior evidence, references, and task outputs before creating or executing a task. This command is read-only and must not mutate artifacts.
+Search the backend knowledge service before creating or executing a task. This command is read-only, must not search local workspace artifacts, and must not mutate artifacts.
 
 Supported runtimes: **Cursor** and **Codex desktop app** only. No rule-based fallback.
 
 Prompt and schema:
 
 ```text
-lbai_system/prompts/search_enrichment_prompt_v1.md
-lbai_system/schemas/search_enrichment_schema_v1.json
+lbai_system/prompts/backend_search_query_plan_prompt_v1.md
+lbai_system/schemas/backend_search_query_plan_schema_v1.json
 ```
 
 Tool:
@@ -205,28 +209,27 @@ lbai_system/tools/search_artifacts.py
 
 Behavior:
 
-1. If input is empty, ask the employee for search keywords.
-2. Run `python3 lbai_system/tools/search_artifacts.py --print-catalog` to export artifact catalog JSON.
-3. Produce AI search enrichment JSON with semantically ranked matches from the catalog only.
-4. Call `search_artifacts.py --enrichment <json_path>` to render results. Code validates paths and prints the response format.
-5. Do not create a task, link artifacts, or mutate repo state.
+1. If input is empty, ask the employee for backend search keywords.
+2. Produce `backend_search_query_plan_v1` JSON and call `search_artifacts.py --enrichment <json_path>`.
+3. Code calls the configured backend `POST /v1/search/evidence` endpoint and renders the backend response directly.
+4. If the backend is disabled, missing, unavailable, times out, returns no matches, or returns invalid JSON/schema, render the search result or error as display-only output. Backend search status must not automatically block, mutate, advance, or finish any task flow.
+5. Do not run `--print-catalog`, do not scan local evidence/tasks/references, do not use local fallback, and do not write `retrieved_context.json/md`.
 
 Response format:
 
 ```text
-artifact 查询结果：<FOUND | NO_MATCH | BLOCKED>
+artifact 查询结果：<FOUND | NO_MATCH | ERROR>
 query: <query or None>
+source: backend
 matches:
-1. <artifact_path>
-   type: <evidence | task | reference>
-   title: <title>
+1. <backend subject or event_id>
+   event_id: <event id>
+   entity_type: <backend entity type>
    status: <status>
-   usage: <usage>
-   linked_task: <task or ->
-   risk: <normal | needs_review | sensitive_redacted>
-   match_reason: <reason>
-   preview: <short preview>
-   suggested_use: <how to use safely>
+   source: <backend source path or id>
+   value: <backend value>
+   evidence_text: <backend evidence text>
+   reason: <backend match reason>
 下一步：<exact next step>
 ```
 
@@ -245,7 +248,8 @@ Tools:
 ```text
 lbai_system/tools/prepare_execute_task.py <task_folder>
 lbai_system/tools/resolve_current_task.py execute
-/lbai-add-evidence <task_folder>
+lbai_system/tools/archive_input.py <task_folder> --resolves "<exact missing input>"
+/lbai-add-evidence for reusable/source evidence only
 ```
 
 Behavior:
@@ -253,10 +257,11 @@ Behavior:
 1. If input is empty, resolve the task with `resolve_current_task.py execute`.
 2. Run `prepare_execute_task.py <task_folder>` to validate missing inputs and create `execution_plan.md` if needed.
 3. Read `lbai_system/prompts/execute_task_plan_prompt_v1.md`, `task_scope.md`, `task_slot.md`, `task_ledger.md`, linked evidence briefs, and role context files.
-4. If user-provided input is in chat but not saved, save via `/lbai-add-evidence <task_folder>` with AI enrichment.
-5. If required input is still missing, mark `BLOCKED`.
-6. Create or update `task_output.md` aligned with `execution_plan.md` and `task_slot.md`, with facts/assumptions/sources separated.
-7. If review is required, ensure review reminder files exist. Do not mark `WAITING_REVIEW` solely for review-sensitive content.
+4. If user-provided input is a direct clarification, decision, preference, or lightweight context in chat, save it as task-local input via `archive_input.py --resolves "<exact missing input>"`; do not treat it as evidence by default. Use one `--resolves` per missing input covered by the chat reply.
+5. If user-provided input is source material that should be reusable or auditable, save via `/lbai-add-evidence` with AI enrichment. Evidence remains independent; close task missing inputs with task-local clarification only when the employee explicitly provides the missing decision or context.
+6. If required input is still missing, mark `BLOCKED`.
+7. Create or update `task_output.md` aligned with `execution_plan.md` and `task_slot.md`, with facts/assumptions/sources separated.
+8. If review is required, ensure review reminder files exist. Do not mark `WAITING_REVIEW` solely for review-sensitive content.
 
 Response format:
 

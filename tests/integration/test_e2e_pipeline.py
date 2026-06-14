@@ -5,7 +5,8 @@ import json
 
 import pytest
 
-from tests.helpers.tool_runner import enrichment_path, parse_task_folder, run_tool
+from tests.helpers.backend_server import backend_search_server
+from tests.helpers.tool_runner import enrichment_path, parse_task_folder, run_tool, write_backend_auth
 
 pytestmark = pytest.mark.e2e
 
@@ -29,13 +30,12 @@ class TestFullPipeline:
         assert 'STATUS BLOCKED' in task_result.stdout
         task_rel = parse_task_folder(task_result.stdout)
 
-        # 3. add evidence linked to task
+        # 3. add independent evidence
         linked = dict(load_json(fixtures, 'evidence_task_linked.json'))
         linked_path = write_fixture('pipeline_linked_evidence.json', linked)
         ev_result = run_tool(
             isolated_workspace,
             'add_evidence.py',
-            task_rel,
             '--enrichment',
             str(linked_path),
             '--no-sync',
@@ -43,33 +43,57 @@ class TestFullPipeline:
             '用户反馈样本：登录慢、文档缺失、导出失败。',
         )
         assert ev_result.returncode == 0, ev_result.output
-        assert f'linked_task: {task_rel}' in ev_result.stdout
+        assert 'linked_task:' not in ev_result.stdout
 
-        # 4. search catalog includes new evidence
-        catalog = json.loads(run_tool(isolated_workspace, 'search_artifacts.py', '--print-catalog').stdout)
-        paths = [a['path'] for a in catalog['artifacts']]
-        assert any('knowledge/evidence' in p for p in paths)
-
-        folder_line = next(line for line in ev_result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
-        evidence_path_str = folder_line.split(' ', 1)[1].strip()
-        search_enrichment = {
-            'schema_version': 'search_enrichment_v1',
+        # 4. search backend returns context
+        config_path = isolated_workspace / '.lbai' / 'workspace.json'
+        query_plan = {
+            'schema_version': 'backend_search_query_plan_v1',
             'query': '用户反馈',
-            'result_status': 'FOUND',
-            'matches': [
+            'keywords': ['用户反馈'],
+            'entity_types': ['evidence'],
+            'limit': 5,
+        }
+        search_path = write_fixture('pipeline_search.json', query_plan)
+        payload = {
+            'schema_version': 'backend_evidence_search_response_v1',
+            'query_status': 'FOUND',
+            'evidence_pack': [
                 {
-                    'path': evidence_path_str,
-                    'match_reason': '刚录入的反馈 evidence',
-                    'suggested_use': '继续执行任务',
-                    'preview': '登录慢、文档缺失',
+                    'event_id': 'evt_pipeline_feedback',
+                    'subject': '用户反馈样本',
+                    'entity_type': 'evidence',
+                    'value': '登录慢、文档缺失、导出失败。',
+                    'status': 'confirmed',
+                    'source': {'path': 'backend/evidence/evt_pipeline_feedback'},
+                    'evidence_text': '用户反馈样本：登录慢、文档缺失、导出失败。',
+                    'reason': 'backend matched linked evidence',
                 }
             ],
             'next_step': 'execute task',
         }
-        search_path = write_fixture('pipeline_search.json', search_enrichment)
-        search_result = run_tool(isolated_workspace, 'search_artifacts.py', '--enrichment', str(search_path))
+        with backend_search_server(payload) as (base_url, _requests):
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(
+                json.dumps(
+                    {
+                        'employee_identity': {'employee_user_id': 'employee-test'},
+                        'knowledge_service': {
+                            'enabled': True,
+                            'base_url': base_url,
+                            'auth_mode': 'local_api_key',
+                            'workspace_repo_id': 'test-workspace',
+                            'search_timeout_seconds': 2,
+                        },
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding='utf-8',
+            )
+            write_backend_auth(isolated_workspace)
+            search_result = run_tool(isolated_workspace, 'search_artifacts.py', '--enrichment', str(search_path))
         assert search_result.returncode == 0, search_result.output
-        assert 'FOUND' in search_result.stdout
+        assert 'artifact 查询结果：FOUND' in search_result.stdout
 
         # 5. simulate execute — write output
         task_dir = isolated_workspace / task_rel

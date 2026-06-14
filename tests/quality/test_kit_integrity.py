@@ -1,8 +1,10 @@
 """Quality checks: shipped prompts, schemas, and workspace bootstrap."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,7 +20,7 @@ CONTRACT = template_root() / 'lbai_system' / 'runner_contracts' / 'lbai_command_
 
 EXPECTED_PROMPTS = {
     'evidence_enrichment_prompt_v1.md': 'evidence_enrichment_v1',
-    'search_enrichment_prompt_v1.md': 'search_enrichment_v1',
+    'backend_search_query_plan_prompt_v1.md': 'backend_search_query_plan_v1',
     'task_intake_enrichment_prompt_v1.md': 'task_intake_enrichment_v1',
     'finish_review_enrichment_prompt_v1.md': 'finish_review_enrichment_v1',
     'init_enrichment_prompt_v1.md': 'init_enrichment_v1',
@@ -27,7 +29,8 @@ EXPECTED_PROMPTS = {
 
 EXPECTED_SCHEMAS = [
     'evidence_enrichment_schema_v1.json',
-    'search_enrichment_schema_v1.json',
+    'backend_evidence_search_response_schema_v1.json',
+    'backend_search_query_plan_schema_v1.json',
     'task_intake_enrichment_schema_v1.json',
     'finish_review_enrichment_schema_v1.json',
     'init_enrichment_schema_v1.json',
@@ -55,13 +58,34 @@ class TestPromptSchemaInventory:
         text = CONTRACT.read_text(encoding='utf-8')
         for token in (
             'evidence_enrichment',
-            'search_enrichment',
+            'backend_search_query_plan',
             'task_intake_enrichment',
             'finish_review_enrichment',
             'init_enrichment',
             '--enrichment',
         ):
             assert token in text, f'contract missing {token}'
+
+    def test_template_has_no_runtime_cache_files(self):
+        offenders = [
+            path.relative_to(template_root()).as_posix()
+            for path in template_root().rglob('*')
+            if path.name == '__pycache__' or path.suffix == '.pyc' or path.name == '.DS_Store'
+        ]
+        assert not offenders, f'template contains runtime/cache files: {offenders}'
+
+    def test_employee_search_docs_are_backend_only(self):
+        paths = [
+            template_root() / 'README.md',
+            template_root() / 'lbai_system/cursor/commands/lbai-search-artifacts.md',
+            template_root() / '.cursor/commands/lbai-search-artifacts.md',
+            template_root() / 'lbai_system/cursor/skills/lbai-search-artifacts/SKILL.md',
+            template_root() / '.agents/skills/lbai-search-artifacts/SKILL.md',
+        ]
+        forbidden = ('--print-catalog', 'search_enrichment', 'local_fallback')
+        for path in paths:
+            text = path.read_text(encoding='utf-8')
+            assert not any(token in text for token in forbidden), f'{path} mentions old local search path'
 
     def test_cursor_commands_present(self):
         cursor_cmds = template_root() / '.cursor' / 'commands'
@@ -93,6 +117,47 @@ class TestPromptSchemaInventory:
         assert 'detect_script_dir()' in text
         assert 'SCRIPT_DIR="$(detect_script_dir || true)"' in text
         assert 'SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"' not in text
+
+    def test_install_launchers_pin_lbai_home_and_runtime_dependencies(self):
+        install_sh = (kit_root() / 'install.sh').read_text(encoding='utf-8')
+        install_ps1 = (kit_root() / 'install.ps1').read_text(encoding='utf-8')
+
+        assert 'VENV_DIR="$LBAI_HOME/venv"' in install_sh
+        assert 'export LBAI_HOME="$LBAI_HOME"' in install_sh
+        assert 'exec "$RUNTIME_PYTHON" -m lbai.cli "\\$@"' in install_sh
+        assert 'Warning: could not install jsonschema' not in install_sh
+        assert 'fail "could not install Python dependencies' in install_sh
+
+        assert '$VenvDir = Join-Path $LbaiHome "venv"' in install_ps1
+        assert 'set "LBAI_HOME=$LbaiHome"' in install_ps1
+        assert '"$RuntimePython" -m lbai.cli %*' in install_ps1
+        assert 'Warning: could not install jsonschema' not in install_ps1
+        assert 'Fail "could not install Python dependencies' in install_ps1
+
+    def test_update_kit_prefers_nested_workspace_template(self, tmp_path):
+        tools_dir = template_root() / 'lbai_system' / 'tools'
+        sys.path.insert(0, str(tools_dir))
+        try:
+            spec = importlib.util.spec_from_file_location('update_kit_for_test', tools_dir / 'update_kit.py')
+            assert spec and spec.loader
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+        finally:
+            sys.path.remove(str(tools_dir))
+
+        source_root = tmp_path / 'checkout'
+        (source_root / '.cursor').mkdir(parents=True)
+        (source_root / 'lbai_system').mkdir()
+        (source_root / 'workspace_template' / '.cursor').mkdir(parents=True)
+        (source_root / 'workspace_template' / 'lbai_system').mkdir()
+
+        assert module.kit_template_root(source_root) == source_root / 'workspace_template'
+
+    def test_managed_git_stage_forces_ignored_paths(self):
+        text = (template_root() / 'lbai_system' / 'tools' / 'update_kit.py').read_text(encoding='utf-8')
+        cli_text = (kit_root() / 'lbai_core' / 'lbai' / 'cli.py').read_text(encoding='utf-8')
+        assert "['add', '-A', '-f', '--', *paths]" in text
+        assert "['git', 'add', '-f', '--', *stage_paths]" in cli_text
 
 
 class TestBootstrapInIsolatedWorkspace:

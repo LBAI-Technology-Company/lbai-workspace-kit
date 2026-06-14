@@ -63,12 +63,12 @@ tasks/          每天产生的任务记录和结果
 
 - 同时支持 Cursor 和 Codex，使用同一套 `/lbai-*` 命令和任务合同。
 - 用 `/lbai-add-evidence` 保存会议记录、反馈、草稿、SOP、日志和背景资料，不自动创建任务。资料归档需先在 **Cursor 或 Codex 桌面 App** 中由 AI 生成 enrichment JSON，再由代码落盘；无规则 fallback。
-- 用 `/lbai-search-artifacts` 查询历史 evidence、参考资料和任务产出，不自动关联或改状态。
+- 用 `/lbai-search-artifacts` 查询后端知识服务返回的证据包，不扫描本地 evidence、任务或 references，也不自动关联或改状态。
 - 用三步任务生命周期把工作从聊天转成正式记录：建档、执行、收尾。
-- 自动识别常见缺失资料，并把补充内容保存为 evidence 后关联到任务缺口。
-- 已有任务补齐资料后，任务 artifact 会记录 `evidence_artifacts`、`remaining_gaps` 和下一步状态。
+- 自动识别必要缺口和推荐补充；普通说明、偏好和决策保存为任务本地上下文，资料型来源保存为独立 evidence。
+- 已有任务缺口由 `/lbai-new-task` 和 `/lbai-execute-task` 本地判断；`/lbai-add-evidence` 不记录 `related_tasks`，也不自动关闭任务缺口。
 - 要求任务输出客观、可核查、可执行；数据、指标、案例和结论必须有来源。
-- 保存岗位记忆、职责边界、当前优先级和任务总台账。
+- 保存岗位记忆、职责边界和任务总台账。
 - 对需要 review 的资料标记 `NEEDS_REVIEW` 并在对话中提醒负责人 review；流程不再因 review 边界阻断执行或收尾。
 - 对敏感信息、临时文件和提交范围做收尾检查。
 - 检查通过后自动提交并推送到员工自己的 private GitHub 仓库。
@@ -91,7 +91,7 @@ tasks/          每天产生的任务记录和结果
 /lbai-add-evidence
 ```
 
-如果想先找历史资料、旧结论或任务产出，用：
+如果想先查后端知识服务里的历史资料、旧结论或证据包，用：
 
 ```text
 /lbai-search-artifacts
@@ -186,10 +186,10 @@ Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项�
 3. 运行 `lbai init-workspace`，输入管理员提供的 private repo URL；Mac / Windows 会弹出文件夹选择窗口，取消则默认保存在当前目录下的仓库同名文件夹。
 4. 进入初始化后的本地工作区，运行 `lbai doctor`。
 5. 用 Cursor 或 Codex 打开这个本地工作区。
-6. 运行 `/lbai-init`，填写岗位名称、职责、常见输入、常见输出、review 边界和近期优先级。
+6. 运行 `/lbai-init`，填写用户姓名、岗位名称、职责、常见输入、常见输出、review 边界和对话习惯。
 7. 可先运行 `/lbai-add-evidence` 保存一份测试资料，确认资料会进入 evidence ledger，且不会自动创建任务。
 8. 创建第一条测试任务，例如 `/lbai-new-task 整理一次测试任务记录`。
-9. 如果任务提示缺资料，用 `/lbai-add-evidence tasks/<task_folder>` 补资料；资料齐了再运行 `/lbai-execute-task`。
+9. 如果任务提示缺信息，普通说明、偏好和决策可直接在对话框补充；会议纪要、客户材料、邮件、原始转写、研究资料等资料型来源，先用 `/lbai-add-evidence` 独立归档，再回到任务对话说明它补充了哪项信息。
 10. 确认输出后运行 `/lbai-finish-task`，让系统检查、落账并同步到 private GitHub。
 11. 打开 `workspace_dashboard.html` 或运行 `lbai serve-dashboard`，确认任务状态、资料记录和岗位信息能正常显示。
 
@@ -274,20 +274,21 @@ README.md
 /lbai-init
 ```
 
-以后岗位职责、优先级、review 边界变化时，也可以再次运行。
+以后岗位职责、review 边界或对话习惯变化时，也可以再次运行。
 
 ### 3.2 它会问什么
 
 工作区助手会问一些简单问题，包括：
 
 - 岗位名称
+- 用户姓名
 - 主要职责
 - 常见任务
 - 常用资料来源
 - 常见输出
 - 哪些事情不能自行决定
 - 哪些内容需要负责人 review
-- 最近 1-2 周优先级
+- 对话习惯，例如简洁、详细、先给结论再给依据
 
 你按实际情况回答即可，不需要正式措辞。
 
@@ -299,6 +300,8 @@ README.md
 role_workspace/world_model/
 role_workspace/archive/
 ```
+
+其中 `role_workspace/world_model/ROLE_PROFILE_v1.json` 会保存服务端可检索的员工画像字段：`employee_user_name`、`employee_position` 和 `conversation_preference`。
 
 它不会修改公司模板文件，也不会创建业务任务。它写入的是员工自己的 `role_workspace/`，不是 `lbai_system/templates/role_workspace/`。
 
@@ -323,9 +326,8 @@ role_workspace/archive/
 | 环节 | 执行方 | 说明 |
 |------|--------|------|
 | Teams 转写清洗 | AI | 去掉 UI 垃圾、时间戳噪声，写入 `cleaned_content` |
-| `source_kind` 分类 | AI | 例如 transcript、feedback、draft |
-| `evidence_brief` | AI | 可用事实、行动项、blocked 信号、风险提示 |
-| 关联任务缺口 | AI | 读 `missing_inputs.md`，填 `gap_analysis` |
+| 轻量元数据 | AI | 标题、资料类型、来源、可见范围、关联对象 |
+| 后端入库提示 | AI | 给后端分片、索引、权限判断提供 hint，不在员工端分析事实 |
 | review 初判 | AI | `admissibility_status`、`review_reasons` |
 | review 判定 | AI | enrichment 中 `admissibility_status` / `review_needed`；代码不做关键词 overlay |
 | 脱敏 | 代码 | 密钥、手机号等正则替换 |
@@ -349,47 +351,34 @@ Cursor / Codex 桌面里的助手会自动完成「生成 JSON + 调脚本」两
 落盘后每个 evidence 目录包含：
 
 ```text
-input.md
-evidence_metadata.md
-evidence_brief.md
+raw.md
+metadata.json
 evidence_enrichment.json
 ```
 
 还会：
 
 - 保存到 `role_workspace/knowledge/evidence/`
+- 在 `metadata.json` 和 evidence ledger 中写入员工身份和后端入库状态
 - evidence folder 使用日期、资料类型和短 hash 命名，不把原始资料正文放进路径
 - 更新 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
 - 代码侧自动脱敏
 - 标记资料状态，例如 `CAPTURED` 或 `NEEDS_REVIEW`
-- 标记转换状态，例如 `REFERENCE_ONLY`、`TASK_SUGGESTED` 或 `LINKED_TO_TASK`
+- 标记后端入库状态，例如 `PENDING_GITHUB_SYNC`
 - 如果资料适合形成任务，只给出建议，不自动创建任务
-- 检查通过后只同步当前 evidence folder、`EVIDENCE_LEDGER_v1.md`，以及被关联任务的允许文件：`missing_inputs.md`、`task_scope.md`、`task_slot.md`、`task_ledger.md`、`gap_record.md`
+- 检查通过后只同步当前 evidence folder 和 `EVIDENCE_LEDGER_v1.md`
 
 如果资料已经本地归档，但 GitHub 同步因为 hygiene check、remote/upstream 或 push 问题被阻断，系统会保留本地 evidence，并在输出和 ledger 中标记 `sync_status: BLOCKED` 或 `PUSH_FAILED`。这表示同步未完成，不表示资料没有保存。
 
-如果这份资料是某个已有任务缺的输入，可以带上任务目录：
+Evidence 与 task 保持独立：`/lbai-add-evidence` 不记录 `related_tasks`，也不会自动修改任务的 `missing_inputs.md`、`task_scope.md`、`task_ledger.md` 或 `gap_record.md`。
 
-```text
-/lbai-add-evidence tasks/<task_folder>
-```
+如果这份资料确实补齐了任务所需输入，请在当前任务对话中说明它补充了哪项信息；`/lbai-new-task` 和 `/lbai-execute-task` 会继续在本地判断 `missing_inputs`，并决定任务是否可以执行。
 
-系统会记录这份 evidence 覆盖了哪些缺口，以及还缺什么。只有当任务缺口被 artifact 覆盖后，任务才会进入 `READY_TO_EXECUTE`。
-
-如果 evidence 覆盖了缺口，任务里的这些字段会一起更新：
-
-```text
-task_scope.md: inputs_available, inputs_missing, status, evidence_artifacts, remaining_gaps
-task_ledger.md: source_artifacts, blocked_reason, next_dependency, next_step, status, evidence_artifacts, remaining_gaps
-missing_inputs.md: resolved gaps
-gap_record.md: latest evidence and remaining gaps
-```
-
-如果 evidence 涉及对外发布边界，资料会标记 `NEEDS_REVIEW`，并在对话中提醒负责人 review；任务缺口补齐后仍可进入 `READY_TO_EXECUTE`。
+如果 evidence 涉及对外发布边界，资料会标记 `NEEDS_REVIEW`，并在对话中提醒负责人 review。
 
 注意：`/lbai-add-evidence` 不会自动创建任务。正式任务仍需要你确认，或使用 `/lbai-new-task` 创建。
 
-### 4.0b 可选：查询历史 artifact
+### 4.0b 可选：查询后端知识
 
 在 **Cursor 或 Codex 桌面 App** 中运行：
 
@@ -399,13 +388,13 @@ gap_record.md: latest evidence and remaining gaps
 
 流程：
 
-1. Agent 运行 `python3 lbai_system/tools/search_artifacts.py --print-catalog` 导出 catalog JSON
-2. Agent 按 `lbai_system/prompts/search_enrichment_prompt_v1.md` 做语义排序
-3. Agent 运行 `python3 lbai_system/tools/search_artifacts.py --enrichment <json>`
+1. Agent 按 `lbai_system/prompts/backend_search_query_plan_prompt_v1.md` 生成后端搜索 query plan
+2. 调用 `.lbai/workspace.json` 配置的后端 knowledge service，并显示 FOUND / NO_MATCH / ERROR
+3. 如果后端未启用、不可用、超时、没有命中或返回无效数据，只展示结果或错误，不搜索本地 evidence、任务或 references，也不自动阻断、修改或推进其他任务流程
 
 只读，不会改任务状态或自动关联。
 
-如果你决定使用某个候选资料，需要在 `/lbai-new-task` 或当前任务 artifacts 中明确引用。
+如果你决定使用某个候选资料，需要在 `/lbai-new-task` 或当前任务 artifacts 中明确引用来源和使用方式。
 
 ### 4.1 第一步：创建任务
 
@@ -431,7 +420,7 @@ gap_record.md: latest evidence and remaining gaps
 
 ### 4.2 第二步：补充资料
 
-如果工作区助手说缺资料，优先按提示使用 `/lbai-add-evidence tasks/<task_folder>` 补资料。Cursor/Codex 也可以在你直接粘贴内容时，按项目规则把内容保存成 evidence 并关联到当前任务。
+如果工作区助手说缺信息，先看缺口类型：普通说明、偏好、决策可以直接在对话框回复；会议记录、客户材料、邮件、原始转写、研究资料等资料型来源，再按提示使用 `/lbai-add-evidence` 独立归档。Cursor/Codex 也可以在你直接粘贴资料型内容时，按项目规则把内容保存成 evidence。
 
 常见可以粘贴的内容包括：
 
@@ -443,7 +432,7 @@ gap_record.md: latest evidence and remaining gaps
 - 产品说明
 - 数据表说明
 
-工作区助手会优先把资料保存为 evidence，并关联到当前任务缺口。旧版本留下的任务输入文件仍可能包括：
+工作区助手会把资料型来源保存为独立 evidence；普通对话补充会保存在当前任务文件夹。任务输入文件可能包括：
 
 ```text
 input_transcript.md
@@ -453,11 +442,11 @@ input_source.md
 input_user_provided.md
 ```
 
-如果你粘贴的内容里有 API key、token、密码、邮箱、手机号等敏感信息，工作区助手会尽量自动脱敏，避免把敏感信息写进公司 repo。包含官网、对外承诺、价格、法律、投资人、媒体、客户承诺、安全或财务等内容的草稿，会被标记为需要 review。
+如果你粘贴的内容里有 API key、token、密码、手机号等敏感信息，工作区助手会尽量自动脱敏，避免把敏感信息写进公司 repo。邮箱地址不会按敏感信息处理。包含官网、对外承诺、价格、法律、投资人、媒体、客户承诺、安全或财务等内容的草稿，会被标记为需要 review。
 
 ### 4.3 第三步：执行任务
 
-任务状态变成 `READY_TO_EXECUTE` 后，运行：
+任务缺口补齐、状态回到 `OPEN` 后，运行：
 
 ```text
 /lbai-execute-task
@@ -628,13 +617,13 @@ tasks/
 /lbai-new-task 整理今天市场会议纪要和 action items
 ```
 
-工作区助手让你补会议全文后，用 evidence 关联到任务：
+工作区助手让你补会议全文后，先独立归档 evidence：
 
 ```text
-/lbai-add-evidence tasks/<task_folder>
+/lbai-add-evidence
 ```
 
-然后粘贴会议内容。任务变成 `READY_TO_EXECUTE` 后再运行：
+然后粘贴会议内容，并回到任务对话说明这份资料补充了会议全文。任务缺口补齐、状态回到 `OPEN` 后再运行：
 
 
 ```text
@@ -651,10 +640,10 @@ tasks/
 补充用户反馈：
 
 ```text
-/lbai-add-evidence tasks/<task_folder>
+/lbai-add-evidence
 ```
 
-然后粘贴用户反馈。任务 ready 后运行：
+然后粘贴用户反馈，并回到任务对话说明这份资料补充了用户反馈。任务缺口补齐、状态回到 `OPEN` 后运行：
 
 
 ```text
@@ -671,7 +660,7 @@ tasks/
 补充本周材料：
 
 ```text
-/lbai-add-evidence tasks/<task_folder>
+/lbai-add-evidence
 ```
 
 然后运行：
@@ -690,7 +679,7 @@ tasks/
 补充产品说明或草稿时，用：
 
 ```text
-/lbai-add-evidence tasks/<task_folder>
+/lbai-add-evidence
 ```
 
 如果资料或任务涉及官网、对外发布、产品能力承诺等 review 边界，资料可能标记 `NEEDS_REVIEW`，对话中会提醒负责人 review。任务仍可正常执行和收尾。
@@ -709,10 +698,10 @@ workspace_dashboard.html
 
 这个页面不会上传数据，也不会修改文件。它会读取工作区里的 Markdown 文件，并显示：
 
-- 岗位名称、当前优先级和角色边界
+- 岗位名称、岗位目标和角色边界
 - 最近任务、任务状态、review 状态和 GitHub 同步状态
 - evidence 数量、最近 evidence、linked task、review 状态和同步状态
-- 常用命令里包含 `/lbai-search-artifacts`，用于提示历史资料查询入口
+- 常用命令里包含 `/lbai-search-artifacts`，用于提示后端知识查询入口
 - 阻断事项和下一步依赖
 - 常用 `/lbai-*` 命令
 - 公司 review 边界和敏感信息边界
@@ -757,7 +746,7 @@ http://127.0.0.1:8765/workspace_dashboard.html
 - 手动运行 git add / commit / push
 - 自己判断所有 review 规则
 
-工作区助手会负责提醒、建档、保存 evidence、关联缺口、生成结果、更新记录和检查提交状态。AI 可以建议任务，但不会因为你保存资料就自动创建任务。
+工作区助手会负责提醒、建档、保存 evidence、记录资料与任务关系、生成结果、更新记录和检查提交状态。AI 可以建议任务，但不会因为你保存资料就自动创建任务。
 
 ---
 
@@ -766,7 +755,7 @@ http://127.0.0.1:8765/workspace_dashboard.html
 ```text
 /lbai-init 配置岗位
 /lbai-add-evidence 保存资料
-/lbai-search-artifacts 查询历史资料
+/lbai-search-artifacts 查询后端知识
 /lbai-new-task 建档
 /lbai-execute-task 执行
 /lbai-finish-task 收尾

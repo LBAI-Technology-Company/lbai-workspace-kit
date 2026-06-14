@@ -22,7 +22,7 @@
 
 1. 自动创建任务记录
 2. 信息不足时明确告诉员工缺什么
-3. 员工直接粘贴会议内容后，Cursor 通过 `/lbai-add-evidence <task_folder>` 保存为 evidence 并关联任务缺口
+3. 员工补充缺失信息时，Cursor 能区分普通对话补充和资料型来源；会议内容这类资料型来源通过 `/lbai-add-evidence` 保存为独立 evidence，不和 task 建立 metadata 关联
 4. 根据输入生成任务结果
 5. 收尾时更新任务记录和总台账
 6. 提交前检查通过且 Git upstream 已配置时自动提交并推送
@@ -88,13 +88,13 @@ BLOCKED
 - missing_inputs.md
 缺少：
 - 会议全文或会议笔记
-下一步：请直接粘贴会议全文，我会使用 /lbai-add-evidence tasks/<task_folder> 保存为 evidence 并更新缺口状态。
+下一步：请直接粘贴会议全文或会议笔记；这是资料型来源，我会使用 /lbai-add-evidence 独立归档。若它补齐了当前任务缺口，请在任务对话中明确说明补充了哪项信息；若只是补充偏好或决策，可直接在对话框回复。
 ```
 
 ### 通过标准
 
 - Cursor 没有要求员工手动创建模板
-- Cursor 明确说缺会议全文或会议笔记
+- Cursor 明确说缺会议全文或会议笔记，并说明资料型来源才需要 `/lbai-add-evidence`
 - Cursor 没有开始编造会议内容
 
 ---
@@ -127,42 +127,38 @@ Blocked items：
 
 ### 预期 Cursor 做什么
 
-Cursor 应该把这段内容保存到 role workspace 的 evidence 区，并关联到当前任务：
+Cursor 应该把这段内容保存到 role workspace 的 evidence 区，且不写入任务关联字段：
 
 ```text
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/input.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/evidence_metadata.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/evidence_brief.md
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/raw.md
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/metadata.json
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/evidence_enrichment.json
 role_workspace/ledgers/EVIDENCE_LEDGER_v1.md
 ```
 
 ### 预期状态
 
-保存后任务应变成：
+保存 evidence 后，任务不应因为 `/lbai-add-evidence` 自动消除缺口。任务是否可执行仍由 `/lbai-new-task` 或 `/lbai-execute-task` 根据本地 `missing_inputs.md` 判断。
 
 ```text
-READY_TO_EXECUTE
+BLOCKED 或 OPEN，取决于任务本地 missing_inputs 判断
 ```
 
 ### 预期回复类似这样
 
 ```text
-资料归档完成：role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>
-converted_artifact_status: LINKED_TO_TASK
-linked_task: tasks/<task_folder>
-covers_gaps:
-- 会议全文或会议笔记
-remaining_gaps:
-- None
-下一步：/lbai-execute-task tasks/<task_folder>
+evidence_status: CAPTURED
+evidence_path: role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>
+backend_ingestion_status: PENDING_GITHUB_SYNC
+下一步：资料已保存并可 push；后端将异步入库。若这是任务必需输入，请在当前任务对话中说明并重新执行本地缺口判断。
 ```
 
 ### 通过标准
 
 - Cursor 自动保存 evidence，不要求员工手动建文件
 - evidence 写入 `role_workspace/knowledge/evidence/`，并更新 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
-- 当前任务 artifacts 记录 `evidence_artifacts` 和 `remaining_gaps`
-- 任务状态从 `BLOCKED` 变成 `READY_TO_EXECUTE`
+- 当前任务的 `missing_inputs.md`、`task_scope.md`、`task_ledger.md`、`gap_record.md` 不会被 `/lbai-add-evidence` 自动改写
+- 后续 `/lbai-execute-task` 仍会本地判断 missing inputs；如需历史资料，先显式运行 `/lbai-search-artifacts` 查看后端结果，搜索结果不写入本地 `retrieved_context.md/json`
 
 ---
 
@@ -312,9 +308,9 @@ tasks/<task_folder>/task_slot.md
 tasks/<task_folder>/task_ledger.md
 tasks/<task_folder>/missing_inputs.md
 tasks/<task_folder>/task_output.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/input.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/evidence_metadata.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_kind>_<short_hash>/evidence_brief.md
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/raw.md
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/metadata.json
+role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/evidence_enrichment.json
 role_workspace/ledgers/EVIDENCE_LEDGER_v1.md
 role_workspace/ledgers/TASK_LEDGER_v1.md
 ```
@@ -329,7 +325,7 @@ role_workspace/ledgers/TASK_LEDGER_v1.md
 
 说明 evidence 归档没有生效。
 
-期望行为是：员工直接粘贴内容，Cursor 使用 `/lbai-add-evidence <task_folder>` 保存为 evidence，并更新任务缺口状态。
+期望行为是：如果员工粘贴的是会议记录、客户材料、邮件等资料型来源，Cursor 使用 `/lbai-add-evidence` 保存为独立 evidence，不更新任务缺口状态；如果只是补充偏好、决策或一句背景说明，则保存为任务本地上下文，并可按 `--resolves` 关闭对应缺口。
 
 ### 情况 2：Cursor 让员工自己创建模板
 

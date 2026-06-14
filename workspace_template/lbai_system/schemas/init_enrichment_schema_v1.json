@@ -8,6 +8,7 @@
     "sections": {
       "type": "object",
       "required": [
+        "用户姓名",
         "岗位名称",
         "主要职责",
         "常见任务",
@@ -15,9 +16,10 @@
         "常见输出",
         "不能自行决定的事项",
         "需要负责人 review 的情况",
-        "当前 1-2 周优先级"
+        "对话习惯"
       ],
       "properties": {
+        "用户姓名": { "type": "string" },
         "岗位名称": { "type": "string" },
         "主要职责": { "type": "string" },
         "常见任务": { "type": "string" },
@@ -25,7 +27,7 @@
         "常见输出": { "type": "string" },
         "不能自行决定的事项": { "type": "string" },
         "需要负责人 review 的情况": { "type": "string" },
-        "当前 1-2 周优先级": { "type": "string" },
+        "对话习惯": { "type": "string" },
         "常协作的人或团队": { "type": "string" },
         "其他补充": { "type": "string" }
       }

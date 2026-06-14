@@ -6,43 +6,85 @@
       "name": "lbai-init.md",
       "slug": "/lbai-init",
       "tool": "init_lbai.py",
-      "requires_enrichment": true
+      "category": "init",
+      "display_order": 10,
+      "prompt": "init_enrichment_prompt_v1.md",
+      "schema": "init_enrichment_schema_v1.json",
+      "requires_enrichment": true,
+      "mutates": true,
+      "backend_required": false
     },
     {
       "name": "lbai-new-task.md",
       "slug": "/lbai-new-task",
       "tool": "new_task.py",
-      "requires_enrichment": true
+      "category": "task",
+      "display_order": 40,
+      "prompt": "task_intake_enrichment_prompt_v1.md",
+      "schema": "task_intake_enrichment_schema_v1.json",
+      "requires_enrichment": true,
+      "mutates": true,
+      "backend_required": false
     },
     {
       "name": "lbai-add-evidence.md",
       "slug": "/lbai-add-evidence",
       "tool": "add_evidence.py",
-      "requires_enrichment": true
+      "category": "evidence",
+      "display_order": 20,
+      "prompt": "evidence_enrichment_prompt_v1.md",
+      "schema": "evidence_enrichment_schema_v1.json",
+      "requires_enrichment": true,
+      "mutates": true,
+      "backend_required": false
     },
     {
       "name": "lbai-search-artifacts.md",
       "slug": "/lbai-search-artifacts",
       "tool": "search_artifacts.py",
-      "requires_enrichment": true
+      "category": "evidence",
+      "display_order": 30,
+      "prompt": "backend_search_query_plan_prompt_v1.md",
+      "schema": "backend_search_query_plan_schema_v1.json",
+      "requires_enrichment": true,
+      "mutates": false,
+      "backend_required": true
     },
     {
       "name": "lbai-execute-task.md",
       "slug": "/lbai-execute-task",
       "tool": "prepare_execute_task.py",
-      "requires_enrichment": false
+      "category": "task",
+      "display_order": 50,
+      "prompt": "execute_task_plan_prompt_v1.md",
+      "schema": null,
+      "requires_enrichment": false,
+      "mutates": true,
+      "backend_required": false
     },
     {
       "name": "lbai-finish-task.md",
       "slug": "/lbai-finish-task",
       "tool": "finish_task.py",
-      "requires_enrichment": true
+      "category": "task",
+      "display_order": 60,
+      "prompt": "finish_review_enrichment_prompt_v1.md",
+      "schema": "finish_review_enrichment_schema_v1.json",
+      "requires_enrichment": true,
+      "mutates": true,
+      "backend_required": false
     },
     {
       "name": "lbai-update-kit.md",
       "slug": "/lbai-update-kit",
       "tool": "update_kit.py",
-      "requires_enrichment": false
+      "category": "maintenance",
+      "display_order": 70,
+      "prompt": null,
+      "schema": null,
+      "requires_enrichment": false,
+      "mutates": true,
+      "backend_required": false
     }
   ]
 }

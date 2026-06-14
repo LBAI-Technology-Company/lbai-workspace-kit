@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import json
+import os
 import re
 import subprocess
 from datetime import date
@@ -6,7 +8,10 @@ from pathlib import Path
 from typing import Optional
 
 
-STATUS_VALUES = ['OPEN', 'BLOCKED', 'READY_TO_EXECUTE', 'WAITING_REVIEW', 'COMPLETED']
+STATUS_VALUES = ['OPEN', 'BLOCKED', 'COMPLETED']
+KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
+KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
+KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
 LEADER_REVIEW_REMINDER = '对外发布或涉及官网/定价/合规/投资人/媒体/客户承诺等内容前，请负责人 review；本流程不阻断执行。'
 REVIEW_TASK_FILES = ['overclaim_check.md', 'release_boundary_check.md', 'founder_review_needed.md']
 OPTIONAL_REVIEW_TASK_FILES = ['leader_review_request.md']
@@ -15,7 +20,7 @@ REQUIRED_TASK_FILES = ['task_scope.md', 'task_slot.md', 'task_output.md', 'task_
 RECOMMENDED_TASK_FILES = ['execution_plan.md']
 
 SENSITIVE_PATTERNS = [
-    r'\b(password|api[_-]?key|access[_-]?token|secret[_-]?token|secret)\b\s*[:=]\s*(?!["\']?(?:[\$<{]|粘贴|YOUR_|your_|xxx|XXX|example|EXAMPLE))[^\s,，。;；]+',
+    r'\b(password|api[_-]?key|access[_-]?token|secret[_-]?token|secret)\b\s*[:=]\s*(?!["\']?(?:[\$<{]|粘贴|YOUR_|your_|xxx|XXX|example|EXAMPLE|os\.|None|none|str\b|api[_-]?key\b|env_|config\.get))[^\s,，。;；]+',
     r'bearer\s+[a-zA-Z0-9\._\-]+',
     r'sk-[a-zA-Z0-9]{20,}',
     r'sk-proj-[a-zA-Z0-9_\-]{20,}',
@@ -27,12 +32,105 @@ SENSITIVE_PATTERNS = [
     r'(?i)stripe[_-]?(secret|live)?[_-]?key\s*[:=]\s*\S+',
     r'eyJ[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,}',
     r'-----BEGIN (RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----',
-    r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}',
+    r'\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}\b',
     r'(?<!\d)(?:\+?86[-\s]?)?1[3-9]\d{9}(?!\d)',
     r'(?<!\d)(?:\+?1[-\s.]?)?\(?\d{3}\)?[-\s.]?\d{3}[-\s.]?\d{4}(?!\d)',
 ]
 
 REDACTION = '[SENSITIVE INFORMATION REDACTED - USE APPROVED SECURE CHANNEL]'
+
+
+def default_workspace_config() -> dict:
+    return {
+        'employee_identity': {
+            'employee_user_id': '',
+            'display_name': '',
+            'email': '',
+            'department': '',
+        },
+        'knowledge_service': {
+            'enabled': False,
+            'base_url': KNOWLEDGE_SERVICE_BASE_URL,
+            'api_key_header': KNOWLEDGE_SERVICE_API_KEY_HEADER,
+            'auth_mode': 'local_api_key',
+            'workspace_repo_id': '',
+            'search_timeout_seconds': 20,
+        },
+    }
+
+
+def deep_merge(base: dict, override: dict) -> dict:
+    result = dict(base)
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_workspace_config(root: Path | None = None) -> dict:
+    root = root or workspace_root()
+    path = root / '.lbai' / 'workspace.json'
+    defaults = default_workspace_config()
+    if not path.exists():
+        return defaults
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return defaults
+    if not isinstance(data, dict):
+        return defaults
+    return deep_merge(defaults, data)
+
+
+def employee_identity(root: Path | None = None) -> dict:
+    return load_workspace_config(root).get('employee_identity', {})
+
+
+def knowledge_service_config(root: Path | None = None) -> dict:
+    return load_workspace_config(root).get('knowledge_service', {})
+
+
+def lbai_home() -> Path:
+    return Path(os.environ.get('LBAI_HOME', '~/.lbai')).expanduser()
+
+
+def knowledge_service_auth_path() -> Path:
+    return lbai_home() / 'auth' / 'knowledge_service.json'
+
+
+def load_knowledge_service_auth() -> dict:
+    path = knowledge_service_auth_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def knowledge_service_credentials(root: Path | None = None) -> dict:
+    config = knowledge_service_config(root)
+    auth = load_knowledge_service_auth()
+    api_key = str(auth.get('api_key') or '').strip()
+    api_key_header = str(auth.get('api_key_header') or '').strip()
+    if not api_key:
+        api_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
+        api_key_header = KNOWLEDGE_SERVICE_API_KEY_HEADER
+    if not api_key:
+        api_key = str(config.get('api_key') or '').strip()
+        api_key_header = str(config.get('api_key_header') or '').strip()
+    return {
+        'api_key': api_key,
+        'api_key_header': api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER,
+    }
+
+
+def knowledge_service_enabled(root: Path | None = None) -> bool:
+    config = knowledge_service_config(root)
+    return bool(config.get('enabled')) and bool(str(config.get('base_url') or '').strip())
 
 
 def git_root() -> Optional[Path]:

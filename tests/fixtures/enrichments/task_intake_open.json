@@ -3,7 +3,15 @@
   "task_description": "整理用户反馈周报",
   "goal": "输出内部周报摘要，按优先级分类",
   "expected_output": "task_output.md 含分类、样例与建议动作",
+  "known_information": [
+    {
+      "summary": "任务用于内部周报摘要",
+      "source_kind": "conversation_context",
+      "source_ref": "employee task request"
+    }
+  ],
   "missing_inputs": [],
+  "recommended_inputs": ["如有本周完整反馈原文，可提高样例质量"],
   "status": "OPEN",
   "review_needed": false,
   "review_reasons": [],

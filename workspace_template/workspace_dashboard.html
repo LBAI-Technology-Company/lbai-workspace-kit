@@ -762,8 +762,7 @@
           <div class="panel-body">
             <div class="metric-row">
               <div class="metric"><strong id="metricEvidence">0</strong><span>资料记录</span></div>
-              <div class="metric"><strong id="metricEvidenceLinked">0</strong><span>关联任务</span></div>
-              <div class="metric"><strong id="metricEvidenceSuggested">0</strong><span>建议建任务</span></div>
+              <div class="metric"><strong id="metricEvidenceSuggested">0</strong><span>待后端入库</span></div>
               <div class="metric"><strong id="metricEvidenceSyncBlocked">0</strong><span>资料同步阻断</span></div>
             </div>
           </div>
@@ -807,10 +806,6 @@
               <div class="kv-item">
                 <dt>岗位目标</dt>
                 <dd id="roleGoal">未读取</dd>
-              </div>
-              <div class="kv-item">
-                <dt>当前优先级</dt>
-                <dd id="rolePriorities">未读取</dd>
               </div>
               <div class="kv-item">
                 <dt>默认模板</dt>
@@ -907,7 +902,6 @@
       '.lbai/workspace.json',
       'role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
       'role_workspace/world_model/ROLE_BOUNDARY_v1.md',
-      'role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md',
       'role_workspace/ledgers/TASK_LEDGER_v1.md',
       'role_workspace/ledgers/EVIDENCE_LEDGER_v1.md',
       'role_workspace/ledgers/BLOCKED_ITEMS_v1.md',
@@ -1093,7 +1087,6 @@
       const readme = textFiles.get('README.md') || '';
       const world = textFiles.get('role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
       const boundary = textFiles.get('role_workspace/world_model/ROLE_BOUNDARY_v1.md') || '';
-      const priorities = textFiles.get('role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md') || '';
       const ledger = textFiles.get('role_workspace/ledgers/TASK_LEDGER_v1.md') || '';
       const evidenceLedger = textFiles.get('role_workspace/ledgers/EVIDENCE_LEDGER_v1.md') || '';
       const blocked = textFiles.get('role_workspace/ledgers/BLOCKED_ITEMS_v1.md') || '';
@@ -1107,7 +1100,6 @@
       $('roleName').textContent = cleanValue(section(world, 'Role Name')) || '未设置，请运行 /lbai-init';
       $('roleGoal').textContent = cleanValue(section(world, 'Role Goal')) || '未设置';
       $('lbaiUnderstanding').textContent = cleanValue(section(world, 'Current Understanding of LBAI')) || '未设置';
-      $('rolePriorities').innerHTML = listHtml(linesFrom(section(priorities, 'Current Priorities')));
       $('boundarySummary').innerHTML = listHtml(linesFrom(section(boundary, 'Not Allowed Without Review')).slice(0, 7));
       $('roleTemplateStatus').textContent = roleTemplate ? '已读取公司默认岗位模板；不会覆盖员工岗位记忆' : '未读取公司默认岗位模板';
 
@@ -1213,7 +1205,7 @@
 
     function renderMetrics(tasks) {
       $('metricTasks').textContent = tasks.length;
-      $('metricReady').textContent = tasks.filter((task) => upper(task.status) === 'READY_TO_EXECUTE').length;
+      $('metricReady').textContent = tasks.filter((task) => taskIsExecutable(task)).length;
       $('metricBlocked').textContent = tasks.filter((task) => upper(task.status) === 'BLOCKED').length;
       $('metricTaskSyncBlocked').textContent = tasks.filter((task) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(task.git))).length;
     }
@@ -1222,10 +1214,9 @@
       return parseMarkdownTable(markdown).map((row) => ({
         date: row.Date || '',
         id: stripTicks(row['Evidence ID'] || ''),
-        kind: row['Source Kind'] || '',
-        intent: row['Usage Intent'] || '',
-        linkedTask: stripTicks(row['Linked Task'] || ''),
-        covers: row['Covers Gaps'] || '',
+        kind: row['Source Type'] || row['Source Kind'] || '',
+        visibility: row['Source Visibility'] || '',
+        backend: row['Backend Ingestion Status'] || '',
         status: row.Status || '',
         sync: row['Sync Status'] || '',
         next: row['Next Step'] || ''
@@ -1237,17 +1228,16 @@
 
     function renderEvidenceMetrics(evidence) {
       $('metricEvidence').textContent = evidence.length;
-      $('metricEvidenceLinked').textContent = evidence.filter((item) => upper(item.linkedTask) !== 'NONE' && item.linkedTask).length;
-      $('metricEvidenceSuggested').textContent = evidence.filter((item) => upper(item.intent) === 'POSSIBLE_TASK_INPUT').length;
+      $('metricEvidenceSuggested').textContent = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC').length;
       $('metricEvidenceSyncBlocked').textContent = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync))).length;
     }
 
     function renderWorkflowAlerts(tasks, evidence) {
       const alerts = [];
-      const readyTasks = tasks.filter((task) => upper(task.status) === 'READY_TO_EXECUTE');
+      const readyTasks = tasks.filter((task) => taskIsExecutable(task));
       const blockedTasks = tasks.filter((task) => upper(task.status) === 'BLOCKED');
       const reviewTasks = tasks.filter((task) => taskNeedsReview(task));
-      const suggestedEvidence = evidence.filter((item) => upper(item.intent) === 'POSSIBLE_TASK_INPUT');
+      const suggestedEvidence = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC');
       const reviewEvidence = evidence.filter((item) => upper(item.status) === 'NEEDS_REVIEW');
       const syncBlockedEvidence = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync)));
 
@@ -1330,7 +1320,7 @@
           <td>${pill(task.status)}</td>
           <td>${pill(task.git || 'NOT_SYNCED')}</td>
           <td>${escapeHtml(compactCell(task.source || '-'))}</td>
-          <td>${escapeHtml(compactCell(task.remaining || (upper(task.status) === 'READY_TO_EXECUTE' ? '已覆盖' : '-')))}</td>
+          <td>${escapeHtml(compactCell(task.remaining || (taskIsExecutable(task) ? '已覆盖' : '-')))}</td>
           <td>${escapeHtml(task.next || '-')}</td>
         </tr>
       `).join('');
@@ -1363,9 +1353,8 @@
           <td>${escapeHtml(item.date || '-')}</td>
           <td>${escapeHtml(item.id || '-')}</td>
           <td>${escapeHtml(item.kind || '-')}</td>
-          <td>${escapeHtml(item.intent || '-')}</td>
-          <td>${escapeHtml(item.linkedTask || '-')}</td>
-          <td>${escapeHtml(item.covers || '-')}</td>
+          <td>${escapeHtml(item.visibility || '-')}</td>
+          <td>${escapeHtml(item.backend || '-')}</td>
           <td>${pill(item.status || '-')}</td>
           <td>${pill(item.sync || 'NOT_SYNCED')}</td>
           <td>${escapeHtml(item.next || '-')}</td>
@@ -1378,9 +1367,8 @@
               <th>日期</th>
               <th>资料</th>
               <th>类型</th>
-              <th>用途</th>
-              <th>关联任务</th>
-              <th>覆盖缺口</th>
+              <th>可见范围</th>
+              <th>后端入库</th>
               <th>状态</th>
               <th>同步</th>
               <th>下一步</th>
@@ -1524,9 +1512,12 @@
     }
 
     function taskNeedsReview(task) {
-      return upper(task.status) === 'WAITING_REVIEW'
-        || ['TRUE', 'YES', 'REVIEW', 'NEEDS_REVIEW'].includes(upper(task.review))
+      return ['TRUE', 'YES', 'REVIEW', 'NEEDS_REVIEW'].includes(upper(task.review))
         || hasReviewReminder(task.reviewReminder);
+    }
+
+    function taskIsExecutable(task) {
+      return upper(task.status) === 'OPEN' && !task.remaining;
     }
 
     function stripTicks(value) {

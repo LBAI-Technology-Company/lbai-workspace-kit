@@ -15,7 +15,6 @@ For every conversation in this workspace:
 2. Ground work advice in the employee's role memory:
    - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
    - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
-   - `role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md`
    - `role_workspace/ledgers/TASK_LEDGER_v1.md`
    - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
    - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`

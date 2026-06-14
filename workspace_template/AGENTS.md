@@ -22,7 +22,7 @@ Do **not** run `lbai new-task` / `lbai add-evidence` in a bare terminal without 
 - `.agents/` contains project-local agent adapter files for LBAI commands when a runtime supports project-scoped skill discovery. These files are thin adapters that point back to the shared command contract; the stable employee command surface remains `/lbai-*`.
 - `lbai_system/` is the company-maintained workflow machine: Cursor/Codex adapters, rules, skills, commands, tools, templates, and docs. Do not modify during normal task work.
 - `lbai_system/templates/role_workspace/` contains company-maintained default role-memory templates for new or missing role files.
-- `role_workspace/` is the employee's role memory: world model, role boundary, priorities, ledgers, and archive.
+- `role_workspace/` is the employee's role memory: world model, role boundary, ledgers, and archive.
 - `tasks/` contains the employee's daily task artifacts. Employees mainly inspect this folder.
 
 ## Enterprise work standard
@@ -85,7 +85,6 @@ During task discussion, planning, execution, and finishing, consider:
 
 - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
 - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
-- `role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md`
 - `role_workspace/ledgers/TASK_LEDGER_v1.md`
 - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
 - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`

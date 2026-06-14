@@ -19,10 +19,10 @@ Never write the following into repo artifacts:
 - financial account information
 - legal privileged communication
 - candidate sensitive personal information beyond necessity
-- unnecessary personal data such as email addresses or phone numbers
+- unnecessary personal data such as phone numbers
 - private source code without approval
 
-If sensitive information appears in user input, do not reproduce it. Run or follow `/lbai-add-evidence <task_folder>` with AI enrichment, then call `lbai_system/tools/add_evidence.py --enrichment <json_path> <task_folder>` so the content is redacted before it is saved. For legacy task-local inputs, `archive_input.py` is fallback only. If safe capture is not possible, replace the sensitive content with:
+If sensitive information appears in user input, do not reproduce it. Run or follow `/lbai-add-evidence` with AI enrichment, then call `lbai_system/tools/add_evidence.py --enrichment <json_path>` so the content is redacted before it is saved. For legacy task-local inputs, `archive_input.py` is fallback only. If safe capture is not possible, replace the sensitive content with:
 
 `[SENSITIVE INFORMATION REDACTED - USE APPROVED SECURE CHANNEL]`
 

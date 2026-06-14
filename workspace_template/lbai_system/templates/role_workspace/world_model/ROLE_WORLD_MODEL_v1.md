@@ -1,5 +1,8 @@
 # ROLE_WORLD_MODEL_v1
 
+## User Name
+<fill user name>
+
 ## Role Name
 <fill role name>
 
@@ -8,6 +11,9 @@
 
 ## Role Goal
 <fill role goal>
+
+## Conversation Preference
+<fill concise or detailed preference>
 
 ## Task Execution Standard
 
@@ -23,9 +29,7 @@ Default posture:
 - Do not fabricate numbers, success stories, rankings, conversion rates, growth rates, customer logos, adoption claims, or evidence-like details.
 - Recommendations must be feasible under stated constraints. If feasibility cannot be verified, label the recommendation as an assumption and provide the validation step.
 - When information is missing, name the exact missing materials, background, decisions, or source documents needed to finish responsibly.
-
-## Current Priorities
-See ROLE_CURRENT_PRIORITIES_v1.md.
+- Follow the employee conversation preference unless it conflicts with accuracy, safety, or review requirements.
 
 ## Blocked / Unclear Items
 See BLOCKED_ITEMS_v1.md.

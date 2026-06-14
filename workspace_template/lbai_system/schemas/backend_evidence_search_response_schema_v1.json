@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Backend Evidence Search Response v1",
+  "type": "object",
+  "required": ["schema_version", "query_status", "evidence_pack", "next_step"],
+  "properties": {
+    "schema_version": { "const": "backend_evidence_search_response_v1" },
+    "query_status": { "enum": ["FOUND", "NO_MATCH", "ERROR"] },
+    "evidence_pack": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "event_id": { "type": "string" },
+          "subject": { "type": "string" },
+          "entity_type": { "type": "string" },
+          "value": { "type": "string" },
+          "status": { "type": "string" },
+          "source": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "evidence_text": { "type": "string" },
+          "reason": { "type": "string" }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "next_step": { "type": "string" },
+    "error": { "type": "string" }
+  },
+  "additionalProperties": true
+}

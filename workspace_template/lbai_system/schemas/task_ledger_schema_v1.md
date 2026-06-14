@@ -9,7 +9,7 @@ Task ledgers are markdown artifacts with stable fields.
 - `source_artifacts`: task inputs and evidence artifacts
 - `agents_or_tools_used`: company agents, Cursor commands, or local tools used
 - `outputs_created`: output artifacts created or updated
-- `status`: `OPEN`, `BLOCKED`, `READY_TO_EXECUTE`, or `COMPLETED`; `WAITING_REVIEW` may appear only in legacy artifacts
+- `status`: `OPEN`, `BLOCKED`, or `COMPLETED`; older workspaces may contain legacy `READY_TO_EXECUTE` or `WAITING_REVIEW`
 - `blocked_reason`: reason if blocked, otherwise `None`
 - `review_needed`: `true` or `false`
 - `leader_review_reminder`: reminder text or `None`

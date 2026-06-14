@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from task_utils import REVIEW_ALLOWED_TASK_FILES, SENSITIVE_PATTERNS, is_task_dir, read_text, workspace_root
+from task_utils import SENSITIVE_PATTERNS, read_text, workspace_root
 
 
 TEMP_PATTERNS = ['.DS_Store', '__pycache__', 'node_modules', '.env', '.pem', '.key', '.log']
@@ -33,29 +33,9 @@ def changed_files(root: Path) -> tuple[list[str], bool]:
     return files, True
 
 
-def task_allowed_paths(root: Path, task_folder: str, allow_review_files: bool) -> set[str]:
-    if not task_folder:
-        return set()
-    task_dir = (root / task_folder).resolve()
-    if not is_task_dir(task_dir, root):
-        return set()
-    allowed = {
-        'missing_inputs.md',
-        'task_scope.md',
-        'task_slot.md',
-        'task_ledger.md',
-        'gap_record.md',
-    }
-    if allow_review_files:
-        allowed.update(REVIEW_ALLOWED_TASK_FILES)
-    return {str((task_dir / name).relative_to(root)) for name in allowed}
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument('evidence_folder')
-    parser.add_argument('--linked-task', default='')
-    parser.add_argument('--allow-review-files', action='store_true')
     args = parser.parse_args()
 
     root = workspace_root()
@@ -69,7 +49,6 @@ def main() -> int:
 
     allowed_prefix = evidence_rel + '/'
     allowed_files = {ALLOWED_LEDGER}
-    allowed_files.update(task_allowed_paths(root, args.linked_task, args.allow_review_files))
 
     files, git_ok = changed_files(root)
     relevant_files = []
@@ -102,7 +81,7 @@ def main() -> int:
                 if re.search(pattern, text, re.IGNORECASE | re.MULTILINE):
                     sensitive.append(f'{rel}: {pattern}')
 
-    blocked = bool(unsafe_changes or temp or sensitive or not evidence_dir.exists())
+    blocked = bool(temp or sensitive or not evidence_dir.exists())
     print('# LBAI Evidence 提交前检查结果')
     print(f'workspace_root: {root}')
     print(f'evidence_folder: {args.evidence_folder}')
@@ -111,9 +90,11 @@ def main() -> int:
     for item in sorted(set(relevant_files)) or ['None']:
         print(f'- {item}')
     print('')
-    print('## 非允许范围变更')
+    print('## 非本次 evidence 变更（仅提示，不阻断）')
     for item in unsafe_changes or ['无']:
         print(f'- {item}')
+    if unsafe_changes:
+        print('这些文件不会被 /lbai-add-evidence 自动提交；请在对应流程中单独处理。')
     print('')
     print('## 临时文件')
     for item in temp or ['无']:

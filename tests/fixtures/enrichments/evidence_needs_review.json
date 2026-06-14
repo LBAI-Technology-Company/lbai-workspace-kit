@@ -1,24 +1,13 @@
 {
   "schema_version": "evidence_enrichment_v1",
-  "source_kind": "draft",
-  "usage_intent": "possible_task_input",
+  "title": "官网首页定价说明草稿",
+  "source_type": "draft",
+  "source_origin": "官网文案草稿",
+  "source_occurred_at": "2026-06-10",
+  "source_visibility": "private",
+  "related_objects": ["website_copy", "pricing"],
+  "language": "zh-CN",
+  "backend_ingestion_hint": "source_for_company_knowledge",
   "admissibility_status": "NEEDS_REVIEW",
-  "review_reasons": ["涉及官网文案表述"],
-  "task_suggestion": "整理官网文案 review 清单",
-  "cleaned_content": "草稿提到官网首页需要更新定价说明。",
-  "brief": {
-    "usable_facts": ["首页文案需要更新"],
-    "review_limited": ["定价相关表述需负责人 review"],
-    "uncertain": [],
-    "decisions": [],
-    "missing_info": ["最终定价策略"],
-    "action_items": ["提交官网文案草案"],
-    "blocked_signals": [],
-    "risks": ["对外定价表述风险"],
-    "practical_next_step": "创建官网文案 review 任务"
-  },
-  "gap_analysis": {
-    "covers_gaps": [],
-    "remaining_gaps": []
-  }
+  "review_reasons": ["涉及官网文案和定价表述"]
 }

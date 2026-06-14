@@ -5,6 +5,7 @@ REPO="LBAI-Technology-Company/lbai-workspace-kit"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
+VENV_DIR="$LBAI_HOME/venv"
 RELEASE_TAG=""
 
 info() {
@@ -71,7 +72,7 @@ ensure_prerequisites_linux() {
   info "未检测到 Git 或 Python 3.10+，正在尝试自动安装..."
   if have_cmd apt-get; then
     sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq
-    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip curl ca-certificates
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y git python3 python3-pip python3-venv curl ca-certificates
     return 0
   fi
   if have_cmd dnf; then
@@ -168,6 +169,24 @@ read_kit_version() {
   else
     printf 'unknown'
   fi
+}
+
+create_python_runtime() {
+  rm -rf "$VENV_DIR"
+  if ! "$PYTHON_BIN" -m venv "$VENV_DIR" >/dev/null 2>&1; then
+    fail "could not create Python runtime at $VENV_DIR. Install Python venv support and rerun install.sh."
+  fi
+
+  venv_python="$VENV_DIR/bin/python"
+  if [ ! -x "$venv_python" ]; then
+    fail "Python runtime was created but $venv_python is not executable"
+  fi
+
+  if ! "$venv_python" -m pip install --quiet --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt"; then
+    fail "could not install Python dependencies into $VENV_DIR. Check network or pip configuration, then rerun install.sh."
+  fi
+
+  printf '%s\n' "$venv_python"
 }
 
 detect_script_dir() {
@@ -310,20 +329,23 @@ else
 fi
 
 chmod +x "$INSTALL_DIR/lbai_core/bin/lbai"
+RUNTIME_PYTHON="$(create_python_runtime)"
 cat > "$BIN_DIR/lbai" <<EOF
 #!/usr/bin/env sh
 set -eu
+export LBAI_HOME="$LBAI_HOME"
 export LBAI_KIT_ROOT="$INSTALL_DIR"
 export PYTHONPATH="$INSTALL_DIR/lbai_core\${PYTHONPATH:+:\$PYTHONPATH}"
-exec $PYTHON_BIN -m lbai.cli "\$@"
+exec "$RUNTIME_PYTHON" -m lbai.cli "\$@"
 EOF
 chmod +x "$BIN_DIR/lbai"
 ensure_shell_path
 
-if "$PYTHON_BIN" -m pip install --quiet --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null 2>&1; then
-  info "Installed Python dependencies (jsonschema)."
-else
-  info "Warning: could not install jsonschema via pip; run: $PYTHON_BIN -m pip install jsonschema"
+info "Installed Python runtime and dependencies (jsonschema)."
+
+if [ -t 0 ] && [ "${LBAI_SKIP_BACKEND_AUTH:-}" != "1" ]; then
+  info "Optional backend knowledge service setup."
+  "$BIN_DIR/lbai" auth backend-login --optional || true
 fi
 
 kit_version="$(read_kit_version)"
@@ -338,6 +360,7 @@ if [ -n "$shell_rc" ]; then
   info "  source $shell_rc"
 fi
 info "  lbai auth login"
+info "  lbai auth backend-login"
 info "  lbai init-workspace"
 info
 info "To repair or upgrade the installed CLI, rerun install.sh."

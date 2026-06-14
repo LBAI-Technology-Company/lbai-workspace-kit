@@ -32,11 +32,10 @@ During normal discussion, brainstorming, clarification, advice, or task planning
 1. Consider these files as workspace background before giving advice:
    - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
    - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
-   - `role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md`
    - `role_workspace/ledgers/TASK_LEDGER_v1.md`
    - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
    - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`
-2. Use the role background to make suggestions that fit the employee's actual responsibilities, current priorities, allowed scope, and review boundaries.
+2. Use the role background to make suggestions that fit the employee's actual responsibilities, allowed scope, and review boundaries.
 3. Treat responses as internal company work: objective, concise, evidence-seeking, and scoped to the actual business need.
 4. Do not flatter, appease, or simply confirm the employee's first framing. If the framing is vague, inconsistent, or pointed at the wrong problem, say so directly.
 5. Separate known facts, assumptions, uncertainty, recommendations, and next steps.
@@ -54,19 +53,19 @@ During normal discussion, brainstorming, clarification, advice, or task planning
 
 If there is a recent task that is `BLOCKED`, and the employee pastes or provides information that appears to resolve the missing input:
 
-1. Treat the new chat content as task input.
-2. Follow `/lbai-add-evidence <task_folder>`: produce AI enrichment JSON per `lbai_system/prompts/evidence_enrichment_prompt_v1.md`, then run `python3 lbai_system/tools/add_evidence.py --enrichment <json_path> <task_folder>` with the pasted content.
-3. Save it automatically as evidence under `role_workspace/knowledge/evidence/`, linked to the current task.
+1. Decide whether the new chat content is a direct clarification/decision or source material.
+2. For direct clarification, decision, preference, or lightweight context, save it as task-local input with `archive_input.py --resolves "<exact missing input>"`.
+3. For reusable source material, follow `/lbai-add-evidence`: produce AI enrichment JSON per `lbai_system/prompts/evidence_enrichment_prompt_v1.md`, then run `python3 lbai_system/tools/add_evidence.py --enrichment <json_path>` with the pasted content. Evidence remains independent and is not linked to the current task.
 4. Do not require the employee to create the file manually.
-5. Update `missing_inputs.md` to show which gaps were covered and which gaps remain.
-6. Update `task_ledger.md` status to `READY_TO_EXECUTE` if all required missing inputs are covered.
+5. Update `missing_inputs.md` only when the employee directly provides the missing decision or context in task-local form.
+6. Update `task_ledger.md` status to `OPEN` if all required missing inputs are covered by task-local context.
 7. Tell the employee the exact next step.
 
 Use this response format:
 
 ```text
 已保存资料：<evidence_folder>
-当前状态：<READY_TO_EXECUTE | BLOCKED>
+当前状态：<OPEN | BLOCKED>
 还缺：<缺失项；没有则写“无”>
 下一步：<exact command or exact input request>
 ```

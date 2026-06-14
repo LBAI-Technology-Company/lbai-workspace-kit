@@ -10,6 +10,10 @@ pytestmark = pytest.mark.integration
 
 class TestAddEvidence:
     def test_captures_evidence_with_valid_enrichment(self, isolated_workspace, fixtures):
+        init_enrich = enrichment_path(fixtures, 'init_valid.json')
+        init_result = run_tool(isolated_workspace, 'init_lbai.py', '--enrichment', str(init_enrich))
+        assert init_result.returncode == 0, init_result.output
+
         enrich = enrichment_path(fixtures, 'evidence_valid.json')
         sample = fixtures / 'samples' / 'transcript_sample.md'
         content = sample.read_text(encoding='utf-8')
@@ -25,15 +29,21 @@ class TestAddEvidence:
         assert result.returncode == 0, result.output
         assert 'EVIDENCE_FOLDER role_workspace/knowledge/evidence/' in result.stdout
         assert 'evidence_status: CAPTURED' in result.stdout
-        assert 'source_kind: transcript' in result.stdout
+        assert 'employee_user_name: 王小明' in result.stdout
+        assert 'employee_position: 内容助理' in result.stdout
+        assert 'source_type: meeting_note' in result.stdout
 
         folder_line = next(line for line in result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
         rel = folder_line.split(' ', 1)[1].strip()
         evidence_dir = isolated_workspace / rel
-        assert (evidence_dir / 'input.md').exists()
-        assert (evidence_dir / 'evidence_brief.md').exists()
-        assert (evidence_dir / 'evidence_metadata.md').exists()
+        assert (evidence_dir / 'raw.md').exists()
+        assert (evidence_dir / 'metadata.json').exists()
         assert (evidence_dir / 'evidence_enrichment.json').exists()
+        metadata = (evidence_dir / 'metadata.json').read_text(encoding='utf-8')
+        assert '"employee_user_name": "王小明"' in metadata
+        assert '"employee_position": "内容助理"' in metadata
+        assert '"backend_ingestion_status": "PENDING_GITHUB_SYNC"' in metadata
+        assert not (evidence_dir / 'evidence_brief.md').exists()
 
     def test_ai_needs_review_status(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_needs_review.json')
@@ -79,7 +89,7 @@ class TestAddEvidence:
         assert result.returncode != 0
         assert 'BLOCKED' in result.stdout
 
-    def test_missing_practical_next_step_blocked(self, isolated_workspace, fixtures):
+    def test_missing_required_metadata_blocked(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_missing_practical_next_step.json')
         result = run_tool(
             isolated_workspace,
@@ -91,7 +101,7 @@ class TestAddEvidence:
             'test',
         )
         assert result.returncode != 0
-        assert 'practical_next_step' in result.stdout
+        assert 'title' in result.stdout
 
     def test_redacts_secrets_in_content(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_valid.json')
@@ -120,5 +130,77 @@ class TestAddEvidence:
             'ledger test content',
         )
         ledger = (isolated_workspace / 'role_workspace' / 'ledgers' / 'EVIDENCE_LEDGER_v1.md').read_text(encoding='utf-8')
-        assert 'transcript' in ledger
+        assert 'Employee User Name' in ledger
+        assert 'Employee Position' in ledger
+        assert 'Source Type' in ledger
+        assert 'meeting_note' in ledger
         assert '|' in ledger
+
+    def test_legacy_ledger_rows_are_preserved_during_migration(self, isolated_workspace, fixtures):
+        ledger_path = isolated_workspace / 'role_workspace' / 'ledgers' / 'EVIDENCE_LEDGER_v1.md'
+        ledger_path.parent.mkdir(parents=True, exist_ok=True)
+        ledger_path.write_text(
+            '# EVIDENCE_LEDGER_v1\n\n'
+            '| Date | Evidence ID | Source Kind | Usage Intent | Linked Task | Covers Gaps | Status | Sync Status | Next Step |\n'
+            '|---|---|---|---|---|---|---|---|---|\n'
+            '| 2026-06-01 | legacy_evidence | transcript | reference | None | None | CAPTURED | SYNCED | Keep legacy row |\n',
+            encoding='utf-8',
+        )
+        enrich = enrichment_path(fixtures, 'evidence_valid.json')
+        result = run_tool(
+            isolated_workspace,
+            'add_evidence.py',
+            '--enrichment',
+            str(enrich),
+            '--no-sync',
+            '--content',
+            'new ledger migration content',
+        )
+        assert result.returncode == 0, result.output
+        ledger = ledger_path.read_text(encoding='utf-8')
+        assert 'legacy_evidence' in ledger
+        assert 'Keep legacy row' in ledger
+        assert 'Employee User ID' in ledger
+        assert 'meeting_note' in ledger
+
+    def test_evidence_remains_independent_from_task_inputs(self, isolated_workspace, fixtures):
+        task = isolated_workspace / 'tasks' / '2026_06_10_blocked'
+        task.mkdir(parents=True)
+        (task / 'task_scope.md').write_text('# Task Scope\n\n## status\nBLOCKED\n', encoding='utf-8')
+        (task / 'task_ledger.md').write_text('# Task Ledger\n\n## status\nBLOCKED\n', encoding='utf-8')
+        (task / 'missing_inputs.md').write_text('# Missing Inputs\n\n- 客户名单确认\n', encoding='utf-8')
+        enrich = enrichment_path(fixtures, 'evidence_valid.json')
+        result = run_tool(
+            isolated_workspace,
+            'add_evidence.py',
+            '--enrichment',
+            str(enrich),
+            '--no-sync',
+            '--content',
+            'tasks/2026_06_10_blocked 客户反馈样本',
+        )
+        assert result.returncode == 0, result.output
+        assert 'related_tasks:' not in result.stdout
+        assert 'linked_task:' not in result.stdout
+        assert '- 客户名单确认' in (task / 'missing_inputs.md').read_text(encoding='utf-8')
+        assert not (task / 'gap_record.md').exists()
+
+    def test_unrelated_changes_do_not_block_no_sync_capture(self, isolated_workspace, fixtures):
+        unrelated = isolated_workspace / 'tasks' / 'unrelated' / 'task_output.md'
+        unrelated.parent.mkdir(parents=True, exist_ok=True)
+        unrelated.write_text('unrelated draft', encoding='utf-8')
+
+        enrich = enrichment_path(fixtures, 'evidence_valid.json')
+        result = run_tool(
+            isolated_workspace,
+            'add_evidence.py',
+            '--enrichment',
+            str(enrich),
+            '--content',
+            'new evidence with unrelated task draft in workspace',
+        )
+
+        assert result.returncode == 0, result.output
+        assert 'evidence_status: CAPTURED' in result.stdout
+        assert 'sync_status: BLOCKED' not in result.stdout
+        assert '仅提示，不阻断' in result.stdout

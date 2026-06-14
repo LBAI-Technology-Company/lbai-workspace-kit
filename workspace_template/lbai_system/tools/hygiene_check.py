@@ -100,9 +100,7 @@ def main():
     relevant_files=[]
     rel_task = str(task_path.relative_to(root))
     all_task_files = task_files(root, task_path)
-    relevant_files = sorted(
-        set(all_task_files + ['role_workspace/ledgers/TASK_LEDGER_v1.md'] + (files if git_ok else []))
-    )
+    relevant_files = sorted(set(all_task_files + ['role_workspace/ledgers/TASK_LEDGER_v1.md']))
     if git_ok:
         for f in files:
             if f.startswith(rel_task + '/') or f in ALLOWED_TASK_COMMIT_FILES:
@@ -122,7 +120,7 @@ def main():
                 if re.search(pat, txt, re.IGNORECASE):
                     sensitive.append(f'{f}: {pat}')
 
-    blocked = bool(missing or missing_review or sensitive or temp or unsafe_changes)
+    blocked = bool(missing or missing_review or sensitive or temp)
     print('# LBAI 提交前检查结果')
     print(f'workspace_root: {root}')
     print(f'git_available: {git_available}')
@@ -158,9 +156,11 @@ def main():
     for t in temp: print(f'- {t}')
     if not temp: print('- 无')
     print('')
-    print('## 非本任务变更')
+    print('## 非本任务变更（仅提示，不阻断）')
     for u in unsafe_changes: print(f'- {u}')
     if not unsafe_changes: print('- 无')
+    if unsafe_changes:
+        print('这些文件不会被 /lbai-finish-task 自动提交；请在对应流程中单独处理。')
     print('')
     if blocked:
         print('commit_readiness: BLOCKED')

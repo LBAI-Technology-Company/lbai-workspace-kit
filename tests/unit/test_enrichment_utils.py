@@ -115,7 +115,7 @@ class TestReviewRequired:
         assert 'REDACTED' in redacted
         assert 'sk-proj' not in redacted
 
-    def test_redact_sensitive_email(self):
+    def test_email_is_redacted(self):
         text = '联系人：alice@example.com'
         redacted, findings = redact_sensitive(text)
         assert findings

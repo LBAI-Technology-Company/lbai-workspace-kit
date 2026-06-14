@@ -22,9 +22,9 @@ def task_dirs(root: Path) -> list[Path]:
 def candidates(root: Path, command: str) -> list[Path]:
     dirs = task_dirs(root)
     if command == 'execute':
-        return [p for p in dirs if task_status(p) in {'OPEN', 'READY_TO_EXECUTE'}]
+        return [p for p in dirs if task_status(p) == 'OPEN']
     if command == 'finish':
-        return [p for p in dirs if (p / 'task_output.md').exists() or task_status(p) in {'COMPLETED', 'WAITING_REVIEW'}]
+        return [p for p in dirs if (p / 'task_output.md').exists() or task_status(p) == 'COMPLETED']
     return dirs
 
 

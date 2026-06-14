@@ -3,11 +3,13 @@ import argparse
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from task_utils import workspace_root
+from task_utils import knowledge_service_config, employee_identity, workspace_root
 
 
 REQUIRED_DIRS = [
@@ -58,7 +60,6 @@ ROLE_TEMPLATE_FILES = [
     Path('knowledge/evidence/.gitkeep'),
     Path('knowledge/references/.gitkeep'),
     Path('world_model/ROLE_BOUNDARY_v1.md'),
-    Path('world_model/ROLE_CURRENT_PRIORITIES_v1.md'),
     Path('world_model/ROLE_WORLD_MODEL_v1.md'),
     Path('world_model/versions/.gitkeep'),
 ]
@@ -140,6 +141,25 @@ def loader_template_content(root: Path) -> str:
     return '# LBAI Cursor Project Loader\n\nFollow `lbai_system/runner_contracts/lbai_command_contract_v1.md` and `lbai_system/cursor/rules/` for this workspace.\n'
 
 
+def knowledge_health_status(knowledge: dict) -> str:
+    if not knowledge.get('enabled'):
+        return 'not_checked_disabled'
+    base_url = str(knowledge.get('base_url') or '').strip()
+    if not base_url:
+        return 'missing_base_url'
+    timeout = int(knowledge.get('search_timeout_seconds') or 20)
+    request = urllib.request.Request(base_url.rstrip('/') + '/health', headers={'Accept': 'application/json'}, method='GET')
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return 'OK' if 200 <= response.status < 300 else f'HTTP_{response.status}'
+    except urllib.error.HTTPError as exc:
+        return f'HTTP_{exc.code}'
+    except urllib.error.URLError as exc:
+        return f'UNAVAILABLE: {exc.reason}'
+    except TimeoutError:
+        return 'TIMEOUT'
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--check-only', action='store_true', help='Report missing bootstrap items without creating them.')
@@ -207,6 +227,13 @@ def main():
     print('old_commands:')
     for item in old_commands or ['None']:
         print(f'- {item}')
+    identity = employee_identity(root)
+    knowledge = knowledge_service_config(root)
+    print('knowledge_service:')
+    print(f'- enabled: {str(bool(knowledge.get("enabled"))).lower()}')
+    print(f'- base_url: {knowledge.get("base_url") or "None"}')
+    print(f'- employee_user_id: {identity.get("employee_user_id") or "None"}')
+    print(f'- health: {knowledge_health_status(knowledge)}')
     if old_commands:
         print('next_step: 删除旧命令文件后重启 Cursor 或 Reload Window。')
     elif missing_templates:
