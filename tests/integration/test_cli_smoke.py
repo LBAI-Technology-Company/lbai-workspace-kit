@@ -105,3 +105,11 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'backend_key_check: SKIPPED' in result.stdout
     assert (home / 'auth' / 'knowledge_service.json').exists()
+
+
+def test_cli_self_iterate_starts_prompt_lab(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    result = run_cli('self-iterate', '--rounds', '1', '--scenarios-per-round', '1', cwd=workspace)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'prompt_lab_status: STARTED' in result.stdout
+    assert 'prompt_lab_next_step:' in result.stdout

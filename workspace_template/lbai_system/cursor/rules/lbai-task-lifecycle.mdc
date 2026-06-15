@@ -15,7 +15,7 @@ For daily task work, employees mainly need these commands:
 
 For saving evidence or reference knowledge without creating a task, use `/lbai-add-evidence`.
 
-For first-time role setup or later role changes, use `/lbai-init`. For company workflow template updates, use `/lbai-update-kit`.
+For first-time role setup or later role changes, use `/lbai-init`. For company workflow template updates, use `/lbai-update-kit`. For prompt experiments, use `/lbai-self-iterate`.
 
 Arguments are optional when the current task is unambiguous. If more than one task is plausible, ask the employee to choose from candidate task folders.
 

@@ -65,6 +65,7 @@ AI desktop workflow commands:
 /lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
+/lbai-self-iterate
 ```
 
 These employee workflow commands are available through Cursor and the Codex desktop app project adapters. AI enrichment is required where listed below; terminal-only workflow commands such as bare `lbai add-evidence` or `lbai new-task` are intentionally blocked without enrichment.
@@ -271,8 +272,9 @@ Run these commands inside an initialized LBAI workspace.
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent writes `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
 | `/lbai-update-kit` | none | `update_kit.py` (code only) |
+| `/lbai-self-iterate` | runtime AI JSON (no prebuilt enrichment file) | `prompt_lab.py` (experimental prompts only) |
 
-No enrichment → **BLOCKED**. No rule-based fallback.
+Commands that require a prebuilt enrichment JSON file → **BLOCKED** without it. `/lbai-self-iterate` and `/lbai-update-kit` are exceptions: Prompt Lab JSON is produced at runtime by the current AI, and update-kit is code-only.
 
 Initialize role context:
 

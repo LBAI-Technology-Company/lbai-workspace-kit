@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import platform
 import re
 import shutil
 import stat
@@ -31,7 +32,7 @@ MANAGED_FILES = [
     Path('README.md'),
     Path('workspace_dashboard.html'),
 ]
-EMPLOYEE_ARTIFACT_DIRS = [Path('role_workspace'), Path('tasks')]
+EMPLOYEE_ARTIFACT_DIRS = [Path('role_workspace'), Path('tasks'), Path('prompt_lab')]
 REQUIRED_SOURCE_PATHS = [Path('.cursor'), Path('lbai_system')]
 KIT_TEMPLATE_DIR = Path('workspace_template')
 TEMP_NAMES = {'.DS_Store', '__pycache__'}
@@ -102,7 +103,7 @@ def print_employee_artifact_note(root: Path):
     items = employee_artifact_status_paths(root)
     print_list('employee_artifact_changes_not_in_kit_update:', items)
     if items:
-        print('employee_artifact_policy: /lbai-update-kit does not stage role_workspace/ or tasks/. Sync them through /lbai-add-evidence or /lbai-finish-task when appropriate.')
+        print('employee_artifact_policy: /lbai-update-kit does not stage role_workspace/, tasks/, or prompt_lab/. Sync role/task content through /lbai-add-evidence or /lbai-finish-task when appropriate.')
 
 
 def source_from_arg(value: str | None) -> str:
@@ -372,6 +373,24 @@ def lbai_home() -> Path:
     return Path(os.environ.get('LBAI_HOME', '~/.lbai')).expanduser()
 
 
+def installed_kit_root() -> Path:
+    return Path(os.environ.get('LBAI_KIT_ROOT') or (lbai_home() / 'kit')).expanduser()
+
+
+def installed_bin_dir() -> Path:
+    return lbai_home() / 'bin'
+
+
+def installed_venv_dir() -> Path:
+    return lbai_home() / 'venv'
+
+
+def venv_python_path() -> Path:
+    if os.name == 'nt':
+        return installed_venv_dir() / 'Scripts' / 'python.exe'
+    return installed_venv_dir() / 'bin' / 'python'
+
+
 def knowledge_service_auth_path() -> Path:
     return lbai_home() / 'auth' / 'knowledge_service.json'
 
@@ -428,6 +447,102 @@ def remove_path(path: Path):
         shutil.rmtree(path)
     elif path.exists() or path.is_symlink():
         path.unlink()
+
+
+def package_root_from_source(source_root: Path) -> Path | None:
+    for candidate in [source_root, *source_root.parents]:
+        if (candidate / 'lbai_core' / 'lbai' / 'cli.py').is_file() and (candidate / 'VERSION').is_file():
+            return candidate
+    return None
+
+
+def copy_package_tree(source_root: Path, install_root: Path) -> None:
+    if install_root.exists():
+        remove_path(install_root)
+    shutil.copytree(source_root, install_root, ignore=ignore_temp)
+    launcher = install_root / 'lbai_core' / 'bin' / 'lbai'
+    if launcher.exists():
+        launcher.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+
+
+def ensure_python_runtime(install_root: Path) -> tuple[Path | None, str]:
+    python_path = venv_python_path()
+    if not python_path.exists():
+        installed_venv_dir().parent.mkdir(parents=True, exist_ok=True)
+        created = subprocess.run([sys.executable, '-m', 'venv', str(installed_venv_dir())], capture_output=True, text=True)
+        if created.returncode != 0:
+            return None, 'python_runtime: CREATE_FAILED ' + (created.stdout + created.stderr).strip()
+    if not python_path.exists():
+        return None, f'python_runtime: MISSING {python_path}'
+
+    requirements = install_root / 'lbai_core' / 'requirements.txt'
+    if requirements.exists() and os.environ.get('LBAI_UPDATE_KIT_SKIP_PIP') != '1':
+        installed = subprocess.run(
+            [str(python_path), '-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', '-r', str(requirements)],
+            capture_output=True,
+            text=True,
+        )
+        if installed.returncode != 0:
+            return python_path, 'python_runtime: DEPENDENCY_INSTALL_FAILED ' + (installed.stdout + installed.stderr).strip()
+    return python_path, 'python_runtime: READY'
+
+
+def write_cli_launcher(install_root: Path, python_path: Path) -> Path:
+    bin_dir = installed_bin_dir()
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    if os.name == 'nt':
+        launcher = bin_dir / 'lbai.cmd'
+        launcher.write_text(
+            '@echo off\n'
+            'setlocal\n'
+            f'set "LBAI_HOME={lbai_home()}"\n'
+            f'set "LBAI_KIT_ROOT={install_root}"\n'
+            f'set "PYTHONPATH={install_root / "lbai_core"};%PYTHONPATH%"\n'
+            f'"{python_path}" -m lbai.cli %*\n',
+            encoding='ascii',
+        )
+        return launcher
+
+    launcher = bin_dir / 'lbai'
+    launcher.write_text(
+        '#!/usr/bin/env sh\n'
+        'set -eu\n'
+        f'export LBAI_HOME="{lbai_home()}"\n'
+        f'export LBAI_KIT_ROOT="{install_root}"\n'
+        f'export PYTHONPATH="{install_root / "lbai_core"}${{PYTHONPATH:+:$PYTHONPATH}}"\n'
+        f'exec "{python_path}" -m lbai.cli "$@"\n',
+        encoding='utf-8',
+    )
+    launcher.chmod(stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
+    return launcher
+
+
+def update_installed_cli_core(package_root: Path | None, source_version: str, dry_run: bool) -> tuple[str, str]:
+    if package_root is None:
+        return 'SKIPPED', 'release source does not include lbai_core'
+    if platform.system() not in {'Darwin', 'Linux', 'Windows'}:
+        return 'SKIPPED', f'unsupported platform: {platform.system()}'
+    install_root = installed_kit_root()
+    if package_root.resolve() == install_root.resolve():
+        return 'NO_CHANGES', f'already running from installed kit {install_root}'
+    if dry_run:
+        return 'DRY_RUN', f'would update installed CLI/core at {install_root} to {source_version}'
+
+    try:
+        copy_package_tree(package_root, install_root)
+        python_path, runtime_detail = ensure_python_runtime(install_root)
+        if python_path is None:
+            return 'UPDATED_WITH_WARNINGS', f'installed kit files at {install_root}; {runtime_detail}'
+        launcher = write_cli_launcher(install_root, python_path)
+    except Exception as exc:
+        return 'FAILED', str(exc)
+    return 'UPDATED', f'installed CLI/core at {install_root}; launcher: {launcher}; {runtime_detail}'
+
+
+def skip_pending_core_update(status: str, detail: str, reason: str) -> tuple[str, str]:
+    if status != 'PENDING':
+        return status, detail
+    return 'SKIPPED', f'{reason}; workspace kit updated locally but installed CLI/core unchanged — fix the issue and rerun /lbai-update-kit'
 
 
 def ignore_temp(_dir: str, names: list[str]) -> set[str]:
@@ -610,6 +725,7 @@ def main():
     parser.add_argument('--dry-run', action='store_true', help='Show what would be synced without changing files.')
     parser.add_argument('--no-commit', action='store_true', help='Update files but do not create a git commit.')
     parser.add_argument('--no-push', action='store_true', help='Commit locally but skip git push.')
+    parser.add_argument('--skip-core-update', action='store_true', help='Only update workspace managed files; do not update the installed lbai CLI/core.')
     parser.add_argument('--overwrite-managed', action='store_true', help='Overwrite local changes in managed workflow files after employee confirmation.')
     parser.add_argument('--allow-dirty-managed', action='store_true', help='Admin override: update even if managed files are dirty.')
     args = parser.parse_args()
@@ -618,6 +734,10 @@ def main():
     before_version = workspace_kit_version(root)
     source = source_from_arg(args.source)
     overwrite_managed = args.overwrite_managed or args.allow_dirty_managed
+    core_update_status = 'SKIPPED'
+    core_update_detail = 'not started'
+    core_staging_dir: Path | None = None
+    core_package_root: Path | None = None
 
     pre_dirty = dirty_managed_paths(root)
     if pre_dirty and not overwrite_managed:
@@ -690,9 +810,24 @@ def main():
             return 1
 
         source_version = source_version if source_version != 'unknown' else kit_version_from_tree(source_root)
+        package_root = package_root_from_source(source_root)
         touched = sync_managed_paths(root, source_root, args.dry_run)
         if not args.dry_run:
             write_workspace_kit_version(root, source_version)
+        if args.skip_core_update:
+            core_update_status = 'SKIPPED'
+            core_update_detail = '--skip-core-update'
+        elif args.dry_run:
+            core_update_status, core_update_detail = update_installed_cli_core(package_root, source_version, True)
+        elif package_root is not None:
+            core_staging_dir = Path(tempfile.mkdtemp(prefix='lbai-core-stage-'))
+            core_package_root = core_staging_dir / 'package'
+            shutil.copytree(package_root, core_package_root, ignore=ignore_temp)
+            core_update_status = 'PENDING'
+            core_update_detail = 'deferred until workspace sync and hygiene pass'
+        else:
+            core_update_status = 'SKIPPED'
+            core_update_detail = 'release source does not include lbai_core'
 
     if args.dry_run:
         print_contract_summary('DRY_RUN', 'READY', 'SKIPPED', before_version, touched, 'skipped: dry-run only', '无', '确认列表后，不带 --dry-run 重新运行 /lbai-update-kit。')
@@ -703,104 +838,153 @@ def main():
         print(f'source: {source_label}')
         print(f'workspace_kit_version: {before_version}')
         print(f'release_version: {source_version}')
+        print(f'cli_core_update: {core_update_status}')
+        print(f'cli_core_detail: {core_update_detail}')
         print_list('managed_paths_to_sync:', touched)
         print_employee_artifact_note(root)
         return 0
 
     after_version = workspace_kit_version(root)
     changed_files = post_update_changed_files(root)
-    findings = hygiene_findings(root, changed_files)
-    if findings:
-        print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', after_version, changed_files, 'blocked_or_failed: managed workflow update introduced sensitive or temporary files', '无', '清理敏感或临时文件后重试 /lbai-update-kit。')
-        print('kit_update_status: BLOCKED')
-        print('commit_readiness: BLOCKED')
-        print('git_status: BLOCKED')
-        print('reason: managed workflow update introduced sensitive or temporary files')
-        print_list('findings:', findings)
-        return 1
+    try:
+        findings = hygiene_findings(root, changed_files)
+        if findings:
+            core_update_status, core_update_detail = skip_pending_core_update(
+                core_update_status,
+                core_update_detail,
+                'managed workflow update introduced sensitive or temporary files',
+            )
+            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', after_version, changed_files, 'blocked_or_failed: managed workflow update introduced sensitive or temporary files', '无', '清理敏感或临时文件后重试 /lbai-update-kit。')
+            print('kit_update_status: BLOCKED')
+            print('commit_readiness: BLOCKED')
+            print('git_status: BLOCKED')
+            print('reason: managed workflow update introduced sensitive or temporary files')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            print_list('findings:', findings)
+            return 1
 
-    if not changed_files:
-        print_contract_summary('NO_CHANGES', 'READY', 'NO_CHANGES', after_version, [], 'completed: no managed workflow changes', '无', '无')
-        print('kit_update_status: NO_CHANGES')
-        print('commit_readiness: READY')
-        print('git_status: NO_CHANGES')
-        print(f'workspace_root: {root}')
-        print(f'source: {source_label}')
-        print(f'workspace_kit_version: {after_version}')
-        print_list('updated_paths:', [])
-        print_employee_artifact_note(root)
-        return 0
+        def apply_core_update() -> None:
+            nonlocal core_update_status, core_update_detail
+            if core_package_root is None or args.skip_core_update:
+                return
+            core_update_status, core_update_detail = update_installed_cli_core(
+                core_package_root,
+                source_version,
+                False,
+            )
 
-    if args.no_commit:
-        print_contract_summary('UPDATED', 'READY', 'COMMIT_SKIPPED', after_version, changed_files, 'skipped: --no-commit', '无', '如需同步到 GitHub，请提交并推送这些 workflow 更新。')
+        if not changed_files:
+            apply_core_update()
+            print_contract_summary('NO_CHANGES', 'READY', 'NO_CHANGES', after_version, [], 'completed: no managed workflow changes', '无', '无')
+            print('kit_update_status: NO_CHANGES')
+            print('commit_readiness: READY')
+            print('git_status: NO_CHANGES')
+            print(f'workspace_root: {root}')
+            print(f'source: {source_label}')
+            print(f'workspace_kit_version: {after_version}')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            print_list('updated_paths:', [])
+            print_employee_artifact_note(root)
+            return 0
+
+        if args.no_commit:
+            apply_core_update()
+            print_contract_summary('UPDATED', 'READY', 'COMMIT_SKIPPED', after_version, changed_files, 'skipped: --no-commit', '无', '如需同步到 GitHub，请提交并推送这些 workflow 更新。')
+            print('kit_update_status: UPDATED')
+            print('commit_readiness: READY')
+            print('git_status: COMMIT_SKIPPED')
+            print(f'workspace_root: {root}')
+            print(f'source: {source_label}')
+            print(f'previous_version: {before_version}')
+            print(f'workspace_kit_version: {after_version}')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            if pre_dirty and overwrite_managed:
+                print_list('overwritten_local_changes:', pre_dirty)
+            print_list('updated_paths:', changed_files)
+            print_employee_artifact_note(root)
+            return 0
+
+        message = f'chore(lbai): update workflow kit to {source_version}'
+        commit_ok, commit_detail = commit_managed(root, message)
+        if not commit_ok:
+            core_update_status, core_update_detail = skip_pending_core_update(
+                core_update_status,
+                core_update_detail,
+                'git commit failed after workspace sync',
+            )
+            print_contract_summary('UPDATED', 'BLOCKED', 'BLOCKED', after_version, changed_files, f'blocked_or_failed: {commit_detail}', '无', '处理本地 Git 提交失败后重试 /lbai-update-kit。')
+            print('kit_update_status: UPDATED')
+            print('commit_readiness: BLOCKED')
+            print('git_status: BLOCKED')
+            print(f'reason: {commit_detail}')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            print_list('updated_paths:', changed_files)
+            print_employee_artifact_note(root)
+            return 1
+
+        if args.no_push:
+            apply_core_update()
+            print_contract_summary('UPDATED', 'READY', 'COMMITTED', after_version, changed_files, 'skipped: --no-push', '无', '之后需要 push 到 private GitHub。')
+            print('kit_update_status: UPDATED')
+            print('commit_readiness: READY')
+            print('git_status: COMMITTED')
+            print(f'workspace_root: {root}')
+            print(f'source: {source_label}')
+            print(f'previous_version: {before_version}')
+            print(f'workspace_kit_version: {after_version}')
+            print(f'commit_message: {commit_detail}')
+            print('github_sync: skipped_by_flag')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            if pre_dirty and overwrite_managed:
+                print_list('overwritten_local_changes:', pre_dirty)
+            print_list('updated_paths:', changed_files)
+            print_employee_artifact_note(root)
+            return 0
+
+        push_ok, push_detail = push_current(root)
+        if not push_ok:
+            core_update_status, core_update_detail = skip_pending_core_update(
+                core_update_status,
+                core_update_detail,
+                'git push failed after workspace sync',
+            )
+            print_contract_summary('UPDATED', 'READY', 'PUSH_FAILED', after_version, changed_files, f'blocked_or_failed: {push_detail}', '无', 'workspace 已更新但 CLI 未更新；修复 push 后重试 /lbai-update-kit。')
+            print('kit_update_status: UPDATED')
+            print('commit_readiness: READY')
+            print('git_status: PUSH_FAILED')
+            print(f'reason: {push_detail}')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            print_list('updated_paths:', changed_files)
+            print_employee_artifact_note(root)
+            return 3
+
+        apply_core_update()
+        print_contract_summary('UPDATED', 'READY', 'PUSHED', after_version, changed_files, 'completed', '无', '可以继续使用最新工作流。')
         print('kit_update_status: UPDATED')
         print('commit_readiness: READY')
-        print('git_status: COMMIT_SKIPPED')
-        print(f'workspace_root: {root}')
-        print(f'source: {source_label}')
-        print(f'previous_version: {before_version}')
-        print(f'workspace_kit_version: {after_version}')
-        if pre_dirty and overwrite_managed:
-            print_list('overwritten_local_changes:', pre_dirty)
-        print_list('updated_paths:', changed_files)
-        print_employee_artifact_note(root)
-        return 0
-
-    message = f'chore(lbai): update workflow kit to {source_version}'
-    commit_ok, commit_detail = commit_managed(root, message)
-    if not commit_ok:
-        print_contract_summary('UPDATED', 'BLOCKED', 'BLOCKED', after_version, changed_files, f'blocked_or_failed: {commit_detail}', '无', '处理本地 Git 提交失败后重试 /lbai-update-kit。')
-        print('kit_update_status: UPDATED')
-        print('commit_readiness: BLOCKED')
-        print('git_status: BLOCKED')
-        print(f'reason: {commit_detail}')
-        print_list('updated_paths:', changed_files)
-        print_employee_artifact_note(root)
-        return 1
-
-    if args.no_push:
-        print_contract_summary('UPDATED', 'READY', 'COMMITTED', after_version, changed_files, 'skipped: --no-push', '无', '之后需要 push 到 private GitHub。')
-        print('kit_update_status: UPDATED')
-        print('commit_readiness: READY')
-        print('git_status: COMMITTED')
+        print('git_status: PUSHED')
         print(f'workspace_root: {root}')
         print(f'source: {source_label}')
         print(f'previous_version: {before_version}')
         print(f'workspace_kit_version: {after_version}')
         print(f'commit_message: {commit_detail}')
-        print('github_sync: skipped_by_flag')
+        print('github_sync: completed')
+        print(f'cli_core_update: {core_update_status}')
+        print(f'cli_core_detail: {core_update_detail}')
         if pre_dirty and overwrite_managed:
             print_list('overwritten_local_changes:', pre_dirty)
         print_list('updated_paths:', changed_files)
         print_employee_artifact_note(root)
         return 0
-
-    push_ok, push_detail = push_current(root)
-    if not push_ok:
-        print_contract_summary('UPDATED', 'READY', 'PUSH_FAILED', after_version, changed_files, f'blocked_or_failed: {push_detail}', '无', '检查网络、权限或冲突后重新运行 /lbai-update-kit。')
-        print('kit_update_status: UPDATED')
-        print('commit_readiness: READY')
-        print('git_status: PUSH_FAILED')
-        print(f'reason: {push_detail}')
-        print_list('updated_paths:', changed_files)
-        print_employee_artifact_note(root)
-        return 3
-
-    print_contract_summary('UPDATED', 'READY', 'PUSHED', after_version, changed_files, 'completed', '无', '可以继续使用最新工作流。')
-    print('kit_update_status: UPDATED')
-    print('commit_readiness: READY')
-    print('git_status: PUSHED')
-    print(f'workspace_root: {root}')
-    print(f'source: {source_label}')
-    print(f'previous_version: {before_version}')
-    print(f'workspace_kit_version: {after_version}')
-    print(f'commit_message: {commit_detail}')
-    print('github_sync: completed')
-    if pre_dirty and overwrite_managed:
-        print_list('overwritten_local_changes:', pre_dirty)
-    print_list('updated_paths:', changed_files)
-    print_employee_artifact_note(root)
-    return 0
+    finally:
+        if core_staging_dir and core_staging_dir.exists():
+            remove_path(core_staging_dir)
 
 
 if __name__ == '__main__':

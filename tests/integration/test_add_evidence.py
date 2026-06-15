@@ -32,6 +32,7 @@ class TestAddEvidence:
         assert 'employee_user_name: 王小明' in result.stdout
         assert 'employee_position: 内容助理' in result.stdout
         assert 'source_type: meeting_note' in result.stdout
+        assert '未同步 GitHub' in result.stdout
 
         folder_line = next(line for line in result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
         rel = folder_line.split(' ', 1)[1].strip()

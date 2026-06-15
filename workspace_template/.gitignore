@@ -16,3 +16,5 @@ lbai-workspace-kit-main.zip
 lbai-workspace-kit-*.zip
 lbai-workspace-kit-*.tar.gz
 *.log
+prompt_lab/runs/
+prompt_lab/finalized_reports/

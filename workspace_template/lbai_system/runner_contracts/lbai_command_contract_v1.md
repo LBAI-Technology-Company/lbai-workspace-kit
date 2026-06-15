@@ -38,6 +38,7 @@ Adapters must read this contract, then call or follow the listed tools. Do not i
   - `/lbai-execute-task`
   - `/lbai-finish-task`
   - `/lbai-update-kit`
+  - `/lbai-self-iterate`
 - If a command argument is omitted and exactly one current task is clear, use it.
 - If the task is ambiguous, list candidate task folders and ask the employee to choose.
 - Do not invent missing source facts.
@@ -367,4 +368,53 @@ GitHub 同步：
 如需确认：
 <覆盖升级 | 暂不升级 | 无>
 下一步：<exact next step>
+```
+
+## /lbai-self-iterate
+
+Start or continue the LBAI Prompt Lab self-iteration loop for improving prompts through simulated office writing scenarios.
+
+Supported runtimes: **Cursor** and **Codex desktop app**. The current AI in the runtime acts as the scenario generator, enrichment producer, evaluator, and prompt optimizer. Do not request a separate LLM API key.
+
+Coordinator:
+
+```text
+lbai_system/prompt_lab/prompt_lab.py
+```
+
+Default arguments:
+
+```text
+rounds=1
+scenarios_per_round=6
+focus=general_office_writing
+review_mode=human_each_round
+auto_continue=false
+apply_threshold=80
+```
+
+Behavior:
+
+1. Parse optional user arguments: `rounds`, `scenarios_per_round`, `focus`, `review_mode`, `auto_continue`, and `apply_threshold`.
+2. Run `prompt_lab.py start` to create `prompt_lab/runs/<run_id>/`, copy formal prompts into the experimental prompt baseline, and create an isolated workspace.
+3. Run `prompt_lab.py next-step --run <run_dir>` and follow its instructions.
+4. Generate `prompt_lab_scenarios_v1` JSON that mocks different office writing scenarios, including internal reports, meeting notes, manager requests, customer feedback, policy summaries, HR copy, sales material, product explanations, and review-sensitive external content.
+5. For each scenario, use the current AI to produce required enrichment JSON, then call existing LBAI tools **only** through `prompt_lab.py run-tool` inside the isolated workspace under `prompt_lab/runs/<run_id>/workspaces/`. `run-tool` rejects employee root paths, allows only `new_task.py`, `add_evidence.py`, `finish_task.py`, and `init_lbai.py`, sets `LBAI_PROMPT_LAB_ISOLATED=1`, and forces local-only behavior for sync-capable tools. Do not use `search_artifacts.py` in Prompt Lab mock runs because it may call the production knowledge backend. Never invoke `lbai_system/tools/*.py` directly against the employee workspace during this command.
+6. Evaluate every scenario with `prompt_lab_evaluation_v1` JSON, score the round with `prompt_lab.py score`, and write `human_review.md`.
+7. If a prompt improvement is needed, produce `prompt_lab_prompt_patch_v1` JSON and call `prompt_lab.py apply-prompt-patch`.
+8. Prompt patches may only update `prompt_lab/prompt_versions/current/`. Never edit `lbai_system/prompts/` during this command.
+9. A prompt patch is applied only when the score meets the threshold, no red flags are present, and the score improves over the previous round when a previous round exists.
+10. By default, stop after each round for human review. When `auto_continue=true`, `next-step` prints the `advance-round` command to run after review; it does not auto-run another round without explicit execution.
+11. To start another round after the current round completes, run `prompt_lab.py advance-round --run <run_dir>`. This increments `current_round`, seeds the next round folders, and creates or refreshes the isolated workspace with the latest experimental prompts.
+12. After human approval, run `prompt_lab.py finalize --run <run_dir>` to delete mock scenarios, tool outputs, evaluations, isolated workspaces, and raw run data. The default final state keeps only optimized experimental prompts under `prompt_lab/prompt_versions/current/`.
+
+Response format:
+
+```text
+Prompt Lab：<STARTED | BLOCKED | ROUND_REVIEW_READY>
+run_dir: <path>
+current_round: <n>
+next_step:
+- <exact command or AI action>
+human_review: <path or None>
 ```

@@ -85,6 +85,18 @@
       "requires_enrichment": false,
       "mutates": true,
       "backend_required": false
+    },
+    {
+      "name": "lbai-self-iterate.md",
+      "slug": "/lbai-self-iterate",
+      "tool": "prompt_lab/prompt_lab.py",
+      "category": "prompt_lab",
+      "display_order": 80,
+      "prompt": null,
+      "schema": "prompt_lab/schemas/scenarios_schema_v1.json",
+      "requires_enrichment": false,
+      "mutates": true,
+      "backend_required": false
     }
   ]
 }

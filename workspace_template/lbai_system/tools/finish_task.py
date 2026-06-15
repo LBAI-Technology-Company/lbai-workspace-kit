@@ -9,7 +9,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
-from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, prompt_lab_isolated_mode, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
 
 
 ENRICHMENT_VERSION = 'finish_review_enrichment_v1'
@@ -335,7 +335,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('task_folder')
     parser.add_argument('--enrichment', required=True)
+    parser.add_argument('--no-sync', action='store_true', help='Write finish artifacts without committing or pushing.')
     args = parser.parse_args()
+    if prompt_lab_isolated_mode():
+        args.no_sync = True
 
     root = workspace_root()
     task_dir = (root / args.task_folder).resolve()
@@ -380,7 +383,20 @@ def main():
         gap_text = '; '.join(str(item) for item in review_data.get('gaps') or []) or review_data.get('completeness_summary', '')
         sync_detail = f'AI finish review blocked: {gap_text}'
 
-    if commit_readiness == 'READY' and status != 'BLOCKED' and not ai_finish_blocked:
+    skip_git_sync = (
+        args.no_sync
+        and commit_readiness == 'READY'
+        and status != 'BLOCKED'
+        and not ai_finish_blocked
+    )
+
+    if skip_git_sync:
+        git_status = 'NOT_SYNCED'
+        sync_detail = 'Sync skipped by --no-sync.'
+        next_dependency = next_dependency_for(status, commit_readiness, git_status, needs_leader_review_reminder)
+        update_structured_task_ledger(task_dir, status, commit_readiness, git_status, sync_detail, next_dependency)
+        update_global_ledger(root, args.task_folder, status, commit_readiness, git_status, next_dependency)
+    elif commit_readiness == 'READY' and status != 'BLOCKED' and not ai_finish_blocked:
         if not git_remote_available(root):
             commit_readiness = 'BLOCKED'
             sync_detail = 'MISSING_GITHUB_REMOTE: no Git remote configured'
@@ -388,7 +404,9 @@ def main():
             commit_readiness = 'BLOCKED'
             sync_detail = 'MISSING_GIT_UPSTREAM: current branch has no upstream'
 
-    if commit_readiness != 'READY' or status == 'BLOCKED':
+    if skip_git_sync:
+        pass
+    elif commit_readiness != 'READY' or status == 'BLOCKED':
         git_status = 'BLOCKED'
         sync_detail = sync_detail or 'Auto sync blocked by task status, hygiene check, or Git sync precondition.'
         if sync_detail.startswith(('MISSING_GITHUB_REMOTE', 'MISSING_GIT_UPSTREAM')):
@@ -470,6 +488,9 @@ def main():
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
         print('auto_git_sync: completed')
         print(f'detail: {sync_detail}')
+    elif skip_git_sync and git_status == 'NOT_SYNCED':
+        print('auto_git_sync: skipped')
+        print(f'detail: {sync_detail}')
     else:
         print('auto_git_sync: blocked_or_failed')
         print(f'detail: {sync_detail}')
@@ -478,6 +499,8 @@ def main():
     if needs_leader_review_reminder:
         print(f'leader_review_reminder: {LEADER_REVIEW_REMINDER}')
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
+        return 0
+    if skip_git_sync and git_status == 'NOT_SYNCED':
         return 0
     if git_status == 'PUSH_FAILED':
         return 3

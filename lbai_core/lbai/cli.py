@@ -27,6 +27,7 @@ MANAGED_PATHS = [
 EMPLOYEE_DEFAULT_PATHS = [
     'role_workspace',
     'tasks',
+    'prompt_lab',
 ]
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
@@ -948,6 +949,37 @@ def serve_dashboard(args: argparse.Namespace) -> int:
     return run([*python_cmd(), 'lbai_system/tools/serve_dashboard.py', *args.extra], cwd=root).returncode
 
 
+def self_iterate(args: argparse.Namespace) -> int:
+    root = find_workspace()
+    cmd = [*python_cmd(), 'lbai_system/prompt_lab/prompt_lab.py', 'start']
+    if args.rounds is not None:
+        cmd.extend(['--rounds', str(args.rounds)])
+    if args.scenarios_per_round is not None:
+        cmd.extend(['--scenarios-per-round', str(args.scenarios_per_round)])
+    if args.focus:
+        cmd.extend(['--focus', args.focus])
+    if args.review_mode:
+        cmd.extend(['--review-mode', args.review_mode])
+    if args.auto_continue:
+        cmd.append('--auto-continue')
+    if args.apply_threshold is not None:
+        cmd.extend(['--apply-threshold', str(args.apply_threshold)])
+    run_id = ''
+    captured = capture(cmd, cwd=root)
+    print(captured.stdout, end='')
+    print(captured.stderr, end='', file=sys.stderr)
+    if captured.returncode != 0:
+        return captured.returncode
+    for line in captured.stdout.splitlines():
+        if line.startswith('run_dir:'):
+            run_id = line.split(':', 1)[1].strip()
+            break
+    if not run_id:
+        print('ERROR: prompt lab start succeeded but run_dir was missing from output', file=sys.stderr)
+        return 1
+    return run([*python_cmd(), 'lbai_system/prompt_lab/prompt_lab.py', 'next-step', '--run', run_id], cwd=root).returncode
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog='lbai')
     parser.add_argument('--version', action='version', version=f'lbai {read_version()}')
@@ -1004,6 +1036,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser('finish-task')
     serve = sub.add_parser('serve-dashboard')
     serve.add_argument('extra', nargs=argparse.REMAINDER)
+    iterate = sub.add_parser('self-iterate')
+    iterate.add_argument('--rounds', type=int)
+    iterate.add_argument('--scenarios-per-round', type=int)
+    iterate.add_argument('--focus')
+    iterate.add_argument('--review-mode', choices=['human_each_round', 'auto'])
+    iterate.add_argument('--auto-continue', action='store_true')
+    iterate.add_argument('--apply-threshold', type=float)
     return parser
 
 
@@ -1038,6 +1077,8 @@ def main(argv: list[str] | None = None) -> int:
         return execute_task(known, extra)
     if known.command == 'serve-dashboard':
         return serve_dashboard(known)
+    if known.command == 'self-iterate':
+        return self_iterate(known)
 
     parser.print_help()
     return 0

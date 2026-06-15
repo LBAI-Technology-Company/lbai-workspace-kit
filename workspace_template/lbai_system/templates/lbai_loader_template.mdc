@@ -36,16 +36,18 @@ For every conversation in this workspace:
    - `/lbai-execute-task` for task execution.
    - `/lbai-finish-task` for task finish, hygiene check, and private GitHub sync.
    - `/lbai-update-kit` for company workflow template updates.
-5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; company-maintained workflow machinery belongs under `lbai_system/`.
+   - `/lbai-self-iterate` for Prompt Lab experiments under `prompt_lab/`.
+5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; Prompt Lab experiments belong under `prompt_lab/`; company-maintained workflow machinery belongs under `lbai_system/`.
 6. This summary is the small always-loaded prompt. The shared command contract and complete company-maintained rules remain under `lbai_system/` and should be read when a task needs more detail.
 
-This project uses four main workspace parts:
+This project uses five main workspace parts:
 
 - `.cursor/` = Cursor project command entries and project rules.
 - `lbai_system/` = company-maintained workflow machine. Do not edit during normal task work.
 - `lbai_system/templates/role_workspace/` = company-maintained default role memory templates. These may update with `/lbai-update-kit`, but must not overwrite existing root `role_workspace/` files.
 - `role_workspace/` = employee role memory. Cursor may update world model / ledgers when the lifecycle requires it.
 - `tasks/` = daily task artifacts. Employees mainly inspect this folder.
+- `prompt_lab/` = Prompt Lab experiment records and experimental prompt copies. Separate from normal task artifacts.
 
 Before role setup, task discussion, planning, execution, or finishing, follow the shared command contract and source rules in:
 
@@ -81,6 +83,7 @@ Employee-facing commands:
 - `/lbai-execute-task` for task execution
 - `/lbai-finish-task` for task finish, pre-commit check, and private GitHub sync
 - `/lbai-update-kit` for updating company-maintained workflow files without touching employee role memory or tasks
+- `/lbai-self-iterate` for Prompt Lab self-iteration without changing formal prompts
 
 Do not modify these system files unless the user explicitly asks to upgrade the LBAI workflow kit:
 

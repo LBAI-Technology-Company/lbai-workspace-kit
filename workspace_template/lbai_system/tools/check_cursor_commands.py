@@ -11,6 +11,7 @@ EXPECTED = {
     'lbai-execute-task.md',
     'lbai-finish-task.md',
     'lbai-update-kit.md',
+    'lbai-self-iterate.md',
 }
 
 STALE = {
@@ -80,10 +81,10 @@ def main():
     print('')
     if cursor_missing or system_missing or cursor_stale or system_stale or drift:
         print('STATUS BLOCKED')
-        print('NEXT_STEP 删除旧命令文件，确认 .cursor/commands/ 和 lbai_system/cursor/commands/ 都包含七个 lbai- 命令文件且内容一致，然后重启 Cursor 或 Reload Window。')
+        print('NEXT_STEP 删除旧命令文件，确认 .cursor/commands/ 和 lbai_system/cursor/commands/ 都包含八个 lbai- 命令文件且内容一致，然后重启 Cursor 或 Reload Window。')
         return 1
     print('STATUS OK')
-    print('NEXT_STEP 在 Cursor 输入 /lbai 应该能看到 /lbai-init、/lbai-add-evidence、/lbai-search-artifacts、/lbai-new-task、/lbai-execute-task、/lbai-finish-task、/lbai-update-kit。')
+    print('NEXT_STEP 在 Cursor 输入 /lbai 应该能看到 /lbai-init、/lbai-add-evidence、/lbai-search-artifacts、/lbai-new-task、/lbai-execute-task、/lbai-finish-task、/lbai-update-kit、/lbai-self-iterate。')
     return 0
 
 

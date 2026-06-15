@@ -1,6 +1,6 @@
 ---
 name: lbai-workflow
-description: Use this project-level skill when the user types or refers to /lbai-init, /lbai-add-evidence, /lbai-search-artifacts, /lbai-new-task, /lbai-execute-task, /lbai-finish-task, /lbai-update-kit, or asks Codex to run the LBAI role workspace workflow in this repository.
+description: Use this project-level skill when the user types or refers to /lbai-init, /lbai-add-evidence, /lbai-search-artifacts, /lbai-new-task, /lbai-execute-task, /lbai-finish-task, /lbai-update-kit, /lbai-self-iterate, or asks Codex to run the LBAI role workspace workflow in this repository.
 ---
 
 # LBAI Workflow for Codex
@@ -19,6 +19,7 @@ When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI wo
 /lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
+/lbai-self-iterate
 ```
 
 Remind them: run these in the **Codex desktop app** with this workspace folder open—not in a bare terminal.
@@ -53,6 +54,7 @@ Remind them: run these in the **Codex desktop app** with this workspace folder o
 - Do not duplicate command logic here; the shared command contract is the source of truth.
 - Do not edit `.cursor/`, `lbai_system/`, `AGENTS.md`, `README.md`, or `workspace_dashboard.html` during normal employee task work.
 - `/lbai-update-kit` is the normal exception for company-maintained workflow updates.
+- `/lbai-self-iterate` is the normal exception for Prompt Lab experiments. It may write under root `prompt_lab/` and isolated experiment workspaces, but must not edit formal prompts under `lbai_system/prompts/`.
 
 ## Commands
 
@@ -66,6 +68,7 @@ Supported employee-facing commands:
 /lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
+/lbai-self-iterate
 ```
 
 Codex can execute these commands when the user types them or describes them in natural language. Use the **Codex desktop app only** (not Codex CLI).
@@ -80,5 +83,6 @@ Codex can execute these commands when the user types them or describes them in n
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | write `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
+| `/lbai-self-iterate` | Prompt Lab generated scenarios/evaluations | `prompt_lab/prompt_lab.py` |
 
 `/lbai-update-kit` remains code-only via `update_kit.py`.

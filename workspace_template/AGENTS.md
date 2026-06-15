@@ -13,6 +13,7 @@ This repo is an LBAI enterprise role workspace for employee office work.
 | `/lbai-execute-task` | Execute the current task and write deliverables |
 | `/lbai-finish-task` | Finish, hygiene-check, and sync to GitHub |
 | `/lbai-update-kit` | Update company-maintained workflow files |
+| `/lbai-self-iterate` | Run Prompt Lab self-iteration experiments for prompt improvement |
 
 Do **not** run `lbai new-task` / `lbai add-evidence` in a bare terminal without `--enrichment`; use the `/lbai-*` commands above instead.
 
@@ -24,6 +25,7 @@ Do **not** run `lbai new-task` / `lbai add-evidence` in a bare terminal without 
 - `lbai_system/templates/role_workspace/` contains company-maintained default role-memory templates for new or missing role files.
 - `role_workspace/` is the employee's role memory: world model, role boundary, ledgers, and archive.
 - `tasks/` contains the employee's daily task artifacts. Employees mainly inspect this folder.
+- `prompt_lab/` contains Prompt Lab experiment records and experimental prompt versions. It is separate from employee task artifacts.
 
 ## Enterprise work standard
 
@@ -50,13 +52,14 @@ For regular work and workflow updates, employees only need to know:
 /lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
+/lbai-self-iterate
 ```
 
 The three task lifecycle commands are `/lbai-new-task`, `/lbai-execute-task`, and `/lbai-finish-task`; they may be used without arguments when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
 
 ## Codex project adapter
 
-When this repository is opened in Codex, the same employee-facing commands are supported as project-local workflow commands. If the user types or refers to `/lbai-init`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, or `/lbai-update-kit`, read:
+When this repository is opened in Codex, the same employee-facing commands are supported as project-local workflow commands. If the user types or refers to `/lbai-init`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, `/lbai-update-kit`, or `/lbai-self-iterate`, read:
 
 - `lbai_system/codex/skills/lbai-workflow/SKILL.md`
 - `lbai_system/runner_contracts/lbai_command_contract_v1.md`
@@ -78,6 +81,14 @@ For company workflow template updates, employees may use:
 ```
 
 This command updates only company-maintained workflow files, including `lbai_system/templates/role_workspace/`, and must not modify employee-owned `role_workspace/` or `tasks/`.
+
+For Prompt Lab prompt experiments, employees may use:
+
+```text
+/lbai-self-iterate
+```
+
+This command writes under root `prompt_lab/` and isolated experiment workspaces. It must not modify employee-owned `role_workspace/`, `tasks/`, or formal prompts under `lbai_system/prompts/`.
 
 ## Default behavior
 
@@ -112,6 +123,8 @@ Do not edit these unless the user explicitly asks to upgrade the LBAI workflow k
 - `workspace_dashboard.html`
 
 Even when `lbai_system/templates/role_workspace/` changes, `/lbai-update-kit` must not overwrite existing files under root `role_workspace/`. Missing root role files may be restored from the templates during bootstrap only.
+
+`/lbai-self-iterate` is a controlled experiment workflow. It may write under root `prompt_lab/` and isolated Prompt Lab workspaces, but it must not write normal employee task artifacts under root `tasks/` or role memory under root `role_workspace/`. Prompt Lab may update only experimental prompt copies under `prompt_lab/prompt_versions/current/`; it must not edit `lbai_system/prompts/`. Mock Prompt Lab data must stay local and must not be committed or pushed to GitHub; after approval, clean it with `prompt_lab.py finalize --run <run_dir>`.
 
 ## GitHub sync rule
 

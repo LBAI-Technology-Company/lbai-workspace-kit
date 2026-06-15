@@ -20,7 +20,7 @@
 4. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
 5. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
 6. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
-7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`。
+7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验用 `/lbai-self-iterate`。
 
 > 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -205,8 +205,9 @@ lbai update-kit            # 升级公司模板（纯代码）
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent 写 `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
 | `/lbai-update-kit` | 无 | `update_kit.py`（纯代码） |
+| `/lbai-self-iterate` | 运行时 AI 生成 JSON（无预置 enrichment 文件） | `prompt_lab.py`（实验 prompt，不改正式 prompt） |
 
-无 AI enrichment → 对应命令 **BLOCKED**，不降级为规则处理。
+需要预置 enrichment JSON 的命令 → 无文件则 **BLOCKED**。`/lbai-self-iterate` 与 `/lbai-update-kit` 例外：Prompt Lab JSON 由当前 AI 运行时生成，update-kit 为纯代码。
 
 Schema 均在 `lbai_system/schemas/`；其中搜索命令使用后端 query plan schema，其余 AI 命令使用 enrichment schema。
 

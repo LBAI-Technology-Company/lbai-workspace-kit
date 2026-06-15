@@ -17,6 +17,7 @@ COMMANDS = [
     'lbai-execute-task.md',
     'lbai-finish-task.md',
     'lbai-update-kit.md',
+    'lbai-self-iterate.md',
 ]
 
 MANIFEST = template_root() / 'lbai_system' / 'adapters' / 'commands_manifest.json'

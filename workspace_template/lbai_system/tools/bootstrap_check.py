@@ -38,6 +38,7 @@ REQUIRED_DIRS = [
     'role_workspace/world_model',
     'role_workspace/world_model/versions',
     'tasks',
+    'prompt_lab',
 ]
 
 OLD_COMMANDS = [
@@ -71,6 +72,7 @@ COMMAND_FILES = [
     'lbai-execute-task.md',
     'lbai-finish-task.md',
     'lbai-update-kit.md',
+    'lbai-self-iterate.md',
 ]
 
 REQUIRED_FILES = [
@@ -102,6 +104,18 @@ def write_if_missing(root: Path, path: Path, content: str, repair: bool, created
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding='utf-8')
         created.append(rel)
+
+
+def sync_loader_from_template(root: Path, repair: bool, created: list[str], missing: list[str]) -> None:
+    loader_path = root / '.cursor' / 'rules' / 'lbai-loader.mdc'
+    content = loader_template_content(root)
+    rel = str(loader_path.relative_to(root))
+    if not loader_path.exists():
+        missing.append(rel)
+        if repair:
+            loader_path.parent.mkdir(parents=True, exist_ok=True)
+            loader_path.write_text(content, encoding='utf-8')
+            created.append(rel)
 
 
 def copy_command_if_missing(root: Path, name: str, repair: bool, created: list[str], missing: list[str]):
@@ -187,7 +201,7 @@ def main():
     missing_templates = copy_role_defaults_if_missing(root, repair, created, missing)
     write_if_missing(root, root / 'tasks' / '.gitkeep', '', repair, created, missing)
 
-    write_if_missing(root, root / '.cursor' / 'rules' / 'lbai-loader.mdc', loader_template_content(root), repair, created, missing)
+    sync_loader_from_template(root, repair, created, missing)
     for name in COMMAND_FILES:
         copy_command_if_missing(root, name, repair, created, missing)
 

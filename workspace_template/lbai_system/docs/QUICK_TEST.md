@@ -9,7 +9,7 @@ python3 lbai_system/tools/check_codex_adapter.py
 
 Expected: both checks report status `OK`. If old commands such as `/new-task` still show in Cursor, delete stale files under `.cursor/commands/` and reload Cursor.
 
-Expected commands include `/lbai-init`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, and `/lbai-update-kit`.
+Expected commands include `/lbai-init`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, `/lbai-update-kit`, and `/lbai-self-iterate`.
 
 Evidence intake smoke test:
 

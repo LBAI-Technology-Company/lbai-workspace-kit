@@ -15,8 +15,8 @@ For every conversation in this workspace:
 2. Ground work advice in the employee's role memory:
    - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
    - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
-   - `role_workspace/world_model/ROLE_CURRENT_PRIORITIES_v1.md`
    - `role_workspace/ledgers/TASK_LEDGER_v1.md`
+   - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
    - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`
 3. Keep advice company-boundary-aware:
    - Do not invent source facts.
@@ -30,22 +30,24 @@ For every conversation in this workspace:
    - Do not write secrets, keys, tokens, or unnecessary personal data into repo artifacts.
 4. Keep the employee-facing workflow simple:
    - `/lbai-init` for role setup or role updates.
+   - `/lbai-add-evidence` for saving evidence or reference material without auto-creating a task.
+   - `/lbai-search-artifacts` for read-only search across prior evidence, references, and task outputs.
    - `/lbai-new-task` for formal task intake.
-   - `/lbai-add-evidence` for capturing evidence and source material.
-   - `/lbai-search-artifacts` for finding prior tasks, evidence, and references.
    - `/lbai-execute-task` for task execution.
    - `/lbai-finish-task` for task finish, hygiene check, and private GitHub sync.
    - `/lbai-update-kit` for company workflow template updates.
-5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; company-maintained workflow machinery belongs under `lbai_system/`.
+   - `/lbai-self-iterate` for Prompt Lab experiments under `prompt_lab/`.
+5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; Prompt Lab experiments belong under `prompt_lab/`; company-maintained workflow machinery belongs under `lbai_system/`.
 6. This summary is the small always-loaded prompt. The shared command contract and complete company-maintained rules remain under `lbai_system/` and should be read when a task needs more detail.
 
-This project uses four main workspace parts:
+This project uses five main workspace parts:
 
 - `.cursor/` = Cursor project command entries and project rules.
 - `lbai_system/` = company-maintained workflow machine. Do not edit during normal task work.
 - `lbai_system/templates/role_workspace/` = company-maintained default role memory templates. These may update with `/lbai-update-kit`, but must not overwrite existing root `role_workspace/` files.
 - `role_workspace/` = employee role memory. Cursor may update world model / ledgers when the lifecycle requires it.
 - `tasks/` = daily task artifacts. Employees mainly inspect this folder.
+- `prompt_lab/` = Prompt Lab experiment records and experimental prompt copies. Separate from normal task artifacts.
 
 Before role setup, task discussion, planning, execution, or finishing, follow the shared command contract and source rules in:
 
@@ -68,18 +70,20 @@ Normal task work may write only to:
 
 - `tasks/`
 - `role_workspace/ledgers/`
+- `role_workspace/knowledge/` when saving evidence or reference material
 - `role_workspace/world_model/` only when updating role world model
 - `role_workspace/archive/` only when running `/lbai-init`
 
 Employee-facing commands:
 
 - `/lbai-init` for first-time role setup or later role updates
+- `/lbai-add-evidence` for saving evidence or reference material without auto-creating a task
+- `/lbai-search-artifacts` for read-only search across prior evidence, references, and task outputs
 - `/lbai-new-task` for task intake
-- `/lbai-add-evidence` for evidence capture
-- `/lbai-search-artifacts` for artifact search
 - `/lbai-execute-task` for task execution
 - `/lbai-finish-task` for task finish, pre-commit check, and private GitHub sync
 - `/lbai-update-kit` for updating company-maintained workflow files without touching employee role memory or tasks
+- `/lbai-self-iterate` for Prompt Lab self-iteration without changing formal prompts
 
 Do not modify these system files unless the user explicitly asks to upgrade the LBAI workflow kit:
 

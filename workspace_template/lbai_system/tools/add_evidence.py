@@ -14,6 +14,7 @@ from enrichment_utils import load_json_file, validate_with_schema
 from task_utils import (
     employee_identity,
     load_workspace_config,
+    prompt_lab_isolated_mode,
     read_text,
     redact_sensitive,
     slugify,
@@ -259,6 +260,8 @@ def main() -> int:
     parser.add_argument('--enrichment', required=True, help='Path to AI-generated evidence metadata JSON.')
     parser.add_argument('--no-sync', action='store_true', help='Create evidence artifacts without committing or pushing.')
     args = parser.parse_args()
+    if prompt_lab_isolated_mode():
+        args.no_sync = True
 
     root = workspace_root()
     content = parse_input(args)
@@ -334,7 +337,13 @@ def main() -> int:
     (evidence_dir / 'metadata.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     (evidence_dir / 'evidence_enrichment.json').write_text(json.dumps(enrichment, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
-    next_step = '资料已保存到 GitHub workspace；后端将异步入库。可稍后使用 /lbai-search-artifacts 搜索。'
+    if args.no_sync:
+        if prompt_lab_isolated_mode():
+            next_step = 'Prompt Lab 本地 mock 证据已写入隔离 workspace，未同步 GitHub 或后端知识服务。'
+        else:
+            next_step = '证据已本地写入 workspace，未同步 GitHub 或后端知识服务。'
+    else:
+        next_step = '资料已保存到 GitHub workspace；后端将异步入库。可稍后使用 /lbai-search-artifacts 搜索。'
     evidence_status = metadata['admissibility_status']
     sync_status = 'NOT_SYNCED'
     update_ledger(

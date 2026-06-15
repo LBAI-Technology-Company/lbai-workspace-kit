@@ -149,6 +149,10 @@ def workspace_root() -> Path:
     return git_root() or Path.cwd()
 
 
+def prompt_lab_isolated_mode() -> bool:
+    return os.environ.get('LBAI_PROMPT_LAB_ISOLATED') == '1'
+
+
 def slugify(name: str) -> str:
     name = name.lower().strip()
     name = re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "_", name)

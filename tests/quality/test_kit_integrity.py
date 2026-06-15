@@ -97,6 +97,7 @@ class TestPromptSchemaInventory:
             'lbai-execute-task.md',
             'lbai-finish-task.md',
             'lbai-update-kit.md',
+            'lbai-self-iterate.md',
         }
         existing = {p.name for p in cursor_cmds.glob('*.md')}
         missing = expected - existing
@@ -148,10 +149,14 @@ class TestPromptSchemaInventory:
         source_root = tmp_path / 'checkout'
         (source_root / '.cursor').mkdir(parents=True)
         (source_root / 'lbai_system').mkdir()
+        (source_root / 'lbai_core' / 'lbai').mkdir(parents=True)
+        (source_root / 'lbai_core' / 'lbai' / 'cli.py').write_text('# test cli\n', encoding='utf-8')
+        (source_root / 'VERSION').write_text('0.0.0-test\n', encoding='utf-8')
         (source_root / 'workspace_template' / '.cursor').mkdir(parents=True)
         (source_root / 'workspace_template' / 'lbai_system').mkdir()
 
         assert module.kit_template_root(source_root) == source_root / 'workspace_template'
+        assert module.package_root_from_source(source_root / 'workspace_template') == source_root
 
     def test_managed_git_stage_forces_ignored_paths(self):
         text = (template_root() / 'lbai_system' / 'tools' / 'update_kit.py').read_text(encoding='utf-8')

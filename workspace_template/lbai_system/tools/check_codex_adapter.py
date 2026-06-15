@@ -13,6 +13,7 @@ REQUIRED_FILES = [
     Path('.agents/skills/lbai-execute-task/SKILL.md'),
     Path('.agents/skills/lbai-finish-task/SKILL.md'),
     Path('.agents/skills/lbai-update-kit/SKILL.md'),
+    Path('.agents/skills/lbai-self-iterate/SKILL.md'),
 ]
 
 REQUIRED_COMMANDS = [
@@ -23,6 +24,7 @@ REQUIRED_COMMANDS = [
     '/lbai-execute-task',
     '/lbai-finish-task',
     '/lbai-update-kit',
+    '/lbai-self-iterate',
 ]
 
 REQUIRED_AGENTS_REFERENCES = [
@@ -86,7 +88,7 @@ def main() -> int:
         for command in missing_commands:
             print(f'- 缺少 {command}')
     else:
-        print('- 七个 /lbai-* 命令均已覆盖')
+        print('- 八个 /lbai-* 命令均已覆盖')
 
     print('')
     print('## AGENTS.md 引用')
@@ -110,7 +112,7 @@ def main() -> int:
         for command in missing_command_skill_refs:
             print(f'- {command} 入口未完整指向 AGENTS、共享契约和核心工具')
     else:
-        print('- 七个 .agents 命令入口均为薄适配')
+        print('- 八个 .agents 命令入口均为薄适配')
 
     print('')
     if missing_files or missing_commands or missing_agents_refs or missing_skill_refs or missing_command_skill_refs:

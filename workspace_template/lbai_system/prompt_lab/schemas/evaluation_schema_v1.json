@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["schema_version", "scenario_id", "scores", "red_flags", "issues", "prompt_improvement_candidates"],
+  "properties": {
+    "schema_version": {
+      "const": "prompt_lab_evaluation_v1"
+    },
+    "scenario_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "scores": {
+      "type": "object",
+      "required": [
+        "schema_compliance",
+        "boundary_handling",
+        "source_grounding",
+        "missing_input_handling",
+        "task_quality",
+        "finish_review_accuracy"
+      ],
+      "properties": {
+        "schema_compliance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "boundary_handling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "source_grounding": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "missing_input_handling": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "task_quality": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "finish_review_accuracy": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
+    },
+    "red_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prompt_improvement_candidates": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

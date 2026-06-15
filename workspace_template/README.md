@@ -17,6 +17,8 @@
 
 ```text
 拿到 private 仓库 -> 用 Cursor 或 Codex 打开 -> /lbai-init -> /lbai-add-evidence 或 /lbai-search-artifacts 或 /lbai-new-task -> /lbai-execute-task -> /lbai-finish-task
+
+Prompt 实验和自我迭代使用 `/lbai-self-iterate`，记录保存在 `prompt_lab/`，不会自动修改正式 prompt。
 ```
 
 ---
@@ -258,6 +260,7 @@ README.md
 /lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
+/lbai-self-iterate
 ```
 
 如果看不到这些命令，重启 Cursor，或运行 Cursor 的 Reload Window。在 **Codex 桌面 App** 中打开同一工作区，输入 `/lbai-add-evidence` 等命令即可触发工作流（不使用 Codex CLI）。

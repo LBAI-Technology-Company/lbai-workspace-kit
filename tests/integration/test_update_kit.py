@@ -19,3 +19,18 @@ class TestUpdateKit:
         assert 'git_status: SKIPPED' in result.stdout
         assert 'GitHub 同步：skipped: dry-run only' in result.stdout
         assert 'kit_update_status: DRY_RUN' in result.stdout
+        assert 'cli_core_update: DRY_RUN' in result.stdout
+
+    def test_skip_core_update_flag(self, isolated_workspace):
+        result = run_tool(
+            isolated_workspace,
+            'update_kit.py',
+            '--source',
+            str(template_root()),
+            '--dry-run',
+            '--skip-core-update',
+        )
+
+        assert result.returncode == 0, result.output
+        assert 'cli_core_update: SKIPPED' in result.stdout
+        assert 'cli_core_detail: --skip-core-update' in result.stdout

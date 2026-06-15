@@ -64,3 +64,23 @@ class TestFinishTask:
         result = run_tool(isolated_workspace, 'finish_task.py', 'tasks/not_a_real_task', '--enrichment', str(enrich))
         assert result.returncode != 0
         assert 'BLOCKED' in result.stdout
+
+    def test_no_sync_skips_git_push_but_writes_artifacts(self, isolated_workspace, fixtures):
+        task_rel = _create_ready_task(isolated_workspace, fixtures)
+        enrich = enrichment_path(fixtures, 'finish_approve.json')
+        result = run_tool(
+            isolated_workspace,
+            'finish_task.py',
+            task_rel,
+            '--enrichment',
+            str(enrich),
+            '--no-sync',
+        )
+
+        assert result.returncode == 0, result.output
+        assert 'commit_readiness: READY' in result.stdout
+        assert 'git_status: NOT_SYNCED' in result.stdout
+        assert 'auto_git_sync: skipped' in result.stdout
+        task_dir = isolated_workspace / task_rel
+        assert (task_dir / 'finish_review.md').exists()
+        assert (task_dir / 'finish_review_enrichment.json').exists()
