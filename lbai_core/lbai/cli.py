@@ -8,6 +8,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -118,18 +120,70 @@ def read_knowledge_service_auth() -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def write_knowledge_service_auth(api_key: str, api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER) -> Path:
+def write_knowledge_service_auth(
+    api_key: str,
+    api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
+    base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
+) -> Path:
     path = knowledge_service_auth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     data = {
         'schema_version': 'knowledge_service_auth_v1',
         'api_key': api_key.strip(),
         'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
+        'base_url': (base_url or KNOWLEDGE_SERVICE_BASE_URL).strip(),
         'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
     return path
+
+
+def verify_knowledge_service_key(
+    api_key: str,
+    api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
+    base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
+    timeout: int = 10,
+) -> tuple[bool, str]:
+    url = base_url.rstrip('/') + '/v1/search/evidence'
+    payload = {
+        'workspace_repo_id': 'auth-check',
+        'employee_user_id': 'auth-check',
+        'task_text': 'auth check',
+        'query_plan': {
+            'schema_version': 'backend_search_query_plan_v1',
+            'query': 'auth check',
+            'keywords': [],
+            'concepts': [],
+            'entity_types': [],
+            'prefer_status': [],
+            'limit': 1,
+        },
+        'limit': 1,
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+    headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(): api_key.strip(),
+    }
+    request = urllib.request.Request(url, data=body, headers=headers, method='POST')
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            response.read()
+            return True, f'backend_key_check: OK ({response.status})'
+    except urllib.error.HTTPError as exc:
+        if exc.code in {401, 403}:
+            return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.'
+        if 400 <= exc.code < 500:
+            return True, f'backend_key_check: REACHED_BACKEND HTTP_{exc.code} ({exc.reason}); key was accepted but auth-check payload was rejected.'
+        return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.'
+    except urllib.error.URLError as exc:
+        return False, f'backend_key_check: FAILED URL_ERROR ({exc.reason}); API key was not saved.'
+    except TimeoutError:
+        return False, 'backend_key_check: FAILED TIMEOUT; API key was not saved.'
+    except Exception as exc:
+        return False, f'backend_key_check: FAILED {exc}; API key was not saved.'
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = False) -> subprocess.CompletedProcess:
@@ -453,7 +507,22 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         print('reason: empty API key')
         return 2
 
-    path = write_knowledge_service_auth(api_key, args.api_key_header)
+    if not args.no_verify:
+        ok, message = verify_knowledge_service_key(
+            api_key,
+            args.api_key_header,
+            args.base_url,
+            args.verify_timeout,
+        )
+        print(message)
+        if not ok:
+            print('backend_auth_status: BLOCKED')
+            print('next_step: 检查 API Key 是否正确；如果只是暂时无法联网，可使用 lbai auth backend-login --no-verify 离线保存。')
+            return 2
+    else:
+        print('backend_key_check: SKIPPED (--no-verify)')
+
+    path = write_knowledge_service_auth(api_key, args.api_key_header, args.base_url)
     print('backend_auth_status: SAVED')
     print(f'backend_auth_store: {path}')
     print('next_step: lbai init-workspace')
@@ -890,6 +959,9 @@ def build_parser() -> argparse.ArgumentParser:
     backend_login = auth_sub.add_parser('backend-login')
     backend_login.add_argument('--api-key')
     backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
+    backend_login.add_argument('--base-url', default=KNOWLEDGE_SERVICE_BASE_URL)
+    backend_login.add_argument('--verify-timeout', type=int, default=10)
+    backend_login.add_argument('--no-verify', action='store_true')
     backend_login.add_argument('--optional', action='store_true')
     auth_sub.add_parser('doctor')
 

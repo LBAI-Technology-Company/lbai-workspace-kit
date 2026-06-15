@@ -9,6 +9,7 @@ sys.dont_write_bytecode = True
 
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from role_memory_backend import retrieve_role_memory_context
+from search_backend import search_backend
 from task_utils import LEADER_REVIEW_REMINDER, redact_sensitive, today_slugged_task_dir, workspace_root, write_if_missing
 
 
@@ -48,6 +49,39 @@ REVIEW_REQUIRED_HINTS = (
     '安全敏感',
 )
 NO_REVIEW_REASON_VALUES = {'none', 'n/a', 'na', '无', '无需', '不需要', 'none.'}
+COMPANY_FACT_HINTS = (
+    '公司',
+    '我司',
+    '企业',
+    '产品',
+    '服务',
+    '客户',
+    '案例',
+    '业务',
+    '工作方法',
+    '方法流程',
+    '工作流程',
+    '流程',
+    '制度',
+    '规范',
+)
+WRITING_HINTS = (
+    '写',
+    '撰写',
+    '介绍',
+    '说明',
+    '短文',
+    '文章',
+    '文案',
+    '材料',
+    '官网',
+    '对外',
+    '发布',
+)
+SOURCE_KINDS_WITH_TRACEABLE_COMPANY_FACTS = {'company_knowledge', 'linked_evidence', 'external_source'}
+CONVERSATION_SOURCE_FACT_MARKERS = ('包括', '分为', '步骤', '流程是', '方法是', '先', '再', '最后', '核心', '原则', '机制')
+COMPANY_SOURCE_MISSING_INPUT = '请补充公司工作方法/流程的来源材料或关键要点。'
+AUDIENCE_MISSING_INPUT = '请说明这篇短文的受众和用途：内部同事阅读，还是可能对外发布。'
 
 
 def clean_review_reasons(data: dict) -> list[str]:
@@ -101,6 +135,121 @@ def normalize_intake(data: dict) -> dict:
     if review_reasons or any(hint in review_text for hint in REVIEW_REQUIRED_HINTS):
         normalized['review_needed'] = True
     return normalized
+
+
+def add_missing_input(data: dict, item: str) -> None:
+    missing_inputs = data.setdefault('missing_inputs', [])
+    existing = {str(value).strip() for value in missing_inputs}
+    if item not in existing:
+        missing_inputs.append(item)
+
+
+def task_needs_company_fact_source(data: dict) -> bool:
+    text = ' '.join(
+        str(data.get(key) or '')
+        for key in ('task_description', 'goal', 'expected_output')
+    ).lower()
+    return any(hint in text for hint in COMPANY_FACT_HINTS) and any(hint in text for hint in WRITING_HINTS)
+
+
+def has_traceable_company_fact_source(data: dict) -> bool:
+    for item in data.get('known_information') or []:
+        if not isinstance(item, dict):
+            continue
+        summary = str(item.get('summary') or '').strip()
+        source_kind = str(item.get('source_kind') or '').strip()
+        if summary and source_kind in SOURCE_KINDS_WITH_TRACEABLE_COMPANY_FACTS:
+            return True
+        if summary and source_kind == 'conversation_context' and any(marker in summary for marker in CONVERSATION_SOURCE_FACT_MARKERS):
+            return True
+    return False
+
+
+def has_audience_or_usage(data: dict) -> bool:
+    text = ' '.join(
+        [
+            str(data.get('task_description') or ''),
+            str(data.get('goal') or ''),
+            str(data.get('expected_output') or ''),
+            ' '.join(str(item.get('summary') or '') for item in data.get('known_information') or [] if isinstance(item, dict)),
+        ]
+    )
+    return any(
+        hint in text
+        for hint in ('内部', '对外', '官网', '客户', '同事', '负责人', '投资人', '媒体', '发布', '培训', '入职', '销售', '市场')
+    )
+
+
+def apply_intake_guardrails(data: dict) -> dict:
+    guarded = dict(data)
+    guarded['missing_inputs'] = list(guarded.get('missing_inputs') or [])
+    if task_needs_company_fact_source(guarded):
+        if not has_traceable_company_fact_source(guarded):
+            add_missing_input(guarded, COMPANY_SOURCE_MISSING_INPUT)
+        if not has_audience_or_usage(guarded):
+            add_missing_input(guarded, AUDIENCE_MISSING_INPUT)
+    guarded['missing_inputs'] = [str(item).strip() for item in guarded.get('missing_inputs') or [] if str(item).strip()]
+    guarded['status'] = 'BLOCKED' if guarded['missing_inputs'] else 'OPEN'
+    return guarded
+
+
+def backend_search_query_plan(data: dict) -> dict:
+    query = ' '.join(
+        str(data.get(key) or '').strip()
+        for key in ('task_description', 'goal', 'expected_output')
+        if str(data.get(key) or '').strip()
+    )
+    return {
+        'schema_version': 'backend_search_query_plan_v1',
+        'query': query,
+        'keywords': [keyword for keyword in ('公司', '工作方法', '工作流程', '流程', '方法') if keyword in query],
+        'concepts': ['company_workflow', 'work_method', 'process'],
+        'prefer_status': ['CAPTURED', 'NEEDS_REVIEW'],
+        'limit': 5,
+    }
+
+
+def append_backend_company_knowledge(data: dict, backend_data: dict) -> int:
+    pack = backend_data.get('evidence_pack') or []
+    if not isinstance(pack, list):
+        return 0
+    known_information = data.setdefault('known_information', [])
+    added = 0
+    for item in pack[:5]:
+        if not isinstance(item, dict):
+            continue
+        source = item.get('source') or {}
+        source_ref = ''
+        if isinstance(source, dict):
+            source_ref = str(source.get('path') or source.get('id') or '').strip()
+        summary = str(
+            item.get('evidence_text')
+            or item.get('value')
+            or item.get('subject')
+            or item.get('event_id')
+            or ''
+        ).strip()
+        if not summary:
+            continue
+        known_information.append({
+            'summary': summary,
+            'source_kind': 'company_knowledge',
+            'source_ref': source_ref or 'backend_evidence_search',
+        })
+        added += 1
+    return added
+
+
+def enrich_with_backend_company_knowledge(root: Path, data: dict) -> tuple[dict, str]:
+    if not task_needs_company_fact_source(data) or has_traceable_company_fact_source(data):
+        return data, ''
+    backend_data, _ = search_backend(root, backend_search_query_plan(data))
+    if backend_data is None:
+        return data, ''
+    enriched = dict(data)
+    enriched['known_information'] = list(data.get('known_information') or [])
+    added = append_backend_company_knowledge(enriched, backend_data)
+    return enriched, f'backend_evidence_search_used: {added}' if added else ''
 
 
 def sanitize_for_artifacts(value):
@@ -202,6 +351,8 @@ def main():
         return 2
 
     data = normalize_intake(data)
+    data, backend_search_detail = enrich_with_backend_company_knowledge(ROOT, data)
+    data = apply_intake_guardrails(data)
     data, sensitive_findings = sanitize_for_artifacts(data)
 
     task_description = str(data['task_description']).strip()
@@ -427,7 +578,9 @@ NOT_SYNCED
     print(f'TASK_FOLDER {task_dir.relative_to(ROOT)}')
     print(f'STATUS {status}')
     print(f'REVIEW_NEEDED {str(review_needed).lower()}')
-    if role_memory_detail and 'skipped' not in role_memory_detail:
+    if backend_search_detail:
+        print(backend_search_detail)
+    if role_memory_detail and 'role_memory_context: FOUND' in role_memory_detail:
         print(role_memory_detail)
     if sensitive_findings:
         print('SENSITIVE_CAPTURE_STATUS REDACTED')

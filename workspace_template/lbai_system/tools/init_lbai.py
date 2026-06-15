@@ -21,11 +21,11 @@ BLOCKED_MESSAGE = (
 
 QUESTIONS = """# /lbai-init 岗位设定问题
 
-请直接复制下面问题并填写。可以简单写，不需要正式措辞。
+请直接复制下面内容并填写，简单写即可。
 
 说明：
-- 标注“必答”的问题请尽量填写，工作区助手会根据这些内容更新岗位设定。
-- 标注“选答”的问题可以空着，后续岗位变化时也可以再次运行 `/lbai-init` 补充。
+- 这些信息会用于后续任务上下文、资料归档身份和岗位记忆检索。
+- 其他边界类规则会使用公司默认规则，不需要初始化时逐项填写。
 
 ## 用户姓名
 必答。例：张三 / Alice
@@ -34,31 +34,10 @@ QUESTIONS = """# /lbai-init 岗位设定问题
 必答。例：办公室文职 / 内容助理 / 市场运营
 
 ## 主要职责
-必答。例：整理会议纪要、汇总用户反馈、编写内部周报
-
-## 常见任务
-必答。例：会议纪要、周报、用户反馈总结、资料归档
-
-## 常用资料来源
-必答。例：会议记录、Teams、官网草稿、表格、客户反馈
-
-## 常见输出
-必答。例：会议纪要、task_output.md、周报、问题清单
-
-## 不能自行决定的事项
-必答。例：对外发布内容、价格、法律相关表述、客户承诺
-
-## 需要负责人 review 的情况
-必答。例：官网文案、媒体材料、客户承诺、投资人材料
+必答。例：整理会议纪要、汇总用户反馈、编写内部周报。简单列 1-3 项即可。
 
 ## 对话习惯
 必答。例：简洁 / 详细 / 先给结论再给依据 / 中文为主
-
-## 常协作的人或团队
-选答。例：市场团队、产品团队、负责人姓名
-
-## 其他补充
-选答。例：希望输出语言简单清楚，避免太技术化
 """
 
 
@@ -66,18 +45,10 @@ SECTION_NAMES = [
     '用户姓名',
     '岗位名称',
     '主要职责',
-    '常见任务',
-    '常用资料来源',
-    '常见输出',
-    '不能自行决定的事项',
-    '需要负责人 review 的情况',
     '对话习惯',
-    '常协作的人或团队',
-    '其他补充',
 ]
 
-REQUIRED_SECTION_NAMES = SECTION_NAMES[:9]
-OPTIONAL_SECTION_NAMES = SECTION_NAMES[9:]
+REQUIRED_SECTION_NAMES = SECTION_NAMES
 
 
 def parse_sections(text: str) -> dict[str, str]:
@@ -128,25 +99,26 @@ def write_role_files(root: Path, sections: dict[str, str]):
     user_name = paragraph_or_placeholder(sections.get('用户姓名', ''), '<fill user name>')
     role_name = paragraph_or_placeholder(sections.get('岗位名称', ''), '<fill role name>')
     responsibilities = list_or_placeholder(sections.get('主要职责', ''), '<fill responsibilities>')
-    common_tasks = list_or_placeholder(sections.get('常见任务', ''), '<fill common tasks>')
-    sources = list_or_placeholder(sections.get('常用资料来源', ''), '<fill common sources>')
-    outputs = list_or_placeholder(sections.get('常见输出', ''), '<fill common outputs>')
-    not_allowed = list_or_placeholder(sections.get('不能自行决定的事项', ''), 'Public-facing claims, pricing, legal/compliance, investor material, media statements, customer-facing promises, and official product capability claims')
-    review_needed = list_or_placeholder(sections.get('需要负责人 review 的情况', ''), 'Public-facing, pricing, legal/compliance, investor, media, customer promise, finance-sensitive, security-sensitive, or hiring-sensitive content')
     conversation_preference = paragraph_or_placeholder(sections.get('对话习惯', ''), 'Concise by default; expand details when needed.')
-    collaborators = list_or_placeholder(sections.get('常协作的人或团队', ''), '<fill collaborators>')
-    notes = paragraph_or_placeholder(sections.get('其他补充', ''), 'None.')
+    not_allowed = (
+        '- Public-facing claims\n'
+        '- Pricing\n'
+        '- Legal / compliance claims\n'
+        '- Investor material\n'
+        '- Media statements\n'
+        '- Customer-facing promises\n'
+        '- Official product capability claims'
+    )
+    review_needed = (
+        '- Public-facing, pricing, legal/compliance, investor, media, customer promise, '
+        'finance-sensitive, security-sensitive, or hiring-sensitive content'
+    )
 
     role_profile.write_text(json.dumps({
         'schema_version': 'role_profile_v1',
         'employee_user_name': user_name,
         'employee_position': role_name,
         'conversation_preference': conversation_preference,
-        'main_responsibilities': sections.get('主要职责', '').strip(),
-        'common_tasks': sections.get('常见任务', '').strip(),
-        'common_sources': sections.get('常用资料来源', '').strip(),
-        'common_outputs': sections.get('常见输出', '').strip(),
-        'collaborators': sections.get('常协作的人或团队', '').strip(),
     }, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
     world_model.write_text(f"""# ROLE_WORLD_MODEL_v1
@@ -165,18 +137,6 @@ Support the role responsibilities below while keeping work traceable, reviewable
 
 ## Main Responsibilities
 {responsibilities}
-
-## Common Tasks
-{common_tasks}
-
-## Common Sources
-{sources}
-
-## Common Outputs
-{outputs}
-
-## Collaborators
-{collaborators}
 
 ## Conversation Preference
 {conversation_preference}
@@ -199,9 +159,6 @@ Default posture:
 
 ## Blocked / Unclear Items
 See BLOCKED_ITEMS_v1.md.
-
-## Notes
-{notes}
 """, encoding='utf-8')
 
     boundary.write_text(f"""# ROLE_BOUNDARY_v1

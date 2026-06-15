@@ -111,17 +111,18 @@ Behavior:
 
 1. If input is empty but the current conversation contains exactly one clear task, use that description for intake enrichment.
 2. If input is empty and the task is unclear, ask for one concise task description.
-3. Read role context, current conversation context, and relevant prior artifacts. Search existing artifacts first when the task may depend on company knowledge.
+3. Read role context, current conversation context, and relevant prior artifacts. Search existing artifacts first when the task may depend on company knowledge. Use results when available; no result or backend error is normal and must not itself block the task.
 4. Produce task intake enrichment JSON that separates:
    - known information and source kind (`conversation_context`, `company_knowledge`, `role_context`, `linked_evidence`, `external_source`, or `assumption`)
    - `missing_inputs`: blocking gaps only
    - `recommended_inputs`: useful non-blocking context
    - goal, expected output, review risk, and completion conditions
-5. Treat direct employee clarifications as task-local context. Do not force them into `/lbai-add-evidence`.
-6. Use `/lbai-add-evidence` only for source materials that should be archived as reusable evidence, such as meeting notes, customer materials, emails, raw transcripts, research, or approved reference documents.
-7. Call `new_task.py --enrichment <json_path>`. Code creates task folder from AI `review_needed`, writes `task_intake_enrichment.json`.
-8. If required information is missing, create `missing_inputs.md` and mark the task `BLOCKED`.
-9. If review is required, create review reminder files. Do not mark the task `WAITING_REVIEW` solely for review-sensitive content.
+5. For company/process/product/fact-based writing tasks, after using any available searched artifacts, linked evidence, external sources, role context, or employee-provided source facts, list remaining source facts and audience/use gaps as blocking inputs for the employee to fill.
+6. Treat direct employee clarifications as task-local context. Do not force them into `/lbai-add-evidence`.
+7. Use `/lbai-add-evidence` only for source materials that should be archived as reusable evidence, such as meeting notes, customer materials, emails, raw transcripts, research, or approved reference documents.
+8. Call `new_task.py --enrichment <json_path>`. Code creates task folder from AI `review_needed`, writes `task_intake_enrichment.json`.
+9. If required information is missing, create `missing_inputs.md` and mark the task `BLOCKED`.
+10. If review is required, create review reminder files. Do not mark the task `WAITING_REVIEW` solely for review-sensitive content.
 
 Response format:
 

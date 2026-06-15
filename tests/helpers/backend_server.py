@@ -34,6 +34,14 @@ def backend_search_server(payload: dict | None = None, *, status: int = 200, raw
             self.end_headers()
             self.wfile.write(response_text.encode('utf-8'))
 
+        def do_GET(self):  # noqa: N802 - stdlib handler API
+            requests.append({'path': self.path, 'headers': dict(self.headers), 'body': None})
+            response_text = raw_body if raw_body is not None else json.dumps(response_payload, ensure_ascii=False)
+            self.send_response(status)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(response_text.encode('utf-8'))
+
         def log_message(self, format, *args):  # noqa: A002 - stdlib handler API
             return
 

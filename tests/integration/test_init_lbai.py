@@ -16,6 +16,11 @@ class TestInitLbai:
         assert '岗位名称' in result.stdout
         assert '主要职责' in result.stdout
         assert '对话习惯' in result.stdout
+        assert '常见任务' not in result.stdout
+        assert '常用资料来源' not in result.stdout
+        assert '常见输出' not in result.stdout
+        assert '不能自行决定的事项' not in result.stdout
+        assert '需要负责人 review 的情况' not in result.stdout
 
     def test_valid_enrichment_updates_role_files(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'init_valid.json')

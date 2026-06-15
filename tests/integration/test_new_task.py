@@ -128,3 +128,36 @@ class TestNewTask:
         assert result.returncode == 2
         assert 'does not match enrichment task_description' in result.stdout
         assert not list((isolated_workspace / 'tasks').glob('*/task_scope.md'))
+
+    def test_company_process_writing_requires_source_and_audience(self, isolated_workspace, fixtures):
+        data = json.loads(enrichment_path(fixtures, 'task_intake_open.json').read_text(encoding='utf-8'))
+        data.update({
+            'task_description': '写一篇短文介绍我公司的工作方法流程',
+            'goal': '写一篇介绍公司工作方法流程的短文',
+            'expected_output': 'task_output.md 包含一篇短文',
+            'known_information': [
+                {
+                    'summary': '员工想写一篇短文介绍公司的工作方法流程',
+                    'source_kind': 'conversation_context',
+                    'source_ref': 'employee task request',
+                }
+            ],
+            'missing_inputs': [],
+            'recommended_inputs': ['受众是内部同事，还是可能对外发布'],
+            'status': 'OPEN',
+        })
+        enrich = isolated_workspace / 'company_process_writing.json'
+        enrich.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+
+        result = run_tool(isolated_workspace, 'new_task.py', '--enrichment', str(enrich))
+        assert result.returncode == 0, result.output
+        assert 'STATUS BLOCKED' in result.stdout
+        assert 'backend_evidence_search skipped:' not in result.stdout
+        assert 'backend 查询结果' not in result.stdout
+        assert '请补充公司工作方法/流程的来源材料或关键要点' in result.stdout
+        assert '请说明这篇短文的受众和用途' in result.stdout
+        task_rel = parse_task_folder(result.stdout)
+        task_dir = isolated_workspace / task_rel
+        missing = (task_dir / 'missing_inputs.md').read_text(encoding='utf-8')
+        assert '请补充公司工作方法/流程的来源材料或关键要点' in missing
+        assert '请说明这篇短文的受众和用途' in missing

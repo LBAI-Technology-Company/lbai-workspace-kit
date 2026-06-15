@@ -10,7 +10,7 @@ Use in **Cursor** or **Codex desktop app** for `/lbai-new-task`. No rule-based f
    - Optional: recent evidence via `/lbai-search-artifacts`
    - Current conversation context supplied by the employee
 
-   When the task likely depends on existing company knowledge, search available artifacts before deciding what is missing.
+   When the task likely depends on existing company knowledge, search available artifacts before deciding what is missing. If search returns usable data, use it as context. If search returns no data or errors, treat that as normal absence of extra context and continue evaluating what the employee must provide.
 
 2. Produce JSON per `lbai_system/schemas/task_intake_enrichment_schema_v1.json`.
 
@@ -41,7 +41,12 @@ Rules:
 7. review_needed: true only for public/pricing/legal/investor/media/customer-promise/finance-sensitive work — not workflow examples.
 8. completion_conditions: checklist for /lbai-finish-task.
 9. Do not invent company facts or approvals.
-10. Output JSON only. schema_version: task_intake_enrichment_v1
+10. For tasks that ask to write, introduce, summarize, or explain company methods, company workflow, product, service, customer cases, official positioning, or business process:
+    - First use any searched company_knowledge, linked_evidence, external_source, or explicit employee-provided source facts.
+    - If those still do not provide enough source facts, put the missing source material or key points in missing_inputs.
+    - If audience/use is unclear, put audience/use in missing_inputs, especially when the output could be internal or public-facing.
+    - Do not downgrade these to recommended_inputs. A generic draft without source facts is not an acceptable initial output.
+11. Output JSON only. schema_version: task_intake_enrichment_v1
 ```
 
 ## User template
