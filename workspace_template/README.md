@@ -18,7 +18,7 @@
 ```text
 拿到 private 仓库 -> 用 Cursor 或 Codex 打开 -> /lbai-init -> /lbai-add-evidence 或 /lbai-search-artifacts 或 /lbai-new-task -> /lbai-execute-task -> /lbai-finish-task
 
-Prompt 实验和自我迭代使用 `/lbai-self-iterate`，记录保存在 `prompt_lab/`，不会自动修改正式 prompt。
+Prompt 实验和本地自迭代使用 `/lbai-self-iterate`。它默认优先使用你的真实任务上下文；如果当前工作区没有任务上下文，就自动使用 mock 数据。实验记录保存在 `prompt_lab/`，不会自动修改公司正式 prompt；每轮会在 `prompt_lab/admin_feedback/outbox/` 生成给管理员看的问题、优化方案和优化后效果摘要。只有 `handoff_status=READY` 时才发送；如果显示 `BLOCKED_REDACTION_REQUIRED`，先脱敏并重新评估。
 ```
 
 ---

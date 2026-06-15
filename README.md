@@ -272,9 +272,11 @@ Run these commands inside an initialized LBAI workspace.
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent writes `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
 | `/lbai-update-kit` | none | `update_kit.py` (code only) |
-| `/lbai-self-iterate` | runtime AI JSON (no prebuilt enrichment file) | `prompt_lab.py` (experimental prompts only) |
+| `/lbai-self-iterate` | runtime AI JSON (real task context first, mock fallback) | `prompt_lab.py` (experimental prompts + admin handoff report only) |
 
 Commands that require a prebuilt enrichment JSON file → **BLOCKED** without it. `/lbai-self-iterate` and `/lbai-update-kit` are exceptions: Prompt Lab JSON is produced at runtime by the current AI, and update-kit is code-only.
+
+`/lbai-self-iterate` defaults to `context_mode=auto`: it uses real task context when task records exist, and falls back to mock office scenarios when no task context is available. It writes administrator-facing summaries to `prompt_lab/admin_feedback/outbox/<run_id>/<round>/`, including clear problems, the optimization plan, optimized effect, score, changed prompt files, and artifact references. Send the handoff package only when `handoff_status=READY`; if it says `BLOCKED_REDACTION_REQUIRED`, redact and rerun before sending. Do not commit or push raw `prompt_lab/runs/` data.
 
 Initialize role context:
 

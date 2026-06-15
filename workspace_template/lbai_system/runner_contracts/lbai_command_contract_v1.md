@@ -388,25 +388,34 @@ Default arguments:
 rounds=1
 scenarios_per_round=6
 focus=general_office_writing
+chain_mode=intake_evidence
+context_mode=auto
+real_task_limit=3
 review_mode=human_each_round
 auto_continue=false
 apply_threshold=80
 ```
 
+Chain modes:
+
+- `intake_evidence` (default): mock scenarios test evidence archive and task intake only.
+- `full_lifecycle`: mock meeting records drive the full chain `add_evidence -> new_task -> prepare_execute_task -> task_output -> finish_task`. See `lbai_system/prompt_lab/FULL_CHAIN_ITERATION.md`.
+
 Behavior:
 
-1. Parse optional user arguments: `rounds`, `scenarios_per_round`, `focus`, `review_mode`, `auto_continue`, and `apply_threshold`.
-2. Run `prompt_lab.py start` to create `prompt_lab/runs/<run_id>/`, copy formal prompts into the experimental prompt baseline, and create an isolated workspace.
+1. Parse optional user arguments: `rounds`, `scenarios_per_round`, `focus`, `chain_mode`, `context_mode`, `real_task_limit`, `review_mode`, `auto_continue`, and `apply_threshold`.
+2. Run `prompt_lab.py start` to create `prompt_lab/runs/<run_id>/`, copy formal prompts into the experimental prompt baseline, collect real task context when available, and create an isolated workspace.
 3. Run `prompt_lab.py next-step --run <run_dir>` and follow its instructions.
-4. Generate `prompt_lab_scenarios_v1` JSON that mocks different office writing scenarios, including internal reports, meeting notes, manager requests, customer feedback, policy summaries, HR copy, sales material, product explanations, and review-sensitive external content.
-5. For each scenario, use the current AI to produce required enrichment JSON, then call existing LBAI tools **only** through `prompt_lab.py run-tool` inside the isolated workspace under `prompt_lab/runs/<run_id>/workspaces/`. `run-tool` rejects employee root paths, allows only `new_task.py`, `add_evidence.py`, `finish_task.py`, and `init_lbai.py`, sets `LBAI_PROMPT_LAB_ISOLATED=1`, and forces local-only behavior for sync-capable tools. Do not use `search_artifacts.py` in Prompt Lab mock runs because it may call the production knowledge backend. Never invoke `lbai_system/tools/*.py` directly against the employee workspace during this command.
-6. Evaluate every scenario with `prompt_lab_evaluation_v1` JSON, score the round with `prompt_lab.py score`, and write `human_review.md`.
-7. If a prompt improvement is needed, produce `prompt_lab_prompt_patch_v1` JSON and call `prompt_lab.py apply-prompt-patch`.
+4. Generate `prompt_lab_scenarios_v1` JSON. When `context_mode=auto` and real employee task context exists, ground scenarios in `prompt_lab/runs/<run_id>/real_task_context/context.md`; when no context exists, mock different office writing scenarios, including internal reports, meeting notes, manager requests, customer feedback, policy summaries, HR copy, sales material, product explanations, and review-sensitive external content. `context_mode=real_task` blocks when no real task or role context exists. `context_mode=mock` always uses mock scenarios.
+5. For each scenario, use the current AI to produce required enrichment JSON, then call existing LBAI tools **only** through `prompt_lab.py run-tool` inside the isolated workspace under `prompt_lab/runs/<run_id>/workspaces/`. When `chain_mode=full_lifecycle`, also use `prompt_lab.py write-task-artifact` to copy AI-written `task_output.md` from `chain_outputs/<scenario_id>/` into the isolated task folder before `finish_task.py`. `run-tool` rejects employee root paths, allows `new_task.py`, `add_evidence.py`, `finish_task.py`, `init_lbai.py`, `prepare_execute_task.py`, and `archive_input.py`, sets `LBAI_PROMPT_LAB_ISOLATED=1`, and forces local-only behavior for sync-capable tools. Do not use `search_artifacts.py` in Prompt Lab mock runs because it may call the production knowledge backend. Never invoke `lbai_system/tools/*.py` directly against the employee workspace during this command.
+6. Evaluate every scenario with `prompt_lab_evaluation_v1` JSON, score the round with `prompt_lab.py score`, and write `human_review.md`, `round_report.md`, and `admin_report.md`. When real task context is used, the evaluation must set `admin_handoff_safe=true` only after issues and suggestions are redacted for administrator handoff; set `sensitive_content_present=true` and add `redaction_notes` when customer names, project names, raw conversation excerpts, secrets, or personal data appear.
+7. If a prompt improvement is needed, produce `prompt_lab_prompt_patch_v1` JSON and call `prompt_lab.py apply-prompt-patch`. The patch rationale must explain the clear problem, optimization plan, and expected effect.
 8. Prompt patches may only update `prompt_lab/prompt_versions/current/`. Never edit `lbai_system/prompts/` during this command.
 9. A prompt patch is applied only when the score meets the threshold, no red flags are present, and the score improves over the previous round when a previous round exists.
 10. By default, stop after each round for human review. When `auto_continue=true`, `next-step` prints the `advance-round` command to run after review; it does not auto-run another round without explicit execution.
 11. To start another round after the current round completes, run `prompt_lab.py advance-round --run <run_dir>`. This increments `current_round`, seeds the next round folders, and creates or refreshes the isolated workspace with the latest experimental prompts.
-12. After human approval, run `prompt_lab.py finalize --run <run_dir>` to delete mock scenarios, tool outputs, evaluations, isolated workspaces, and raw run data. The default final state keeps only optimized experimental prompts under `prompt_lab/prompt_versions/current/`.
+12. Send the administrator-facing result from `prompt_lab/admin_feedback/outbox/<run_id>/<round>/` only when `handoff_status=READY`. This package contains the clear problems, optimization plan, optimized effect, score, changed prompt files, and artifact references. If `handoff_status=BLOCKED_REDACTION_REQUIRED`, review the local run data, redact sensitive text, and rerun/evaluate before sending.
+13. After human approval, run `prompt_lab.py finalize --run <run_dir>` to delete mock scenarios, tool outputs, evaluations, isolated workspaces, and raw run data. The default final state keeps only optimized experimental prompts under `prompt_lab/prompt_versions/current/`.
 
 Response format:
 

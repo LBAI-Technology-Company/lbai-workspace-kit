@@ -46,7 +46,8 @@ Rules:
     - If those still do not provide enough source facts, put the missing source material or key points in missing_inputs.
     - If audience/use is unclear, put audience/use in missing_inputs, especially when the output could be internal or public-facing.
     - Do not downgrade these to recommended_inputs. A generic draft without source facts is not an acceptable initial output.
-11. Output JSON only. schema_version: task_intake_enrichment_v1
+11. When missing_inputs already lists task-specific blocking gaps (customer authorization, ROI/data source, legal approval, policy original text, publishable facts, etc.), do not add a generic duplicate like "company workflow source material". Use specific gaps only.
+12. Output JSON only. schema_version: task_intake_enrichment_v1
 ```
 
 ## User template

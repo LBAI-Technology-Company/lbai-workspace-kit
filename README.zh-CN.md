@@ -20,7 +20,7 @@
 4. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
 5. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
 6. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
-7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验用 `/lbai-self-iterate`。
+7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验和本地自迭代用 `/lbai-self-iterate`。
 
 > 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -205,9 +205,11 @@ lbai update-kit            # 升级公司模板（纯代码）
 | `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | Agent 写 `execution_plan.md` + `task_output.md` |
 | `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
 | `/lbai-update-kit` | 无 | `update_kit.py`（纯代码） |
-| `/lbai-self-iterate` | 运行时 AI 生成 JSON（无预置 enrichment 文件） | `prompt_lab.py`（实验 prompt，不改正式 prompt） |
+| `/lbai-self-iterate` | 运行时 AI 生成 JSON（真实任务优先，无上下文则 mock） | `prompt_lab.py`（实验 prompt + 管理员交接摘要，不改正式 prompt） |
 
 需要预置 enrichment JSON 的命令 → 无文件则 **BLOCKED**。`/lbai-self-iterate` 与 `/lbai-update-kit` 例外：Prompt Lab JSON 由当前 AI 运行时生成，update-kit 为纯代码。
+
+`/lbai-self-iterate` 默认使用 `context_mode=auto`：当前工作区已有任务时，会基于真实任务上下文做隔离迭代；没有任务上下文时，会自动使用 mock 办公场景。结果会写入 `prompt_lab/admin_feedback/outbox/<run_id>/<round>/`，包含清晰问题、优化方案、优化后效果、评分、改动 prompt 文件和证据索引。只有当 `handoff_status=READY` 时才发送给管理员；如果显示 `BLOCKED_REDACTION_REQUIRED`，先脱敏并重新评估。`prompt_lab/runs/` 中的原始运行数据不要提交或推送。
 
 Schema 均在 `lbai_system/schemas/`；其中搜索命令使用后端 query plan schema，其余 AI 命令使用 enrichment schema。
 

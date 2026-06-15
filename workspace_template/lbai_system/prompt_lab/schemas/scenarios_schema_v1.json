@@ -41,6 +41,18 @@
             "items": {
               "type": "string"
             }
+          },
+          "lifecycle": {
+            "type": "string",
+            "enum": ["evidence_only", "task_intake", "full_chain"]
+          },
+          "meeting_action_item": {
+            "type": "string",
+            "description": "For full_chain: the single meeting decision this scenario executes end-to-end."
+          },
+          "expected_finish_verdict": {
+            "type": "string",
+            "enum": ["APPROVE_FINISH", "BLOCK_FINISH"]
           }
         },
         "additionalProperties": true

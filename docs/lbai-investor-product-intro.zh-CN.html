@@ -1,0 +1,1101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LBAI Workspace Kit + Service 产品功能展示</title>
+  <style>
+    :root {
+      --ink: #111827;
+      --muted: #5b6475;
+      --soft: #f5f7fb;
+      --panel: #ffffff;
+      --line: #dbe3ef;
+      --navy: #142033;
+      --blue: #2f6fd6;
+      --green: #25885a;
+      --gold: #b97618;
+      --orange: #c47719;
+      --cyan: #167485;
+      --shadow: 0 24px 70px rgba(20, 32, 51, 0.12);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      background: var(--soft);
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans CJK SC", "Microsoft YaHei", Arial, sans-serif;
+      line-height: 1.55;
+      background: var(--soft);
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 14px clamp(20px, 5vw, 72px);
+      color: #f8fbff;
+      background: rgba(20, 32, 51, 0.94);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(16px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: max-content;
+      font-weight: 760;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: var(--green);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 22px;
+      color: rgba(248, 251, 255, 0.78);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .nav a:hover { color: #ffffff; }
+
+    .hero {
+      position: relative;
+      min-height: min(780px, 82vh);
+      display: grid;
+      align-items: end;
+      padding: 118px clamp(22px, 6vw, 96px) 82px;
+      overflow: hidden;
+      color: #ffffff;
+      background:
+        linear-gradient(90deg, rgba(14, 22, 36, 0.96) 0%, rgba(14, 22, 36, 0.82) 42%, rgba(14, 22, 36, 0.48) 100%),
+        url("lbai-workspace-kit-service-architecture.zh-CN.png") center / cover no-repeat;
+      box-shadow: inset 0 -160px 180px rgba(14, 22, 36, 0.42);
+    }
+
+    .hero-inner {
+      width: min(1040px, 100%);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 18px;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: 14px;
+      font-weight: 720;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 38px;
+      height: 2px;
+      background: #59c393;
+    }
+
+    h1 {
+      max-width: 980px;
+      margin: 0;
+      font-size: clamp(40px, 7vw, 86px);
+      line-height: 1.03;
+      letter-spacing: 0;
+      font-weight: 820;
+      overflow-wrap: anywhere;
+    }
+
+    .hero-copy {
+      max-width: 780px;
+      margin: 26px 0 0;
+      color: rgba(255, 255, 255, 0.84);
+      font-size: clamp(18px, 2.1vw, 24px);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border-radius: 6px;
+      font-weight: 760;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+    }
+
+    .button.primary {
+      color: #0d1828;
+      background: #ffffff;
+      border-color: #ffffff;
+    }
+
+    .button.secondary {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .hero-proof {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 14px;
+      width: min(1080px, 100%);
+      margin-top: 54px;
+    }
+
+    .proof-item {
+      min-height: 90px;
+      padding: 16px;
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+    }
+
+    .proof-label {
+      display: block;
+      margin-bottom: 8px;
+      color: rgba(255, 255, 255, 0.66);
+      font-size: 13px;
+    }
+
+    .proof-value {
+      display: block;
+      color: #ffffff;
+      font-size: 18px;
+      font-weight: 780;
+      overflow-wrap: anywhere;
+    }
+
+    main {
+      padding: 0 clamp(18px, 5vw, 72px) 80px;
+    }
+
+    section {
+      scroll-margin-top: 86px;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 84px 0 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 28px;
+      margin-bottom: 26px;
+    }
+
+    .kicker {
+      margin: 0 0 8px;
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 820;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(28px, 4vw, 48px);
+      line-height: 1.12;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .section-summary {
+      max-width: 520px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .card,
+    .wide-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 14px 50px rgba(20, 32, 51, 0.08);
+    }
+
+    .card {
+      padding: 26px;
+      min-height: 190px;
+    }
+
+    .number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px;
+      height: 34px;
+      margin-bottom: 20px;
+      border-radius: 6px;
+      color: #ffffff;
+      background: var(--navy);
+      font-size: 14px;
+      font-weight: 820;
+    }
+
+    .card h3,
+    .wide-card h3 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      line-height: 1.24;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .card p,
+    .wide-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .overview-strip {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    .overview {
+      padding: 34px;
+      color: #ffffff;
+      background: var(--navy);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .overview h2 {
+      color: #ffffff;
+      max-width: 760px;
+    }
+
+    .overview p {
+      max-width: 760px;
+      margin: 22px 0 0;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 18px;
+    }
+
+    .status-panel {
+      padding: 28px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .status-panel h3 {
+      margin: 0 0 18px;
+      font-size: 22px;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .status-row strong {
+      color: var(--ink);
+      font-weight: 780;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 76px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 820;
+      white-space: nowrap;
+    }
+
+    .pill.done { background: var(--green); }
+    .pill.mvp { background: var(--orange); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .flow-step {
+      position: relative;
+      min-height: 150px;
+      padding: 20px 18px;
+      border-radius: var(--radius);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 36px rgba(20, 32, 51, 0.07);
+    }
+
+    .flow-step:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -13px;
+      width: 14px;
+      height: 2px;
+      background: #748199;
+    }
+
+    .flow-step b {
+      display: block;
+      margin-bottom: 10px;
+      color: var(--blue);
+      font-size: 13px;
+    }
+
+    .flow-step strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+      line-height: 1.24;
+    }
+
+    .flow-step span {
+      color: var(--muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .feature-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .feature-table th,
+    .feature-table td {
+      padding: 20px 22px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+    }
+
+    .feature-table th {
+      color: #ffffff;
+      background: var(--navy);
+      font-size: 14px;
+      font-weight: 780;
+    }
+
+    .feature-table tr:last-child td { border-bottom: 0; }
+
+    .feature-table td:first-child {
+      color: var(--ink);
+      font-weight: 780;
+      width: 22%;
+    }
+
+    .feature-detail {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .feature-detail summary {
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      color: var(--blue);
+      font-weight: 760;
+      list-style: none;
+      user-select: none;
+    }
+
+    .feature-detail summary::-webkit-details-marker { display: none; }
+
+    .feature-detail summary::after {
+      content: "+";
+      margin-left: 8px;
+      color: var(--green);
+      font-weight: 820;
+    }
+
+    .feature-detail[open] summary::after { content: "-"; }
+
+    .feature-detail ul {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .feature-detail li {
+      margin: 6px 0;
+    }
+
+    .architecture-wrap {
+      padding: 18px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .architecture-wrap img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+      border: 1px solid #e7edf6;
+    }
+
+    .loop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .loop-item {
+      padding: 22px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .loop-item strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 18px;
+    }
+
+    .loop-item span {
+      color: var(--muted);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+
+    .roadmap {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .phase {
+      padding: 26px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: 0 14px 50px rgba(20, 32, 51, 0.08);
+    }
+
+    .phase small {
+      display: inline-flex;
+      margin-bottom: 16px;
+      color: var(--gold);
+      font-weight: 820;
+      text-transform: uppercase;
+    }
+
+    .phase ul,
+    .closing ul {
+      padding: 0;
+      margin: 14px 0 0;
+      list-style: none;
+    }
+
+    .phase li,
+    .closing li {
+      position: relative;
+      padding-left: 18px;
+      margin: 10px 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .phase li::before,
+    .closing li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--green);
+    }
+
+    .closing {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+      align-items: stretch;
+      margin-bottom: 10px;
+    }
+
+    .closing .wide-card {
+      padding: 34px;
+    }
+
+    .quote {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 300px;
+      padding: 34px;
+      color: #ffffff;
+      background: var(--navy);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .quote p {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.22;
+      font-weight: 780;
+    }
+
+    .quote span {
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 15px;
+    }
+
+    footer {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 34px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .nav { display: none; }
+      .hero-proof,
+      .grid-3,
+      .grid-2,
+      .overview-strip,
+      .closing,
+      .roadmap {
+        grid-template-columns: 1fr;
+      }
+
+      .flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .flow-step:not(:last-child)::after { display: none; }
+      .loop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 720px) {
+      .topbar { padding: 12px 18px; }
+      .hero {
+        min-height: 82vh;
+        padding: 92px 20px 58px;
+      }
+      h1 {
+        font-size: clamp(30px, 8.7vw, 34px);
+        line-height: 1.12;
+        max-width: 330px;
+        word-break: break-all;
+      }
+      h2 {
+        font-size: clamp(28px, 8vw, 34px);
+        word-break: break-word;
+      }
+      .hero-copy {
+        font-size: 17px;
+      }
+      .hero-inner,
+      .proof-item,
+      .card,
+      .wide-card,
+      .flow-step,
+      .loop-item,
+      .phase {
+        min-width: 0;
+      }
+      .hero-proof,
+      .flow,
+      .loop-grid {
+        grid-template-columns: 1fr;
+      }
+      .section-head {
+        display: block;
+      }
+      .section-summary {
+        margin-top: 14px;
+      }
+      section { padding-top: 58px; }
+      .feature-table,
+      .feature-table tbody,
+      .feature-table tr,
+      .feature-table td {
+        display: block;
+        width: 100%;
+      }
+      .feature-table thead { display: none; }
+      .feature-table td {
+        padding: 14px 18px;
+        border-bottom: 0;
+      }
+      .feature-table tr {
+        border-bottom: 1px solid var(--line);
+      }
+      .feature-table tr:last-child { border-bottom: 0; }
+    }
+
+    @media print {
+      .topbar { position: static; }
+      .hero { min-height: 620px; }
+      section { break-inside: avoid; }
+      .button { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="回到顶部">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>LBAI Workspace Kit</span>
+    </a>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#overview">产品概览</a>
+      <a href="#flow">使用流程</a>
+      <a href="#features">功能矩阵</a>
+      <a href="#architecture">架构闭环</a>
+      <a href="#roadmap">落地路径</a>
+    </nav>
+  </header>
+
+  <section class="hero" id="top">
+    <div class="hero-inner">
+      <p class="eyebrow">Product Feature Overview</p>
+      <h1>把员工 AI 办公，从聊天工具升级为公司知识基础设施</h1>
+      <p class="hero-copy">
+        LBAI Workspace Kit 让 Cursor / Codex 在公司规则、证据边界、任务流程和交付标准里工作；
+        后端知识 Service 把个人工作沉淀为可检索、可复用、可审计的组织知识。
+      </p>
+      <div class="hero-actions" aria-label="主要操作">
+        <a class="button primary" href="#overview">查看产品概览</a>
+        <a class="button secondary" href="#architecture">查看架构闭环</a>
+      </div>
+      <div class="hero-proof" aria-label="产品状态摘要">
+        <div class="proof-item">
+          <span class="proof-label">Product Surface</span>
+          <span class="proof-value">CLI + Workspace + AI Commands</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-label">Data Layer</span>
+          <span class="proof-value">Evidence / Tasks / Ledgers</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-label">Knowledge Layer</span>
+          <span class="proof-value">fact_event + evidence_pack</span>
+        </div>
+        <div class="proof-item">
+          <span class="proof-label">Optimization Loop</span>
+          <span class="proof-value">Prompt Lab + Self Iterate</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main>
+    <section id="overview">
+      <div class="overview-strip">
+        <div class="overview">
+          <p class="kicker">Product Overview</p>
+          <h2>企业不是缺少 AI 模型，而是缺少让 AI 稳定进入正式工作的操作系统。</h2>
+          <p>
+            通用模型可以回答问题，但企业真正需要的是把任务、证据、权限、审计、复盘和知识沉淀连接起来。
+            LBAI 的切入点不是替代员工，而是把员工每天与 AI 协作产生的工作过程，变成组织可复用的数据资产。
+          </p>
+        </div>
+        <aside class="status-panel">
+          <h3>当前产品口径</h3>
+          <div class="status-row">
+            <strong>员工端工作区</strong>
+            <span class="pill done">已落地</span>
+          </div>
+          <div class="status-row">
+            <strong>Cursor / Codex 工作流</strong>
+            <span class="pill done">已落地</span>
+          </div>
+          <div class="status-row">
+            <strong>资料与任务落盘</strong>
+            <span class="pill done">已落地</span>
+          </div>
+          <div class="status-row">
+            <strong>后端检索调用契约</strong>
+            <span class="pill done">已落地</span>
+          </div>
+          <div class="status-row">
+            <strong>AI 自迭代优化</strong>
+            <span class="pill done">实验已落地</span>
+          </div>
+          <div class="status-row">
+            <strong>完整知识 Service</strong>
+            <span class="pill mvp">MVP</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section id="problem">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Problem</p>
+          <h2>AI 办公落地的三个断点</h2>
+        </div>
+        <p class="section-summary">这些断点决定了企业 AI 能不能从个人效率工具，变成可规模化的组织能力。</p>
+      </div>
+      <div class="grid-3">
+        <article class="card">
+          <span class="number">01</span>
+          <h3>聊天不可追踪</h3>
+          <p>任务目标、缺失信息、执行过程和最终输出散落在对话里，无法成为可交接的正式工作记录。</p>
+        </article>
+        <article class="card">
+          <span class="number">02</span>
+          <h3>资料无法沉淀</h3>
+          <p>会议纪要、客户反馈、项目材料和制度文件缺少统一入口，历史背景难以回到新任务中。</p>
+        </article>
+        <article class="card">
+          <span class="number">03</span>
+          <h3>交付缺少边界</h3>
+          <p>没有来源、敏感信息、review 边界和证据要求，AI 输出很难稳定进入正式业务流程。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="flow">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Employee Flow</p>
+          <h2>员工从安装到日常工作的完整流程</h2>
+        </div>
+        <p class="section-summary">员工不需要理解复杂后端，只需要用同一套 `/lbai-*` 命令把资料、任务和交付纳入标准流程。</p>
+      </div>
+      <div class="flow" aria-label="员工使用流程">
+        <div class="flow-step">
+          <b>Step 1</b>
+          <strong>安装 CLI</strong>
+          <span>通过 Mac / Windows 安装脚本获得 `lbai` 命令。</span>
+        </div>
+        <div class="flow-step">
+          <b>Step 2</b>
+          <strong>登录认证</strong>
+          <span>配置 GitHub Token，可选配置后端知识服务 API Key。</span>
+        </div>
+        <div class="flow-step">
+          <b>Step 3</b>
+          <strong>初始化工作区</strong>
+          <span>绑定员工 private GitHub repo，写入标准 workspace 模板。</span>
+        </div>
+        <div class="flow-step">
+          <b>Step 4</b>
+          <strong>打开 AI 工具</strong>
+          <span>用 Cursor 或 Codex 打开工作区，运行 `/lbai-init`。</span>
+        </div>
+        <div class="flow-step">
+          <b>Step 5</b>
+          <strong>沉淀资料与任务</strong>
+          <span>用 `/lbai-add-evidence` 和任务三步链路处理日常工作。</span>
+        </div>
+        <div class="flow-step">
+          <b>Step 6</b>
+          <strong>检索与交付</strong>
+          <span>调用后端 evidence search，收尾检查后同步到 GitHub。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Capability Matrix</p>
+          <h2>核心功能矩阵</h2>
+        </div>
+        <p class="section-summary">产品不是单点工具，而是围绕员工 AI 工作流形成的系统化能力。</p>
+      </div>
+      <table class="feature-table">
+        <thead>
+          <tr>
+            <th>模块</th>
+            <th>给员工的体验</th>
+            <th>给公司的价值</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>安装与初始化</td>
+            <td>
+              一条安装命令，绑定 private workspace，打开 Cursor / Codex 即可使用。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>支持 Mac / Windows 安装脚本，统一安装 CLI 和模板。</li>
+                  <li>初始化时写入标准目录、规则、命令、示例 ledger 和工作区说明。</li>
+                  <li>员工可以绑定自己的 private GitHub repo，便于后续同步和审计。</li>
+                </ul>
+              </details>
+            </td>
+            <td>降低 AI 工作区部署成本，保证每个员工工作区结构一致。</td>
+            <td><span class="pill done">已落地</span></td>
+          </tr>
+          <tr>
+            <td>岗位记忆</td>
+            <td>
+              保存姓名、岗位、职责边界和对话偏好。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>维护 `ROLE_PROFILE`、`ROLE_WORLD_MODEL` 和 `ROLE_BOUNDARY`。</li>
+                  <li>记录员工职责、常见任务类型、不可越界事项和 review 边界。</li>
+                  <li>让 AI 在每次任务开始时先读取角色上下文，减少重复说明。</li>
+                </ul>
+              </details>
+            </td>
+            <td>让 AI 对员工角色有稳定上下文，减少反复解释。</td>
+            <td><span class="pill done">已落地</span></td>
+          </tr>
+          <tr>
+            <td>资料沉淀</td>
+            <td>
+              把会议纪要、反馈、制度、项目材料保存成 evidence。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>`/lbai-add-evidence` 将输入归档到标准 evidence 目录。</li>
+                  <li>补充来源、时间、摘要、敏感边界和是否需要负责人 review。</li>
+                  <li>资料进入 Git 管理后，可被后端同步、解析和检索。</li>
+                </ul>
+              </details>
+            </td>
+            <td>把个人资料沉淀为可同步、可解析、可追溯的知识来源。</td>
+            <td><span class="pill done">已落地</span></td>
+          </tr>
+          <tr>
+            <td>任务生命周期</td>
+            <td>
+              `/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>新任务会生成 task slot、任务目标、缺失输入和执行边界。</li>
+                  <li>执行阶段要求先找资料、列计划，再产出可落盘的任务结果。</li>
+                  <li>收尾阶段检查来源、review、阻塞项和交付文件，避免只停留在聊天里。</li>
+                </ul>
+              </details>
+            </td>
+            <td>把 AI 协作从聊天变成可复盘的任务系统。</td>
+            <td><span class="pill done">已落地</span></td>
+          </tr>
+          <tr>
+            <td>后端检索</td>
+            <td>
+              `/lbai-search-artifacts` 返回后端 evidence_pack。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>员工端按任务意图生成检索请求，不直接暴露后端复杂查询。</li>
+                  <li>后端返回结构化 `evidence_pack`，包含来源、摘要、相关性和限制说明。</li>
+                  <li>任务执行时优先引用检索证据，降低 AI 编造事实的风险。</li>
+                </ul>
+              </details>
+            </td>
+            <td>让历史证据进入新任务，形成跨员工知识复用。</td>
+            <td><span class="pill done">契约已落地</span></td>
+          </tr>
+          <tr>
+            <td>AI 自迭代优化</td>
+            <td>
+              `/lbai-self-iterate` 运行 Prompt Lab，用模拟任务持续优化 AI 工作效果。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>创建隔离 workspace，生成多类办公场景，不污染真实员工任务数据。</li>
+                  <li>让当前 AI 执行资料归档、任务创建、任务执行、收尾检查等链路。</li>
+                  <li>按场景评估结果打分，产出 human review 和可追溯的实验记录。</li>
+                  <li>符合条件时只更新 `prompt_lab/prompt_versions/current/` 的实验 prompt，正式 prompt 仍需人工确认后再合入。</li>
+                </ul>
+              </details>
+            </td>
+            <td>让 AI 工作流通过可控实验不断暴露问题、修正提示词和提升稳定性。</td>
+            <td><span class="pill done">实验已落地</span></td>
+          </tr>
+          <tr>
+            <td>知识 Service</td>
+            <td>
+              员工无需感知同步、抽取、入库和权限过滤细节。
+              <details class="feature-detail">
+                <summary>功能细节</summary>
+                <ul>
+                  <li>通过 GitHub webhook 或定时任务同步员工 workspace 的新增资料。</li>
+                  <li>抽取 `fact_event`，保留字段、来源、时间、置信度和版本关系。</li>
+                  <li>检索时按员工、团队和资料权限过滤，并留下可审计记录。</li>
+                </ul>
+              </details>
+            </td>
+            <td>构建公司级事实事件库、检索服务和审计能力。</td>
+            <td><span class="pill mvp">MVP</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="architecture">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Architecture</p>
+          <h2>从个人工作区到公司知识层</h2>
+        </div>
+        <p class="section-summary">员工端轻量落盘，后端集中处理。这个边界让产品能先进入真实工作流，再逐步扩展为组织知识基础设施。</p>
+      </div>
+      <div class="architecture-wrap">
+        <img src="lbai-workspace-kit-service-architecture.zh-CN.png" alt="LBAI Workspace Kit 与后端 Service 架构闭环图">
+      </div>
+      <div class="loop-grid" aria-label="价值闭环">
+        <div class="loop-item">
+          <strong>资料沉淀</strong>
+          <span>员工把原始资料保存为标准 evidence，不在聊天中流失。</span>
+        </div>
+        <div class="loop-item">
+          <strong>事实抽取</strong>
+          <span>后端将资料转为 `fact_event`，保留来源和时间脉络。</span>
+        </div>
+        <div class="loop-item">
+          <strong>证据检索</strong>
+          <span>任务发起时返回 `evidence_pack`，而不是让 AI 凭空回答。</span>
+        </div>
+        <div class="loop-item">
+          <strong>结果回流</strong>
+          <span>任务输出和收尾记录继续进入 workspace，形成复利。</span>
+        </div>
+        <div class="loop-item">
+          <strong>效果迭代</strong>
+          <span>Prompt Lab 用模拟任务评估 AI 表现，把问题转成可 review 的 prompt 改进。</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="roadmap">
+      <div class="section-head">
+        <div>
+          <p class="kicker">Execution Path</p>
+          <h2>落地路径与扩展空间</h2>
+        </div>
+        <p class="section-summary">先把员工端工作流跑通，再用后端 service 承接跨员工知识沉淀和检索，最后扩展到企业级治理。</p>
+      </div>
+      <div class="roadmap">
+        <article class="phase">
+          <small>Phase 1</small>
+          <h3>员工端标准化</h3>
+          <ul>
+            <li>CLI 安装与 workspace 初始化</li>
+            <li>Cursor / Codex `/lbai-*` 工作流</li>
+            <li>Evidence、Tasks、Ledgers 落盘</li>
+            <li>`/lbai-self-iterate` Prompt Lab 实验</li>
+            <li>GitHub commit / push 同步</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <small>Phase 2</small>
+          <h3>知识 Service MVP</h3>
+          <ul>
+            <li>GitHub webhook / 定时同步</li>
+            <li>文档解析与事实抽取</li>
+            <li>Schema 校验与 `fact_event` 入库</li>
+            <li>`POST /v1/search/evidence` 检索</li>
+          </ul>
+        </article>
+        <article class="phase">
+          <small>Phase 3</small>
+          <h3>企业级知识治理</h3>
+          <ul>
+            <li>权限过滤和审计日志</li>
+            <li>冲突检测和字段治理</li>
+            <li>管理后台和同步状态监控</li>
+            <li>跨团队知识复用、质量评估与 AI 效果优化</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section id="product-summary">
+      <div class="closing">
+        <div class="quote">
+          <p>从“每个人都在用 AI”，升级到“公司正在积累 AI 可用的组织记忆”。</p>
+          <span>这就是 LBAI Workspace Kit + Service 的长期价值。</span>
+        </div>
+        <div class="wide-card">
+          <p class="kicker">Product Summary</p>
+          <h2>这个产品展示的三件事</h2>
+          <ul>
+            <li>入口足够轻：员工仍然在 Cursor / Codex 里工作，不需要迁移到新系统。</li>
+            <li>数据足够深：任务、证据、岗位记忆、交付记录和自迭代实验持续沉淀。</li>
+            <li>扩展足够清晰：从员工端 kit 到后端 service，再到企业知识治理平台。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      LBAI Workspace Kit + Service 产品功能展示。本页面基于当前仓库材料整理，已明确区分已落地能力与 MVP 能力。
+    </footer>
+  </main>
+</body>
+</html>

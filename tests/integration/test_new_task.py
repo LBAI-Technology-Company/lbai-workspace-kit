@@ -161,3 +161,73 @@ class TestNewTask:
         missing = (task_dir / 'missing_inputs.md').read_text(encoding='utf-8')
         assert '请补充公司工作方法/流程的来源材料或关键要点' in missing
         assert '请说明这篇短文的受众和用途' in missing
+
+    def test_specific_missing_inputs_skip_generic_company_source(self, isolated_workspace, fixtures):
+        data = json.loads(enrichment_path(fixtures, 'task_intake_open.json').read_text(encoding='utf-8'))
+        data.update({
+            'task_description': '写一份客户成功案例，突出 ROI，给销售团队下周培训用',
+            'goal': '基于可验证客户数据撰写内部培训用成功案例摘要',
+            'expected_output': 'task_output.md：客户背景、问题、方案、可引用 ROI 数据与培训要点',
+            'known_information': [
+                {
+                    'summary': '输出用于销售团队内部培训',
+                    'source_kind': 'conversation_context',
+                    'source_ref': 'manager request',
+                }
+            ],
+            'missing_inputs': [
+                '客户授权或可引用的脱敏案例材料',
+                'ROI 或成效数据的来源与计算口径',
+                '需突出的产品/方案名称与交付范围',
+            ],
+            'recommended_inputs': ['销售负责人确认的培训侧重点'],
+            'status': 'BLOCKED',
+            'review_needed': True,
+            'review_reasons': ['涉及客户成效与 ROI 表述，需来源支撑'],
+            'completion_conditions': [
+                'task_output.md 已创建',
+                'ROI 数据可追溯到来源',
+            ],
+        })
+        enrich = isolated_workspace / 'customer_case_blocked.json'
+        enrich.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+
+        result = run_tool(isolated_workspace, 'new_task.py', '--enrichment', str(enrich))
+        assert result.returncode == 0, result.output
+        assert 'STATUS BLOCKED' in result.stdout
+        assert '请补充公司工作方法/流程的来源材料或关键要点' not in result.stdout
+        assert '客户授权或可引用的脱敏案例材料' in result.stdout
+        assert 'ROI 或成效数据的来源与计算口径' in result.stdout
+
+    def test_press_release_blocked_without_generic_company_source(self, isolated_workspace, fixtures):
+        data = json.loads(enrichment_path(fixtures, 'task_intake_open.json').read_text(encoding='utf-8'))
+        data.update({
+            'task_description': '起草对外新闻稿，宣布新产品合作，下周可能发媒体',
+            'goal': '在获得审批与可发布事实前，整理新闻稿任务边界与待确认事项',
+            'expected_output': 'task_output.md：新闻稿大纲、待确认事实清单、审批提醒',
+            'known_information': [
+                {
+                    'summary': '公关同步会：合作方名称与范围尚未经法务确认',
+                    'source_kind': 'conversation_context',
+                    'source_ref': '公关同步会会议记录',
+                }
+            ],
+            'missing_inputs': [
+                '经法务确认的合作事实与可对外表述范围',
+                '公关/法务审批状态或发布窗口',
+                '可引用的官方产品与合作信息来源',
+            ],
+            'status': 'BLOCKED',
+            'review_needed': True,
+            'review_reasons': ['对外媒体发布'],
+            'completion_conditions': ['task_output.md 已创建'],
+        })
+        enrich = isolated_workspace / 'press_release_blocked.json'
+        enrich.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+
+        result = run_tool(isolated_workspace, 'new_task.py', '--enrichment', str(enrich))
+        assert result.returncode == 0, result.output
+        assert 'STATUS BLOCKED' in result.stdout
+        assert 'REVIEW_NEEDED true' in result.stdout
+        assert '请补充公司工作方法/流程的来源材料或关键要点' not in result.stdout
+        assert '经法务确认的合作事实与可对外表述范围' in result.stdout

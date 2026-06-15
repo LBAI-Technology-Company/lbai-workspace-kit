@@ -71,6 +71,20 @@
       "items": {
         "type": "string"
       }
+    },
+    "admin_handoff_safe": {
+      "type": "boolean",
+      "description": "True only when issues, red_flags, and prompt_improvement_candidates are safe to send to an administrator without raw sensitive task content."
+    },
+    "sensitive_content_present": {
+      "type": "boolean",
+      "description": "True when the evaluation text contains customer names, project names, raw conversation excerpts, personal data, secrets, or other content that needs redaction before admin handoff."
+    },
+    "redaction_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "additionalProperties": true

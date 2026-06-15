@@ -79,9 +79,38 @@ WRITING_HINTS = (
     '发布',
 )
 SOURCE_KINDS_WITH_TRACEABLE_COMPANY_FACTS = {'company_knowledge', 'linked_evidence', 'external_source'}
-CONVERSATION_SOURCE_FACT_MARKERS = ('包括', '分为', '步骤', '流程是', '方法是', '先', '再', '最后', '核心', '原则', '机制')
+CONVERSATION_SOURCE_FACT_MARKERS = (
+    '包括', '分为', '步骤', '流程是', '方法是', '先', '再', '最后', '核心', '原则', '机制',
+    '决议', '议题', '会议', '参会', '记录人',
+)
 COMPANY_SOURCE_MISSING_INPUT = '请补充公司工作方法/流程的来源材料或关键要点。'
 AUDIENCE_MISSING_INPUT = '请说明这篇短文的受众和用途：内部同事阅读，还是可能对外发布。'
+GENERIC_MISSING_INPUTS = frozenset({
+    COMPANY_SOURCE_MISSING_INPUT,
+    AUDIENCE_MISSING_INPUT,
+})
+SPECIFIC_SOURCE_GAP_MARKERS = (
+    '授权',
+    'roi',
+    '来源',
+    '政策',
+    '法务',
+    '审批',
+    '客户',
+    '案例',
+    '合作',
+    '原文',
+    '口径',
+    '可发布',
+    '可引用',
+    '脱敏',
+    '官方',
+    '方案',
+    '数据',
+    '确认',
+    '批准',
+    '会议',
+)
 
 
 def clean_review_reasons(data: dict) -> list[str]:
@@ -165,6 +194,17 @@ def has_traceable_company_fact_source(data: dict) -> bool:
     return False
 
 
+def has_specific_source_gaps(missing_inputs: list) -> bool:
+    for item in missing_inputs:
+        text = str(item).strip()
+        if not text or text in GENERIC_MISSING_INPUTS:
+            continue
+        lowered = text.lower()
+        if any(marker in text or marker in lowered for marker in SPECIFIC_SOURCE_GAP_MARKERS):
+            return True
+    return False
+
+
 def has_audience_or_usage(data: dict) -> bool:
     text = ' '.join(
         [
@@ -184,7 +224,7 @@ def apply_intake_guardrails(data: dict) -> dict:
     guarded = dict(data)
     guarded['missing_inputs'] = list(guarded.get('missing_inputs') or [])
     if task_needs_company_fact_source(guarded):
-        if not has_traceable_company_fact_source(guarded):
+        if not has_traceable_company_fact_source(guarded) and not has_specific_source_gaps(guarded['missing_inputs']):
             add_missing_input(guarded, COMPANY_SOURCE_MISSING_INPUT)
         if not has_audience_or_usage(guarded):
             add_missing_input(guarded, AUDIENCE_MISSING_INPUT)

@@ -1,6 +1,8 @@
 """Integration tests for add_evidence.py."""
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from tests.helpers.tool_runner import enrichment_path, run_tool
@@ -205,3 +207,28 @@ class TestAddEvidence:
         assert 'evidence_status: CAPTURED' in result.stdout
         assert 'sync_status: BLOCKED' not in result.stdout
         assert '仅提示，不阻断' in result.stdout
+
+    def test_meeting_note_infers_occurred_at_from_content_when_unknown(self, isolated_workspace, fixtures):
+        enrich = enrichment_path(fixtures, 'evidence_valid.json')
+        data = json.loads(enrich.read_text(encoding='utf-8'))
+        data['source_occurred_at'] = 'unknown'
+        data['source_type'] = 'meeting_note'
+        data['title'] = '产品周会 Mock 会议记录'
+        enrich_path = isolated_workspace / 'meeting_unknown_date.json'
+        enrich_path.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+
+        result = run_tool(
+            isolated_workspace,
+            'add_evidence.py',
+            '--enrichment',
+            str(enrich_path),
+            '--no-sync',
+            '--content',
+            '【Mock 会议记录】\n时间：2026-06-15 10:00-11:00\n决议：输出导出优化方案',
+        )
+
+        assert result.returncode == 0, result.output
+        folder_line = next(line for line in result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
+        rel = folder_line.split(' ', 1)[1].strip()
+        metadata = json.loads((isolated_workspace / rel / 'metadata.json').read_text(encoding='utf-8'))
+        assert metadata['source_occurred_at'] == '2026-06-15'

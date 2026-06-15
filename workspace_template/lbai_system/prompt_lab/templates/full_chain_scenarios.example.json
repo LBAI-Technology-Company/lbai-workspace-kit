@@ -1,0 +1,37 @@
+{
+  "schema_version": "prompt_lab_scenarios_v1",
+  "scenarios": [
+    {
+      "scenario_id": "fc01_meeting_to_finish",
+      "category": "meeting_minutes",
+      "lifecycle": "full_chain",
+      "employee_role": "项目经理",
+      "task_request": "根据产品周会决议，完成导出优化技术方案任务并收尾。",
+      "source_material": "【Mock 会议记录】\n时间：2026-06-16 10:00-11:00\n参会：产品、研发、运营\n议题：Q3 路线图与导出性能\n决议：本周五前由研发架构组输出报表导出性能优化技术方案草案\n约束：不影响月结窗口\n记录人：李四",
+      "meeting_action_item": "本周五前输出报表导出性能优化技术方案草案",
+      "expected_behavior": "全链路：归档会议 → OPEN task → execution_plan → task_output → APPROVE_FINISH",
+      "expected_finish_verdict": "APPROVE_FINISH",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "fc02_meeting_archive_only",
+      "category": "meeting_minutes",
+      "lifecycle": "evidence_only",
+      "employee_role": "产品经理",
+      "task_request": "归档产品周会记录。",
+      "source_material": "【Mock】时间：2026-06-16 10:00\n决议：MFA 试点选 2 个客户",
+      "expected_behavior": "仅 add_evidence，meeting_note CAPTURED",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "fc03_meeting_intake_blocked",
+      "category": "manager_request",
+      "lifecycle": "task_intake",
+      "employee_role": "市场专员",
+      "task_request": "根据客户复盘会写 ROI 案例。",
+      "source_material": "【Mock 摘录】客户提及 ROI 提升，但未提供授权或数据口径",
+      "expected_behavior": "new_task BLOCKED，无泛化公司流程来源项",
+      "risk_tags": ["customer_claim"]
+    }
+  ]
+}

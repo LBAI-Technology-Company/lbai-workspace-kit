@@ -25,6 +25,7 @@ Rules:
 5. Use source_visibility = "private" when uncertain.
 6. Evidence is independent from tasks. Do not add task links or claim that the source resolves task missing_inputs.
 7. Set admissibility_status = NEEDS_REVIEW only when the material itself is review-sensitive, public-facing, pricing/legal/customer-commitment related, or otherwise should not be reused without review.
+8. For meeting_note sources, title should include meeting date and topic when available; related_objects may list agenda items, decisions, or follow-ups. Do not drop decision owners or deadlines present in the pasted minutes.
 ```
 
 ## User template

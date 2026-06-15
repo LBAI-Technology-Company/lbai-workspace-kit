@@ -5,6 +5,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from tests.helpers.tool_runner import enrichment_path
+
 
 def run_prompt_lab(workspace: Path, *args: str) -> subprocess.CompletedProcess:
     script = workspace / 'lbai_system' / 'prompt_lab' / 'prompt_lab.py'
@@ -162,6 +164,39 @@ def test_prompt_lab_run_tool_forces_no_sync_for_syncing_tools(isolated_workspace
     data = json.loads(output.read_text(encoding='utf-8'))
     assert '--no-sync' in data['extra_args']
     assert '--no-sync' in data['stdout']
+    assert data['extra_args'][0] != '--'
+
+
+def test_prompt_lab_run_tool_strips_leading_double_dash(isolated_workspace):
+    started = run_prompt_lab(isolated_workspace, 'start', '--run-id', 'run_test_strip_dash')
+    assert started.returncode == 0, started.stdout + started.stderr
+    workspace = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_strip_dash' / 'workspaces' / 'round_001_workspace'
+    fake_tool = workspace / 'lbai_system' / 'tools' / 'new_task.py'
+    fake_tool.write_text(
+        'import sys\nprint("ARGS " + " ".join(sys.argv[1:]))\n',
+        encoding='utf-8',
+    )
+    output = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_strip_dash' / 'round_001' / 'tool_outputs' / 'strip_dash.json'
+
+    result = run_prompt_lab(
+        isolated_workspace,
+        'run-tool',
+        '--workspace',
+        str(workspace),
+        '--tool',
+        'new_task.py',
+        '--output',
+        str(output),
+        '--',
+        '--enrichment',
+        'mock.json',
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    data = json.loads(output.read_text(encoding='utf-8'))
+    assert data['extra_args'][0] == '--enrichment'
+    assert '--' not in data['extra_args']
+    assert 'ARGS --enrichment mock.json' in data['stdout']
 
 
 def test_prompt_lab_run_tool_rejects_employee_workspace(isolated_workspace):
@@ -367,3 +402,341 @@ def test_prompt_lab_run_tool_rejects_search_artifacts(isolated_workspace):
 
     assert result.returncode == 2
     assert 'unsupported tool for Prompt Lab' in result.stdout
+
+
+def test_prompt_lab_start_full_lifecycle_chain_mode(isolated_workspace):
+    result = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_full_chain',
+        '--chain-mode',
+        'full_lifecycle',
+        '--focus',
+        'meeting_to_finish',
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'chain_mode: full_lifecycle' in result.stdout
+    manifest = json.loads(
+        (isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_full_chain' / 'run_manifest.json').read_text(encoding='utf-8')
+    )
+    assert manifest['chain_mode'] == 'full_lifecycle'
+    assert (isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_full_chain' / 'round_001' / 'chain_outputs').is_dir()
+
+
+def test_prompt_lab_next_step_full_lifecycle_shows_chain_instructions(isolated_workspace):
+    started = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_full_chain_next',
+        '--chain-mode',
+        'full_lifecycle',
+    )
+    assert started.returncode == 0, started.stdout + started.stderr
+    nxt = run_prompt_lab(
+        isolated_workspace,
+        'next-step',
+        '--run',
+        'prompt_lab/runs/run_test_full_chain_next',
+    )
+    assert nxt.returncode == 0, nxt.stdout + nxt.stderr
+    assert 'chain_mode: full_lifecycle' in nxt.stdout
+    assert 'write-task-artifact' in nxt.stdout
+    assert 'prepare_execute_task.py' in nxt.stdout
+
+
+def test_prompt_lab_write_task_artifact_copies_mock_output(isolated_workspace, fixtures):
+    started = run_prompt_lab(isolated_workspace, 'start', '--run-id', 'run_test_write_artifact')
+    assert started.returncode == 0, started.stdout + started.stderr
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_write_artifact'
+    workspace = run_dir / 'workspaces' / 'round_001_workspace'
+    enrich = enrichment_path(fixtures, 'task_intake_open.json')
+    created = run_prompt_lab(
+        isolated_workspace,
+        'run-tool',
+        '--workspace',
+        str(workspace),
+        '--tool',
+        'new_task.py',
+        '--output',
+        str(run_dir / 'round_001' / 'tool_outputs' / 'create_task.json'),
+        '--',
+        '--enrichment',
+        str(enrich),
+    )
+    assert created.returncode == 0, created.stdout + created.stderr
+    created_data = json.loads((run_dir / 'round_001' / 'tool_outputs' / 'create_task.json').read_text(encoding='utf-8'))
+    task_rel = next(
+        line.split(' ', 1)[1].strip()
+        for line in created_data['stdout'].splitlines()
+        if line.startswith('TASK_FOLDER ')
+    )
+    chain_dir = run_dir / 'round_001' / 'chain_outputs' / 'demo_scenario'
+    chain_dir.mkdir(parents=True, exist_ok=True)
+    mock_output = chain_dir / 'task_output.md'
+    mock_output.write_text('# Task Output\n\n## summary\nMock deliverable from meeting action.\n', encoding='utf-8')
+    result = run_prompt_lab(
+        isolated_workspace,
+        'write-task-artifact',
+        '--workspace',
+        str(workspace.relative_to(isolated_workspace)),
+        '--task',
+        task_rel,
+        '--artifact',
+        'task_output.md',
+        '--source',
+        str(mock_output.relative_to(isolated_workspace)),
+        '--output',
+        str(run_dir / 'round_001' / 'tool_outputs' / 'demo_task_output.json'),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'artifact_status: OK' in result.stdout
+    assert (workspace / task_rel / 'task_output.md').exists()
+
+
+def test_prompt_lab_write_task_artifact_rejects_source_outside_chain_outputs(isolated_workspace, fixtures):
+    started = run_prompt_lab(isolated_workspace, 'start', '--run-id', 'run_test_write_artifact_source_boundary')
+    assert started.returncode == 0, started.stdout + started.stderr
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_write_artifact_source_boundary'
+    workspace = run_dir / 'workspaces' / 'round_001_workspace'
+    enrich = enrichment_path(fixtures, 'task_intake_open.json')
+    created = run_prompt_lab(
+        isolated_workspace,
+        'run-tool',
+        '--workspace',
+        str(workspace),
+        '--tool',
+        'new_task.py',
+        '--output',
+        str(run_dir / 'round_001' / 'tool_outputs' / 'create_task.json'),
+        '--',
+        '--enrichment',
+        str(enrich),
+    )
+    assert created.returncode == 0, created.stdout + created.stderr
+    created_data = json.loads((run_dir / 'round_001' / 'tool_outputs' / 'create_task.json').read_text(encoding='utf-8'))
+    task_rel = next(
+        line.split(' ', 1)[1].strip()
+        for line in created_data['stdout'].splitlines()
+        if line.startswith('TASK_FOLDER ')
+    )
+    outside = run_dir / 'round_001' / 'tool_outputs' / 'private_output.md'
+    outside.parent.mkdir(parents=True, exist_ok=True)
+    outside.write_text('# Private\n\nDo not copy this file.\n', encoding='utf-8')
+
+    result = run_prompt_lab(
+        isolated_workspace,
+        'write-task-artifact',
+        '--workspace',
+        str(workspace.relative_to(isolated_workspace)),
+        '--task',
+        task_rel,
+        '--artifact',
+        'task_output.md',
+        '--source',
+        str(outside.relative_to(isolated_workspace)),
+        '--output',
+        str(run_dir / 'round_001' / 'tool_outputs' / 'blocked_task_output.json'),
+    )
+
+    assert result.returncode == 2
+    assert 'artifact_status: BLOCKED' in result.stdout
+    assert 'chain_outputs' in result.stdout
+    assert not (workspace / task_rel / 'task_output.md').exists()
+
+
+def test_prompt_lab_run_tool_allows_prepare_execute_task(isolated_workspace, fixtures):
+    started = run_prompt_lab(isolated_workspace, 'start', '--run-id', 'run_test_prepare')
+    assert started.returncode == 0, started.stdout + started.stderr
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_prepare'
+    workspace = run_dir / 'workspaces' / 'round_001_workspace'
+    enrich = enrichment_path(fixtures, 'task_intake_open.json')
+    created = run_prompt_lab(
+        isolated_workspace,
+        'run-tool',
+        '--workspace',
+        str(workspace),
+        '--tool',
+        'new_task.py',
+        '--output',
+        str(run_dir / 'round_001' / 'tool_outputs' / 'create_task.json'),
+        '--',
+        '--enrichment',
+        str(enrich),
+    )
+    assert created.returncode == 0, created.stdout + created.stderr
+    created_data = json.loads((run_dir / 'round_001' / 'tool_outputs' / 'create_task.json').read_text(encoding='utf-8'))
+    task_rel = next(
+        line.split(' ', 1)[1].strip()
+        for line in created_data['stdout'].splitlines()
+        if line.startswith('TASK_FOLDER ')
+    )
+    output = run_dir / 'round_001' / 'tool_outputs' / 'prepare.json'
+    result = run_prompt_lab(
+        isolated_workspace,
+        'run-tool',
+        '--workspace',
+        str(workspace),
+        '--tool',
+        'prepare_execute_task.py',
+        '--output',
+        str(output),
+        '--',
+        task_rel,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    data = json.loads(output.read_text(encoding='utf-8'))
+    assert data['returncode'] == 0
+    assert 'execute_status: READY' in data['stdout']
+    assert (workspace / task_rel / 'execution_plan.md').exists()
+
+
+def test_prompt_lab_start_auto_uses_mock_without_real_context(isolated_workspace):
+    result = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_context_mock',
+        '--context-mode',
+        'auto',
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'context_mode: mock' in result.stdout
+    manifest = json.loads(
+        (isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_context_mock' / 'run_manifest.json').read_text(
+            encoding='utf-8'
+        )
+    )
+    assert manifest['effective_context_mode'] == 'mock'
+
+
+def test_prompt_lab_start_real_task_blocks_without_creating_run(isolated_workspace):
+    result = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_missing_real_context',
+        '--context-mode',
+        'real_task',
+    )
+
+    assert result.returncode == 2
+    assert '--context-mode real_task was requested' in result.stdout
+    assert not (isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_missing_real_context').exists()
+
+
+def test_prompt_lab_start_auto_uses_real_task_context_when_available(isolated_workspace):
+    task_dir = isolated_workspace / 'tasks' / 'task_real_context'
+    task_dir.mkdir(parents=True)
+    (task_dir / 'task_scope.md').write_text('# Task Scope\n\nPrepare renewal memo.\n', encoding='utf-8')
+    (task_dir / 'task_ledger.md').write_text('# Task Ledger\n\nstatus: OPEN\n', encoding='utf-8')
+
+    result = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_context_real',
+        '--context-mode',
+        'auto',
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'context_mode: real_task' in result.stdout
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_context_real'
+    manifest = json.loads((run_dir / 'run_manifest.json').read_text(encoding='utf-8'))
+    assert manifest['effective_context_mode'] == 'real_task'
+    assert (run_dir / 'real_task_context' / 'context.md').exists()
+    isolated_task = run_dir / 'workspaces' / 'round_001_workspace' / 'tasks' / 'task_real_context'
+    assert (isolated_task / 'task_scope.md').exists()
+    tracked = subprocess.run(
+        ['git', 'ls-files', 'tasks/task_real_context/task_scope.md'],
+        cwd=run_dir / 'workspaces' / 'round_001_workspace',
+        capture_output=True,
+        text=True,
+    )
+    assert tracked.returncode == 0
+    assert tracked.stdout.strip() == ''
+
+
+def test_prompt_lab_score_writes_admin_handoff_outbox(isolated_workspace):
+    started = run_prompt_lab(isolated_workspace, 'start', '--run-id', 'run_test_admin_outbox')
+    assert started.returncode == 0, started.stdout + started.stderr
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_admin_outbox'
+    round_dir = run_dir / 'round_001'
+    write_json(round_dir / 'evaluations' / 'scenario_feedback.json', {
+        'schema_version': 'prompt_lab_evaluation_v1',
+        'scenario_id': 'scenario_feedback',
+        'scores': {
+            'schema_compliance': 5,
+            'boundary_handling': 5,
+            'source_grounding': 4,
+            'missing_input_handling': 4,
+            'task_quality': 4,
+            'finish_review_accuracy': 5,
+        },
+        'red_flags': [],
+        'issues': ['Task intake missed the requested reviewer.'],
+        'prompt_improvement_candidates': ['Require reviewer extraction when the source names an approver.'],
+    })
+
+    scored = run_prompt_lab(isolated_workspace, 'score', '--run', str(run_dir), '--round', '1')
+
+    assert scored.returncode == 0, scored.stdout + scored.stderr
+    assert 'admin_summary:' in scored.stdout
+    assert (round_dir / 'admin_report.md').exists()
+    outbox = isolated_workspace / 'prompt_lab' / 'admin_feedback' / 'outbox' / 'run_test_admin_outbox' / 'round_001'
+    assert (outbox / 'admin_report.md').exists()
+    summary = json.loads((outbox / 'admin_summary.json').read_text(encoding='utf-8'))
+    assert summary['problems'] == ['Task intake missed the requested reviewer.']
+    assert summary['optimization_plan'] == ['Require reviewer extraction when the source names an approver.']
+    assert summary['handoff_status'] == 'READY'
+
+
+def test_prompt_lab_real_task_outbox_redacts_until_handoff_safe(isolated_workspace):
+    task_dir = isolated_workspace / 'tasks' / 'task_sensitive_context'
+    task_dir.mkdir(parents=True)
+    (task_dir / 'task_scope.md').write_text('# Task Scope\n\nPrepare ACME renewal memo.\n', encoding='utf-8')
+    (task_dir / 'task_ledger.md').write_text('# Task Ledger\n\nstatus: OPEN\n', encoding='utf-8')
+    started = run_prompt_lab(
+        isolated_workspace,
+        'start',
+        '--run-id',
+        'run_test_redaction_required',
+        '--context-mode',
+        'real_task',
+    )
+    assert started.returncode == 0, started.stdout + started.stderr
+    run_dir = isolated_workspace / 'prompt_lab' / 'runs' / 'run_test_redaction_required'
+    round_dir = run_dir / 'round_001'
+    write_json(round_dir / 'evaluations' / 'scenario_sensitive.json', {
+        'schema_version': 'prompt_lab_evaluation_v1',
+        'scenario_id': 'scenario_sensitive',
+        'scores': {
+            'schema_compliance': 5,
+            'boundary_handling': 5,
+            'source_grounding': 4,
+            'missing_input_handling': 4,
+            'task_quality': 4,
+            'finish_review_accuracy': 5,
+        },
+        'red_flags': [],
+        'issues': ['ACME renewal memo exposed the project codename.'],
+        'prompt_improvement_candidates': ['Mention ACME only after admin redaction.'],
+        'sensitive_content_present': True,
+        'admin_handoff_safe': False,
+        'redaction_notes': ['Remove customer and project names before admin handoff.'],
+    })
+
+    scored = run_prompt_lab(isolated_workspace, 'score', '--run', str(run_dir), '--round', '1')
+
+    assert scored.returncode == 0, scored.stdout + scored.stderr
+    outbox = isolated_workspace / 'prompt_lab' / 'admin_feedback' / 'outbox' / 'run_test_redaction_required' / 'round_001'
+    summary = json.loads((outbox / 'admin_summary.json').read_text(encoding='utf-8'))
+    assert summary['handoff_status'] == 'BLOCKED_REDACTION_REQUIRED'
+    assert summary['problems'] == []
+    assert summary['optimization_plan'] == []
+    report = (outbox / 'admin_report.md').read_text(encoding='utf-8')
+    assert 'ACME' not in report
+    assert 'BLOCKED_REDACTION_REQUIRED' in report

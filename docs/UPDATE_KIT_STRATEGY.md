@@ -101,7 +101,7 @@ Example:
 
 ```json
 {
-  "workspaceKitVersion": "1.1.0",
+  "workspaceKitVersion": "1.2.0",
   "coreVersionRequired": ">=0.1.0",
   "templateSource": "LBAI-Technology-Company/lbai-workspace-kit",
   "managedPaths": [

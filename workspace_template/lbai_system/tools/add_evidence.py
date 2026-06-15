@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 import select
 import subprocess
 import sys
@@ -117,6 +118,36 @@ def load_enrichment(root: Path, path: Path) -> tuple[dict | None, str]:
     if schema_error:
         return None, schema_error
     return data, ''
+
+
+MEETING_DATE_PATTERNS = (
+    re.compile(r'时间[：:]\s*(\d{4})[年/-](\d{1,2})[月/-](\d{1,2})'),
+    re.compile(r'(\d{4})-(\d{2})-(\d{2})'),
+)
+
+
+def infer_meeting_occurred_at(content: str) -> str:
+    for pattern in MEETING_DATE_PATTERNS:
+        match = pattern.search(content)
+        if not match:
+            continue
+        year, month, day = match.group(1), int(match.group(2)), int(match.group(3))
+        return f'{year}-{month:02d}-{day:02d}'
+    return ''
+
+
+def normalize_meeting_enrichment(enrichment: dict, content: str) -> dict:
+    if str(enrichment.get('source_type') or '').strip() != 'meeting_note':
+        return enrichment
+    occurred = str(enrichment.get('source_occurred_at') or '').strip()
+    if occurred and occurred.lower() != 'unknown':
+        return enrichment
+    inferred = infer_meeting_occurred_at(content)
+    if not inferred:
+        return enrichment
+    normalized = dict(enrichment)
+    normalized['source_occurred_at'] = inferred
+    return normalized
 
 
 def split_table_line(line: str) -> list[str]:
@@ -274,6 +305,8 @@ def main() -> int:
         return block(enrichment_error or ENRICHMENT_BLOCKED_MESSAGE, ENRICHMENT_BLOCKED_MESSAGE)
     if not content.strip():
         return block('no evidence content provided', 'Paste source material and rerun with AI enrichment via Cursor or Codex desktop app.')
+
+    enrichment = normalize_meeting_enrichment(enrichment, content)
 
     workspace_config = load_workspace_config(root)
     identity = employee_identity(root)

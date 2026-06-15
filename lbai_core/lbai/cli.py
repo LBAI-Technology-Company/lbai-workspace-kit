@@ -958,12 +958,18 @@ def self_iterate(args: argparse.Namespace) -> int:
         cmd.extend(['--scenarios-per-round', str(args.scenarios_per_round)])
     if args.focus:
         cmd.extend(['--focus', args.focus])
+    if args.chain_mode:
+        cmd.extend(['--chain-mode', args.chain_mode])
     if args.review_mode:
         cmd.extend(['--review-mode', args.review_mode])
     if args.auto_continue:
         cmd.append('--auto-continue')
     if args.apply_threshold is not None:
         cmd.extend(['--apply-threshold', str(args.apply_threshold)])
+    if args.context_mode:
+        cmd.extend(['--context-mode', args.context_mode])
+    if args.real_task_limit is not None:
+        cmd.extend(['--real-task-limit', str(args.real_task_limit)])
     run_id = ''
     captured = capture(cmd, cwd=root)
     print(captured.stdout, end='')
@@ -1040,9 +1046,12 @@ def build_parser() -> argparse.ArgumentParser:
     iterate.add_argument('--rounds', type=int)
     iterate.add_argument('--scenarios-per-round', type=int)
     iterate.add_argument('--focus')
+    iterate.add_argument('--chain-mode', choices=['intake_evidence', 'full_lifecycle'])
     iterate.add_argument('--review-mode', choices=['human_each_round', 'auto'])
     iterate.add_argument('--auto-continue', action='store_true')
     iterate.add_argument('--apply-threshold', type=float)
+    iterate.add_argument('--context-mode', choices=['auto', 'real_task', 'mock'])
+    iterate.add_argument('--real-task-limit', type=int)
     return parser
 
 

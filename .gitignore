@@ -8,9 +8,11 @@
 __pycache__/
 .pytest_cache/
 .venv/
+.test-venv/
 tests/.venv/
 /role_workspace/
 /tasks/
+/prompt_lab/
 dist/
 build/
 node_modules/
