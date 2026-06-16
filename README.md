@@ -166,9 +166,12 @@ lbai auth doctor
 
 `lbai auth login` behavior:
 
-- First run: paste a GitHub token when prompted
-- Token already saved: press Enter to keep the existing token
-- Already authenticated through `gh auth login`: press Enter to continue without changes
+- First run: paste a GitHub token when prompted; LBAI saves it and automatically syncs Git credentials
+- Token already saved: press Enter to re-sync Git credentials (fixes bare `git push` 401 without re-pasting)
+- Replace token: paste the new token when prompted
+- Already authenticated through `gh auth login` with no saved token: press Enter to configure Git to use `gh`
+
+Run `lbai auth doctor` and confirm `auth_status: READY` before `lbai init-workspace`.
 
 Do not pass tokens in command arguments. Avoid commands like:
 

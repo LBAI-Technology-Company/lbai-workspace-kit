@@ -29,7 +29,15 @@ Paste GitHub token:
 
 The input should not echo in the terminal.
 
-If a token is already saved, or the user is already authenticated through environment variables or `gh auth login`, pressing Enter should keep the current auth unchanged.
+If a token is already saved, or the user is already authenticated through environment variables or `gh auth login`, pressing Enter should re-sync Git credentials without requiring a new token unless the user wants to replace it.
+
+When a token is saved, LBAI must also sync it into Git credential helpers (GitHub CLI preferred, otherwise `git credential approve`) so that:
+
+- `lbai init-workspace` push works
+- bare `git push` in the terminal works
+- `/lbai-update-kit` release fetch works
+
+Before syncing a new token, erase stale `github.com` credentials from the OS keychain or credential manager.
 
 Prefer storage in:
 

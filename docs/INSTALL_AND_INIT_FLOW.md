@@ -40,9 +40,12 @@ lbai auth login
 
 `lbai auth login` behavior:
 
-- First run: paste a GitHub token when prompted
-- Token already saved: press Enter to keep the existing token
-- Already authenticated through `gh auth login`: press Enter to continue without changes
+- First run: paste a GitHub token when prompted; LBAI saves it and **automatically syncs Git credentials** so bare `git push` works
+- Token already saved: press Enter to **re-sync Git credentials** (fixes 401 after token rotation without re-pasting if the saved file is already updated)
+- Replace token: paste the new token when prompted
+- Already authenticated through `gh auth login` with no saved token: press Enter to configure Git to use `gh`
+
+After login, run `lbai auth doctor` and confirm `auth_status: READY` before `lbai init-workspace`.
 
 Authentication source priority:
 
@@ -150,7 +153,9 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 
 2. 登录 GitHub：
    lbai auth login
-   （向管理员索取 GitHub Token，需有 private repo 读写权限；或本机已 gh auth login 可直接回车）
+   （向管理员索取 GitHub Token，需有 private repo 读写权限；粘贴后会自动同步 Git 凭据）
+   lbai auth doctor
+   （确认 auth_status: READY 后再继续）
 
 3. 初始化工作区：
    lbai init-workspace

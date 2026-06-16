@@ -360,6 +360,7 @@ if [ -n "$shell_rc" ]; then
   info "  source $shell_rc"
 fi
 info "  lbai auth login"
+info "  lbai auth doctor"
 info "  lbai auth backend-login"
 info "  lbai init-workspace"
 info

@@ -107,6 +107,74 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
     assert (home / 'auth' / 'knowledge_service.json').exists()
 
 
+def path_without_gh() -> str:
+    parts = []
+    for part in os.environ.get('PATH', '').split(':'):
+        if part and not (Path(part) / 'gh').exists():
+            parts.append(part)
+    return ':'.join(parts)
+
+
+def test_git_credential_sync_roundtrip(tmp_path, monkeypatch):
+    home = tmp_path / 'lbai_home'
+    cred_store = tmp_path / 'git-credentials'
+    gitconfig = tmp_path / 'gitconfig'
+    gitconfig.write_text(
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.setenv('LBAI_HOME', str(home))
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
+    monkeypatch.setenv('PATH', path_without_gh())
+    sys.path.insert(0, str(kit_root() / 'lbai_core'))
+    from lbai.cli import auth_token_path, git_credential_password, sync_git_credentials
+
+    token = 'lbai_test_github_token'
+    auth_token_path().parent.mkdir(parents=True, exist_ok=True)
+    auth_token_path().write_text(token + '\n', encoding='utf-8')
+
+    ok, message = sync_git_credentials(token)
+    assert ok, message
+    assert git_credential_password() == token
+
+
+def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
+    home = tmp_path / 'lbai_home'
+    cred_store = tmp_path / 'git-credentials'
+    gitconfig = tmp_path / 'gitconfig'
+    gitconfig.write_text(
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.setenv('LBAI_HOME', str(home))
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
+    monkeypatch.setenv('PATH', path_without_gh())
+    token = 'lbai_doctor_sync_token'
+    auth_dir = home / 'auth'
+    auth_dir.mkdir(parents=True)
+    (auth_dir / 'github_token').write_text(token + '\n', encoding='utf-8')
+
+    sys.path.insert(0, str(kit_root() / 'lbai_core'))
+    from lbai.cli import sync_git_credentials
+
+    sync_git_credentials(token)
+    result = run_cli(
+        'auth',
+        'doctor',
+        env_extra={
+            'LBAI_HOME': str(home),
+            'GIT_CONFIG_GLOBAL': str(gitconfig),
+            'GIT_CONFIG_SYSTEM': '/dev/null',
+            'PATH': path_without_gh(),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'git_credential_sync: ok' in result.stdout
+    assert 'auth_status: READY' in result.stdout
+
+
 def test_cli_self_iterate_starts_prompt_lab(tmp_path):
     workspace = create_isolated_workspace(tmp_path)
     result = run_cli('self-iterate', '--rounds', '1', '--scenarios-per-round', '1', cwd=workspace)

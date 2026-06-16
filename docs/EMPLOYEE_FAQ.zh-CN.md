@@ -12,11 +12,45 @@
 
 **正确做法**：在 Cursor 或 Codex 桌面 App 中输入 `/lbai-new-task`（或其他对应 `/lbai-*` 命令）。
 
-## Git push 失败
+## Git push 失败 / 401 认证失败
 
-1. 运行 `lbai auth doctor` 检查 Token。
-2. 确认 remote 指向你的 private repo：`git remote -v`。
-3. 若 upstream 未设置，联系管理员或在仓库设置默认分支后重试 `lbai finish-task`（通过 `/lbai-finish-task`）。
+**日常同步任务请用 Cursor 里的 `/lbai-finish-task`，不要手动 git push。** 若必须排查 push 问题，按下面顺序做：
+
+### 第 1 步：检查认证
+
+```bash
+lbai auth doctor
+```
+
+看输出里这两项：
+
+| 字段 | 期望 |
+|------|------|
+| `auth_status` | `READY` |
+| `git_credential_sync` | `ok` |
+
+### 第 2 步：一键修复（最常见）
+
+```bash
+lbai auth login
+```
+
+- **换了新 Token**：粘贴新 Token 回车（会自动同步到 Git）
+- **Token 没换、只是 push 报 401**：**直接回车**（会重新同步 Git 凭据，无需重贴 Token）
+
+然后再运行：
+
+```bash
+lbai auth doctor
+```
+
+确认 `auth_status: READY` 后再继续。
+
+### 第 3 步：仍失败时
+
+1. 确认 remote 指向你的 private repo：`git remote -v`
+2. 向管理员确认 Token 是否有 **repo** 读写权限
+3. 把 `lbai auth doctor` 的完整输出发给管理员（不要截图 Token 本身）
 
 ## AI enrichment 缺失 / BLOCKED
 

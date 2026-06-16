@@ -15,12 +15,13 @@
    ```powershell
    irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
    ```
-2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token，或已登录 `gh` 时直接回车）。
-3. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
-4. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
-5. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
-6. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
-7. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验和本地自迭代用 `/lbai-self-iterate`。
+2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
+3. **确认认证**：`lbai auth doctor`（应显示 `auth_status: READY`）。
+4. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
+5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
+6. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
+7. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
+8. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验和本地自迭代用 `/lbai-self-iterate`。
 
 > 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -116,9 +117,17 @@ Release: v<版本号>
 lbai auth login
 ```
 
-- 首次使用：按提示粘贴管理员发给你的 GitHub Token
-- 已保存过 Token：直接回车保持不变
-- 已通过 `gh auth login` 登录：直接回车即可，无需重复配置
+- 首次使用：按提示粘贴管理员发给你的 GitHub Token（保存后**自动同步到 Git**，终端 `git push` 也能用）
+- 已保存过 Token、只是 push 报 401：**直接回车**重新同步 Git 凭据（不用重贴 Token）
+- 要换 Token：粘贴新 Token 回车
+
+然后确认认证就绪：
+
+```bash
+lbai auth doctor
+```
+
+应看到 `auth_status: READY` 和 `git_credential_sync: ok`，再进入第 3 步。
 
 如需使用后端知识检索，再运行：
 

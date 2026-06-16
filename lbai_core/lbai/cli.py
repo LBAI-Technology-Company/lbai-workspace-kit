@@ -110,6 +110,112 @@ def auth_source_label() -> str:
     return ''
 
 
+def run_with_input(cmd: list[str], input_text: str, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    merged_env = os.environ.copy()
+    if env:
+        merged_env.update(env)
+    return subprocess.run(cmd, input=input_text, text=True, capture_output=True, env=merged_env)
+
+
+def erase_git_github_credentials() -> None:
+    payload = 'protocol=https\nhost=github.com\n\n'
+    run_with_input(['git', 'credential', 'reject'], payload)
+    if sys.platform == 'darwin':
+        run_with_input(['git', 'credential-osxkeychain', 'erase'], payload)
+
+
+def sync_git_credentials(token: str) -> tuple[bool, str]:
+    token = token.strip()
+    if not token:
+        return False, 'empty token'
+
+    erase_git_github_credentials()
+
+    gh = shutil.which('gh')
+    if gh:
+        login = run_with_input([gh, 'auth', 'login', '--with-token'], token + '\n')
+        if login.returncode != 0:
+            detail = (login.stderr or login.stdout or '').strip()
+            return False, detail or 'GitHub CLI 拒绝了 Token；请向管理员确认 Token 是否有效且有 repo 权限'
+        setup = capture([gh, 'auth', 'setup-git'])
+        if setup.returncode != 0:
+            detail = (setup.stderr or setup.stdout or '').strip()
+            return False, detail or 'gh auth setup-git failed'
+        return True, '已同步到 GitHub CLI；终端 git push 可直接使用'
+
+    approve_payload = (
+        'protocol=https\n'
+        'host=github.com\n'
+        'username=x-access-token\n'
+        f'password={token}\n\n'
+    )
+    approve = run_with_input(['git', 'credential', 'approve'], approve_payload)
+    if approve.returncode == 0:
+        return True, '已同步到 Git 凭据管理器；终端 git push 可直接使用'
+    detail = (approve.stderr or approve.stdout or '').strip()
+    return False, detail or 'git credential approve failed'
+
+
+def setup_gh_for_git() -> tuple[bool, str]:
+    gh = shutil.which('gh')
+    if not gh:
+        return False, '未安装 GitHub CLI (gh)'
+    if not gh_authenticated():
+        return False, 'gh 未登录'
+    result = capture([gh, 'auth', 'setup-git'])
+    if result.returncode == 0:
+        return True, '已配置 Git 使用 gh 凭据；终端 git push 可直接使用'
+    detail = (result.stderr or result.stdout or '').strip()
+    return False, detail or 'gh auth setup-git failed'
+
+
+def git_credential_password() -> str:
+    result = run_with_input(['git', 'credential', 'fill'], 'protocol=https\nhost=github.com\n\n')
+    if result.returncode != 0:
+        return ''
+    for line in result.stdout.splitlines():
+        if line.startswith('password='):
+            return line.split('=', 1)[1].strip()
+    return ''
+
+
+def git_credential_sync_status() -> tuple[str, str]:
+    token = read_token()
+    cred = git_credential_password()
+    if token:
+        if cred and token == cred:
+            return 'ok', '已保存 Token 与 Git 凭据一致'
+        if cred:
+            return 'stale', 'Git 凭据与已保存 Token 不一致；请运行 lbai auth login 粘贴新 Token，或直接回车重新同步'
+        return 'missing', 'Token 已保存但未同步到 Git；请运行 lbai auth login 并直接回车重新同步'
+    if gh_authenticated():
+        if cred:
+            return 'ok', '使用 GitHub CLI 凭据'
+        ok, msg = setup_gh_for_git()
+        if ok:
+            return 'ok', msg
+        return 'needs_setup', 'gh 已登录但 Git 未配置；请运行 lbai auth login 并直接回车'
+    if cred:
+        return 'ok', 'Git 凭据管理器已配置'
+    return 'missing', '尚未配置 GitHub 认证；请运行 lbai auth login'
+
+
+def print_git_credential_sync(ok: bool, message: str) -> None:
+    print(f'git_credential_sync: {"OK" if ok else "NEEDS_ATTENTION"}')
+    print(f'git_credential_note: {message}')
+    if not ok:
+        print('manual_fix: 重新运行 lbai auth login；若仍失败，联系管理员确认 Token 是否有 repo 权限')
+
+
+def ensure_git_credentials_synced() -> tuple[bool, str]:
+    token = read_token()
+    if token:
+        return sync_git_credentials(token)
+    if gh_authenticated():
+        return setup_gh_for_git()
+    return False, 'no token or gh session to sync'
+
+
 def read_knowledge_service_auth() -> dict:
     path = knowledge_service_auth_path()
     if not path.exists():
@@ -456,19 +562,29 @@ def auth_login(_args: argparse.Namespace) -> int:
     if source:
         print('auth_check: already configured')
         print(f'auth_source: {source}')
-        print('如需重新配置请输入新 Token；直接回车保持不变。')
+        print('如需更换 Token 请粘贴新 Token；直接回车会重新同步 Git 凭据（推荐换 Token 后执行一次）。')
         token = getpass.getpass('GitHub Token: ').strip()
         if not token:
             print('auth_status: UNCHANGED')
-            print('next_step: lbai init-workspace')
-            return 0
+            ok, message = ensure_git_credentials_synced()
+            print_git_credential_sync(ok, message)
+            print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+            return 0 if ok else 2
     else:
-        print('GitHub token will be saved outside the workspace.')
+        print('GitHub Token 将保存在本机 ~/.lbai/auth/，不会写入工作区文件。')
+        print('粘贴 Token 后，lbai 会自动同步到 Git，终端 git push 也能直接使用。')
         print('Do not paste this token into README, .env, role_workspace, tasks, or chat artifacts.')
         token = getpass.getpass('Paste GitHub token: ').strip()
         if not token:
+            if gh_authenticated():
+                print('auth_status: USING_GH')
+                ok, message = setup_gh_for_git()
+                print_git_credential_sync(ok, message)
+                print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+                return 0 if ok else 2
             print('auth_status: BLOCKED')
             print('reason: empty token')
+            print('next_step: 向管理员索取 GitHub Token（需 repo 权限），或先运行 gh auth login 后再执行 lbai auth login 并回车')
             return 2
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -476,8 +592,10 @@ def auth_login(_args: argparse.Namespace) -> int:
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
     print('auth_status: SAVED')
     print(f'token_store: {path}')
-    print('next_step: lbai init-workspace')
-    return 0
+    ok, message = sync_git_credentials(token)
+    print_git_credential_sync(ok, message)
+    print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+    return 0 if ok else 2
 
 
 def auth_backend_login(args: argparse.Namespace) -> int:
@@ -536,20 +654,28 @@ def auth_doctor(_args: argparse.Namespace) -> int:
     gh_ok = gh_authenticated() if gh else False
     source = auth_source_label()
     backend_auth = read_knowledge_service_auth()
+    sync_status, sync_detail = git_credential_sync_status()
     print('auth_check:')
     print(f'- token_available: {"yes" if token else "no"}')
     print(f'- gh_available: {"yes" if gh else "no"}')
     print(f'- gh_auth_status: {"ok" if gh_ok else "not_authenticated"}')
+    print(f'- git_credential_sync: {sync_status}')
+    print(f'- git_credential_note: {sync_detail}')
     print(f'- backend_api_key_available: {"yes" if backend_auth.get("api_key") else "no"}')
     if source:
         print(f'- auth_source: {source}')
     if backend_auth.get('api_key'):
         print(f'- backend_auth_source: {knowledge_service_auth_path()}')
-    if token or gh_ok:
+    if sync_status == 'ok':
         print('auth_status: READY')
+        print('next_step: lbai init-workspace')
         return 0
+    if sync_status in {'stale', 'missing', 'needs_setup'}:
+        print('auth_status: NEEDS_SYNC')
+        print('next_step: lbai auth login  # 粘贴新 Token，或直接回车重新同步')
+        return 2
     print('auth_status: BLOCKED')
-    print('next_step: lbai auth login')
+    print('next_step: lbai auth login  # 粘贴管理员提供的 GitHub Token')
     return 2
 
 

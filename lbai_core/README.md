@@ -33,7 +33,7 @@ These workflows are routed through `lbai_system/tools/`, but commands that need 
 
 ## MVP Command Boundaries
 
-`lbai auth login` captures GitHub authentication safely. It must not accept tokens through command-line arguments. If a token, environment variable, or `gh auth login` is already configured, pressing Enter keeps the current auth unchanged.
+`lbai auth login` captures GitHub authentication safely. It must not accept tokens through command-line arguments. After saving a token, it syncs Git credential helpers so bare `git push` works. Pressing Enter re-syncs credentials without requiring a new token unless the user wants to replace it.
 
 `lbai init-workspace` uses the existing private repo flow:
 
