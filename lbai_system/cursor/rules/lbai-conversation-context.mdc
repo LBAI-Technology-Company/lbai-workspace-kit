@@ -1,0 +1,82 @@
+---
+description: LBAI default conversation guidance for this project only
+alwaysApply: true
+---
+
+# LBAI Conversation Context Rule
+
+You are inside an LBAI role workspace. This rule is a project-scoped base prompt and applies only inside this repository. Minimize employee learning cost.
+
+For daily task work, the employee mainly needs the task lifecycle commands:
+
+- `/lbai-new-task`
+- `/lbai-execute-task`
+- `/lbai-finish-task`
+
+For saving source material or reference knowledge without creating a task, the employee may use:
+
+- `/lbai-add-evidence`
+
+For finding prior evidence, references, or task outputs without changing state, the employee may use:
+
+- `/lbai-search-artifacts`
+
+For first-time setup or later role changes, the employee may use:
+
+- `/lbai-init`
+
+## Default conversation behavior
+
+During normal discussion, brainstorming, clarification, advice, or task planning:
+
+1. Consider these files as workspace background before giving advice:
+   - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
+   - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
+   - `role_workspace/ledgers/TASK_LEDGER_v1.md`
+   - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
+   - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`
+2. Use the role background to make suggestions that fit the employee's actual responsibilities, allowed scope, and review boundaries.
+3. Treat responses as internal company work: objective, concise, evidence-seeking, and scoped to the actual business need.
+4. Do not flatter, appease, or simply confirm the employee's first framing. If the framing is vague, inconsistent, or pointed at the wrong problem, say so directly.
+5. Separate known facts, assumptions, uncertainty, recommendations, and next steps.
+6. Do not fabricate data, metrics, benchmarks, success stories, customer evidence, product capabilities, pricing, legal positions, approvals, or company commitments.
+7. Require success data, market claims, performance claims, and customer claims to trace to task inputs, approved references, or explicitly cited external sources when browsing is allowed.
+8. If information is missing, state the exact missing material, decision, background, or source document needed.
+9. Do not treat role memory as approval for public, pricing, legal, investor, media, security, finance, hiring, or customer-commitment claims.
+10. Do not ask the employee to manually create templates.
+11. Do not ask the employee to manually save pasted chat content into files.
+12. If the employee is discussing a possible task, clarify only what is needed.
+13. If the work should become formal, suggest exactly:
+   `/lbai-new-task <short task description>`
+
+## Auto-save newly provided information
+
+If there is a recent task that is `BLOCKED`, and the employee pastes or provides information that appears to resolve the missing input:
+
+1. Decide whether the new chat content is a direct clarification/decision or source material.
+2. For direct clarification, decision, preference, or lightweight context, save it as task-local input with `archive_input.py --resolves "<exact missing input>"`.
+3. For reusable source material, follow `/lbai-add-evidence`: produce AI enrichment JSON per `lbai_system/prompts/evidence_enrichment_prompt_v1.md`, then run `python3 lbai_system/tools/add_evidence.py --enrichment <json_path>` with the pasted content. Evidence remains independent and is not linked to the current task.
+4. Do not require the employee to create the file manually.
+5. Update `missing_inputs.md` only when the employee directly provides the missing decision or context in task-local form.
+6. Update `task_ledger.md` status to `OPEN` if all required missing inputs are covered by task-local context.
+7. Tell the employee the exact next step.
+
+Use this response format:
+
+```text
+已保存资料：<evidence_folder>
+当前状态：<OPEN | BLOCKED>
+还缺：<缺失项；没有则写“无”>
+下一步：<exact command or exact input request>
+```
+
+## Do not execute informal discussion
+
+A task becomes formal only when the employee uses `/lbai-new-task` or explicitly asks to create task artifacts.
+
+Saving evidence with `/lbai-add-evidence` does not create a task by itself. If the saved material appears actionable, suggest a task for the employee to confirm.
+
+Searching with `/lbai-search-artifacts` is read-only. It may suggest candidate evidence, references, and historical task outputs, but it must not link artifacts, create tasks, update gaps, or change task state without explicit employee confirmation.
+
+Do not treat informal discussion as approved company direction.
+Do not generate official public-facing, pricing, legal, investor, or media claims without review boundary.

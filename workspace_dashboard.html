@@ -1,0 +1,1544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LBAI Workspace Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --bg-soft: #10151d;
+      --panel: rgba(17, 23, 33, 0.82);
+      --panel-strong: rgba(24, 31, 43, 0.94);
+      --ink: #f3f7fb;
+      --muted: #99a4b6;
+      --line: rgba(178, 205, 235, 0.16);
+      --line-strong: rgba(92, 244, 216, 0.34);
+      --accent: #37f2d0;
+      --accent-2: #8d7dff;
+      --accent-3: #f1b85b;
+      --warn: #f1b85b;
+      --danger: #ff6b8a;
+      --ok: #49e6a4;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+      --shadow-tight: 0 14px 34px rgba(0, 0, 0, 0.28);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    ::selection {
+      background: rgba(55, 242, 208, 0.26);
+      color: #ffffff;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        linear-gradient(145deg, rgba(8, 11, 16, 0.98), rgba(14, 21, 30, 0.96) 42%, rgba(28, 22, 35, 0.94) 100%),
+        linear-gradient(90deg, rgba(55, 242, 208, 0.12), transparent 30%, rgba(241, 184, 91, 0.08) 68%, rgba(141, 125, 255, 0.11)),
+        var(--bg);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      background:
+        linear-gradient(115deg, transparent 0 26%, rgba(55, 242, 208, 0.08) 26.2% 26.7%, transparent 27% 58%, rgba(141, 125, 255, 0.08) 58.2% 58.8%, transparent 59%),
+        repeating-linear-gradient(0deg, rgba(173, 213, 245, 0.06) 0 1px, transparent 1px 44px),
+        repeating-linear-gradient(90deg, rgba(173, 213, 245, 0.045) 0 1px, transparent 1px 44px);
+      background-size: 180% 180%, 44px 44px, 44px 44px;
+      -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.22));
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.22));
+      animation: driftGrid 24s ease-in-out infinite alternate;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background:
+        linear-gradient(90deg, transparent, rgba(55, 242, 208, 0.09), transparent),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.07), transparent 36%),
+        linear-gradient(0deg, rgba(0, 0, 0, 0.26), transparent 26%);
+      opacity: 0.82;
+      transform: translateX(-60%);
+      animation: softSweep 11s cubic-bezier(.2, .7, .2, 1) infinite;
+    }
+
+    @keyframes driftGrid {
+      from {
+        background-position: 0% 0%, 0 0, 0 0;
+      }
+      to {
+        background-position: 100% 55%, 22px 14px, 12px 24px;
+      }
+    }
+
+    @keyframes softSweep {
+      0%, 42% {
+        transform: translateX(-70%);
+      }
+      68%, 100% {
+        transform: translateX(70%);
+      }
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    :focus-visible {
+      outline: 2px solid rgba(55, 242, 208, 0.82);
+      outline-offset: 3px;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 292px minmax(0, 1fr);
+      isolation: isolate;
+    }
+
+    .sidebar {
+      background:
+        linear-gradient(180deg, rgba(21, 29, 42, 0.96), rgba(11, 15, 22, 0.9)),
+        rgba(12, 16, 24, 0.86);
+      border-right: 1px solid var(--line);
+      box-shadow: 18px 0 60px rgba(0, 0, 0, 0.24);
+      backdrop-filter: blur(24px) saturate(160%);
+      -webkit-backdrop-filter: blur(24px) saturate(160%);
+      padding: 24px 18px 22px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow: auto;
+      scrollbar-color: rgba(55, 242, 208, 0.32) transparent;
+    }
+
+    .brand {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 22px;
+      position: relative;
+      padding: 6px 2px 18px 54px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand::before {
+      content: "";
+      position: absolute;
+      left: 2px;
+      top: 4px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(55, 242, 208, 0.46);
+      border-radius: 8px;
+      background:
+        linear-gradient(135deg, rgba(55, 242, 208, 0.28), rgba(141, 125, 255, 0.18)),
+        linear-gradient(45deg, transparent 43%, rgba(255, 255, 255, 0.42) 44% 46%, transparent 47%);
+      box-shadow: 0 0 26px rgba(55, 242, 208, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.2;
+      background: linear-gradient(115deg, #ffffff, #37f2d0 46%, #b9afff);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .brand p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .button {
+      width: 100%;
+      border: 1px solid rgba(55, 242, 208, 0.44);
+      background:
+        linear-gradient(135deg, rgba(55, 242, 208, 0.94), rgba(141, 125, 255, 0.84) 58%, rgba(241, 184, 91, 0.86));
+      color: #071015;
+      border-radius: 8px;
+      min-height: 42px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-weight: 760;
+      box-shadow: 0 16px 38px rgba(55, 242, 208, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.38);
+      transition: transform .2s ease, box-shadow .2s ease, filter .2s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 20px 48px rgba(55, 242, 208, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+      filter: saturate(1.12) brightness(1.04);
+    }
+
+    .button.secondary {
+      background: rgba(141, 125, 255, 0.14);
+      border-color: rgba(141, 125, 255, 0.34);
+      color: #ebe7ff;
+    }
+
+    .button.secondary:hover {
+      background: rgba(141, 125, 255, 0.24);
+      border-color: rgba(141, 125, 255, 0.48);
+    }
+
+    .button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .status {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: rgba(7, 11, 16, 0.48);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+      margin-top: 18px;
+    }
+
+    .nav a {
+      color: var(--ink);
+      text-decoration: none;
+      padding: 10px 10px 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      border: 1px solid transparent;
+      position: relative;
+      transition: background .18s ease, transform .18s ease, color .18s ease, border-color .18s ease;
+    }
+
+    .nav a::before {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: currentColor;
+      opacity: .46;
+      transform: translateY(-50%);
+    }
+
+    .nav a:hover {
+      background: rgba(55, 242, 208, 0.08);
+      border-color: rgba(55, 242, 208, 0.18);
+      color: var(--accent);
+      transform: translateX(2px);
+    }
+
+    main {
+      padding: 30px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 22px;
+      padding: 4px 2px 4px;
+    }
+
+    .topbar h2 {
+      margin: 0;
+      font-size: 36px;
+      line-height: 1.2;
+      letter-spacing: 0;
+      background: linear-gradient(120deg, #ffffff, #b9afff 48%, #37f2d0);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      text-shadow: 0 18px 50px rgba(55, 242, 208, 0.12);
+    }
+
+    .topbar p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.5;
+      max-width: 760px;
+      font-size: 15px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 5px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(17, 23, 33, 0.68);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .badge.ok {
+      color: var(--ok);
+      border-color: rgba(73, 230, 164, 0.35);
+    }
+
+    .badge.warn {
+      color: var(--warn);
+      border-color: rgba(241, 184, 91, 0.36);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      grid-column: span 4;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px) saturate(150%);
+      -webkit-backdrop-filter: blur(18px) saturate(150%);
+      min-width: 0;
+      overflow: hidden;
+      position: relative;
+      transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.09), transparent 36%, rgba(55, 242, 208, 0.05)),
+        linear-gradient(90deg, rgba(55, 242, 208, 0.3), transparent 32%);
+      opacity: 0.72;
+    }
+
+    .panel::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(55, 242, 208, 0.78), rgba(141, 125, 255, 0.62), transparent);
+      opacity: 0.66;
+      pointer-events: none;
+    }
+
+    .panel > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .panel:hover {
+      transform: translateY(-2px);
+      border-color: rgba(55, 242, 208, 0.26);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42), 0 0 42px rgba(55, 242, 208, 0.08);
+    }
+
+    .panel.wide {
+      grid-column: span 8;
+    }
+
+    .panel.full {
+      grid-column: 1 / -1;
+    }
+
+    .panel-header {
+      padding: 15px 16px 11px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.025);
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-header h3 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.3;
+      font-weight: 720;
+      color: #f7fbff;
+    }
+
+    .panel-header span {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .panel-body {
+      padding: 15px 16px 16px;
+    }
+
+    .kv {
+      display: grid;
+      gap: 12px;
+    }
+
+    .kv-item {
+      display: grid;
+      gap: 4px;
+    }
+
+    .kv-item dt {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .kv-item dd {
+      margin: 0;
+      line-height: 1.55;
+      word-break: break-word;
+      color: #e4edf6;
+    }
+
+    .list {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .list li {
+      border: 1px solid rgba(120, 139, 164, 0.2);
+      border-radius: 8px;
+      padding: 10px 11px 10px 13px;
+      line-height: 1.45;
+      background: rgba(9, 14, 21, 0.44);
+      word-break: break-word;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      position: relative;
+    }
+
+    .list li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 11px;
+      bottom: 11px;
+      width: 2px;
+      border-radius: 2px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      opacity: .76;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      margin: 0;
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 15px 14px 16px;
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(55, 242, 208, 0.04)),
+        rgba(9, 14, 21, 0.58);
+      box-shadow: var(--shadow-tight), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3));
+      opacity: 0.82;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 32px;
+      line-height: 1.1;
+      color: #ffffff;
+      text-shadow: 0 0 24px rgba(55, 242, 208, 0.18);
+    }
+
+    .metric span {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    table {
+      width: 100%;
+      min-width: 760px;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 9px;
+      text-align: left;
+      vertical-align: top;
+      line-height: 1.45;
+      color: #dce7f2;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 650;
+      background: rgba(255, 255, 255, 0.05);
+      letter-spacing: .03em;
+    }
+
+    tbody tr {
+      transition: background .18s ease;
+    }
+
+    tbody tr:hover {
+      background: rgba(55, 242, 208, 0.055);
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 22px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      background: rgba(11, 16, 24, 0.72);
+      white-space: nowrap;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .pill.open,
+    .pill.captured,
+    .pill.admitted,
+    .pill.linked_to_task,
+    .pill.ready_to_execute {
+      color: var(--accent-2);
+      border-color: rgba(141, 125, 255, 0.36);
+    }
+
+    .pill.completed,
+    .pill.pushed,
+    .pill.no_changes,
+    .pill.ready {
+      color: var(--ok);
+      border-color: rgba(73, 230, 164, 0.36);
+    }
+
+    .pill.blocked,
+    .pill.rejected,
+    .pill.push_failed {
+      color: var(--danger);
+      border-color: rgba(255, 107, 138, 0.36);
+    }
+
+    .pill.waiting_review,
+    .pill.needs_review,
+    .pill.needs_manual_check,
+    .pill.task_suggested,
+    .pill.reference_only,
+    .pill.suggested,
+    .pill.review,
+    .pill.not_synced,
+    .pill.committed {
+      color: var(--warn);
+      border-color: rgba(241, 184, 91, 0.38);
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: rgba(9, 14, 21, 0.48);
+      padding: 10px 12px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
+    details + details {
+      margin-top: 10px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-weight: 650;
+      line-height: 1.4;
+      color: #eef5fb;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 10px 0 0;
+      color: #b8c5d6;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .topbar h2 {
+        font-size: 28px;
+      }
+
+      .topbar {
+        display: grid;
+      }
+
+      .badge-row {
+        justify-content: flex-start;
+      }
+
+      .panel,
+      .panel.wide {
+        grid-column: 1 / -1;
+      }
+
+      .metric-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 560px) {
+      main {
+        padding: 16px;
+      }
+
+      .panel-body {
+        overflow-x: auto;
+      }
+
+      .metric-row {
+        grid-template-columns: 1fr;
+      }
+
+      table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>LBAI Workspace</h1>
+        <p>本地只读看板</p>
+      </div>
+      <div class="actions">
+        <button id="pickFolder" class="button secondary" type="button">选择工作区文件夹</button>
+        <button id="reload" class="button" type="button">刷新看板</button>
+        <input id="folderInput" class="hidden-input" type="file" webkitdirectory multiple>
+      </div>
+      <div id="status" class="status">正在读取当前文件夹中的工作区信息...</div>
+      <nav class="nav" aria-label="Dashboard navigation">
+        <a href="#overview">总览</a>
+        <a href="#role">岗位信息</a>
+        <a href="#background">背景设定</a>
+        <a href="#evidence">资料记录</a>
+        <a href="#tasks">任务记录</a>
+        <a href="#guardrails">公司边界</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="topbar" id="overview">
+        <div>
+          <h2 id="workspaceName">工作区看板</h2>
+          <p id="workspaceSummary">这里会汇总岗位、evidence、任务缺口、同步状态和公司边界。</p>
+        </div>
+        <div class="badge-row">
+          <span id="workspaceBadge" class="badge warn">未加载工作区</span>
+          <span id="kitVersion" class="badge">版本未读取</span>
+          <span id="updatedAt" class="badge">等待读取</span>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel full">
+          <div class="panel-header">
+            <h3>闭环状态</h3>
+            <span>evidence -> task -> sync</span>
+          </div>
+          <div class="panel-body">
+            <div class="metric-row">
+              <div class="metric"><strong id="metricTasks">0</strong><span>台账任务</span></div>
+              <div class="metric"><strong id="metricReady">0</strong><span>可执行任务</span></div>
+              <div class="metric"><strong id="metricBlocked">0</strong><span>任务阻断</span></div>
+              <div class="metric"><strong id="metricTaskSyncBlocked">0</strong><span>任务同步阻断</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel full" id="evidence">
+          <div class="panel-header">
+            <h3>资料状态</h3>
+            <span>evidence / knowledge</span>
+          </div>
+          <div class="panel-body">
+            <div class="metric-row">
+              <div class="metric"><strong id="metricEvidence">0</strong><span>资料记录</span></div>
+              <div class="metric"><strong id="metricEvidenceSuggested">0</strong><span>待后端入库</span></div>
+              <div class="metric"><strong id="metricEvidenceSyncBlocked">0</strong><span>资料同步阻断</span></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-header">
+            <h3>下一步提醒</h3>
+            <span>action queue</span>
+          </div>
+          <div class="panel-body">
+            <div id="workflowAlerts"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h3>工作流边界</h3>
+            <span>v0.6 rules</span>
+          </div>
+          <div class="panel-body">
+            <ul class="list">
+              <li><strong>Evidence first</strong><br>资料先进入 evidence，不自动创建任务</li>
+              <li><strong>Human confirms task</strong><br>AI 只建议任务，正式任务由员工确认</li>
+              <li><strong>Artifact drives state</strong><br>缺口、状态和同步结果必须写入 artifacts</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="panel" id="role">
+          <div class="panel-header">
+            <h3>岗位信息</h3>
+            <span>role world model</span>
+          </div>
+          <div class="panel-body">
+            <dl class="kv">
+              <div class="kv-item">
+                <dt>岗位名称</dt>
+                <dd id="roleName">未读取</dd>
+              </div>
+              <div class="kv-item">
+                <dt>岗位目标</dt>
+                <dd id="roleGoal">未读取</dd>
+              </div>
+              <div class="kv-item">
+                <dt>默认模板</dt>
+                <dd id="roleTemplateStatus">未读取</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
+        <article class="panel" id="background">
+          <div class="panel-header">
+            <h3>背景设定</h3>
+            <span>workspace context</span>
+          </div>
+          <div class="panel-body">
+            <dl class="kv">
+              <div class="kv-item">
+                <dt>LBAI 理解</dt>
+                <dd id="lbaiUnderstanding">未读取</dd>
+              </div>
+              <div class="kv-item">
+                <dt>常用边界</dt>
+                <dd id="boundarySummary">未读取</dd>
+              </div>
+            </dl>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h3>常用命令</h3>
+            <span>commands</span>
+          </div>
+          <div class="panel-body">
+            <ul class="list">
+              <li><strong>/lbai-init</strong><br>配置岗位或更新角色记忆</li>
+              <li><strong>/lbai-add-evidence</strong><br>保存资料，不自动创建任务</li>
+              <li><strong>/lbai-search-artifacts</strong><br>查询历史资料和任务产出，不改状态</li>
+              <li><strong>/lbai-new-task</strong><br>创建正式任务记录</li>
+              <li><strong>/lbai-execute-task</strong><br>读取 linked evidence 并生成输出</li>
+              <li><strong>/lbai-finish-task</strong><br>检查、落账、同步 private GitHub</li>
+              <li><strong>/lbai-update-kit</strong><br>更新公司维护的工作流模板</li>
+              <li><strong>/lbai-self-iterate</strong><br>运行 Prompt Lab 实验，不改正式 prompt</li>
+            </ul>
+          </div>
+        </article>
+
+        <article class="panel wide" id="tasks">
+          <div class="panel-header">
+            <h3>最近任务</h3>
+            <span>task ledger</span>
+          </div>
+          <div class="panel-body">
+            <div id="taskTable"></div>
+          </div>
+        </article>
+
+        <article class="panel wide">
+          <div class="panel-header">
+            <h3>最近资料</h3>
+            <span>evidence ledger</span>
+          </div>
+          <div class="panel-body">
+            <div id="evidenceTable"></div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <h3>阻断事项</h3>
+            <span>blocked items</span>
+          </div>
+          <div class="panel-body">
+            <div id="blockedItems"></div>
+          </div>
+        </article>
+
+        <article class="panel full" id="guardrails">
+          <div class="panel-header">
+            <h3>公司边界</h3>
+            <span>company guardrails</span>
+          </div>
+          <div class="panel-body" id="guardrailDetails"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const textFiles = new Map();
+    let workspaceDirectoryHandle = null;
+
+    const requiredFiles = [
+      'README.md',
+      '.lbai/workspace.json',
+      'role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
+      'role_workspace/world_model/ROLE_BOUNDARY_v1.md',
+      'role_workspace/ledgers/TASK_LEDGER_v1.md',
+      'role_workspace/ledgers/EVIDENCE_LEDGER_v1.md',
+      'role_workspace/ledgers/BLOCKED_ITEMS_v1.md',
+      'lbai_system/templates/role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
+      'lbai_system/company_guardrails/LBAI_WORK_RUNTIME_RULES_V2.md',
+      'lbai_system/company_guardrails/PUBLIC_CLAIM_BOUNDARY.md',
+      'lbai_system/company_guardrails/REVIEW_REQUIRED_BOUNDARY.md',
+      'lbai_system/company_guardrails/SENSITIVE_DATA_BOUNDARY.md'
+    ];
+
+    const optionalTaskFields = [
+      'task_scope.md',
+      'task_ledger.md',
+      'missing_inputs.md',
+      'gap_record.md'
+    ];
+
+    const $ = (id) => document.getElementById(id);
+
+    $('reload').addEventListener('click', async () => {
+      await loadFromCurrentFolder();
+    });
+
+    $('pickFolder').addEventListener('click', async () => {
+      await pickWorkspaceFolder();
+    });
+
+    $('folderInput').addEventListener('change', async (event) => {
+      await loadFromFileInput(event.target.files);
+      event.target.value = '';
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadFromCurrentFolder();
+    });
+
+    function isFileProtocol() {
+      return window.location.protocol === 'file:';
+    }
+
+    function canFetchWorkspace() {
+      return !isFileProtocol();
+    }
+
+    function shouldIndexFile(path, name) {
+      if (path === '.lbai/workspace.json') return true;
+      return name.endsWith('.md');
+    }
+
+    function parseWorkspaceKitVersion(raw) {
+      if (!raw) return '';
+      try {
+        const data = JSON.parse(raw);
+        const version = String(data.workspaceKitVersion || '').trim();
+        return version ? version.replace(/^v/i, '') : '';
+      } catch (_error) {
+        return '';
+      }
+    }
+
+    function normalizePickedPath(relativePath) {
+      const parts = relativePath.split('/').filter(Boolean);
+      if (parts.length > 1) parts.shift();
+      return parts.join('/');
+    }
+
+    async function loadFromCurrentFolder() {
+      textFiles.clear();
+      setStatus('正在读取工作区文件...', false);
+
+      if (workspaceDirectoryHandle) {
+        await loadFromDirectoryHandle(workspaceDirectoryHandle);
+        renderDashboard();
+        return;
+      }
+
+      if (canFetchWorkspace()) {
+        await loadViaFetch();
+        if (hasWorkspaceFiles()) {
+          renderDashboard();
+          return;
+        }
+      }
+
+      renderDashboard();
+    }
+
+    async function loadViaFetch() {
+      for (const path of requiredFiles) {
+        const text = await fetchText(path);
+        if (text !== null) textFiles.set(path, text);
+      }
+
+      const ledger = textFiles.get('role_workspace/ledgers/TASK_LEDGER_v1.md') || '';
+      const taskIds = parseMarkdownTable(ledger)
+        .map((row) => stripTicks(row['Task ID'] || ''))
+        .filter(Boolean);
+      for (const taskId of taskIds) {
+        for (const fileName of optionalTaskFields) {
+          const path = `tasks/${taskId}/${fileName}`;
+          const text = await fetchText(path);
+          if (text !== null) textFiles.set(path, text);
+        }
+      }
+    }
+
+    async function pickWorkspaceFolder() {
+      if (window.showDirectoryPicker) {
+        try {
+          workspaceDirectoryHandle = await window.showDirectoryPicker();
+          textFiles.clear();
+          await loadFromDirectoryHandle(workspaceDirectoryHandle);
+          renderDashboard();
+          return;
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+        }
+      }
+      $('folderInput').click();
+    }
+
+    async function loadFromFileInput(fileList) {
+      if (!fileList || !fileList.length) return;
+      textFiles.clear();
+      workspaceDirectoryHandle = null;
+      setStatus('正在读取所选文件夹...', false);
+
+      for (const file of fileList) {
+        const path = normalizePickedPath(file.webkitRelativePath || file.name);
+        if (!path || !shouldIndexFile(path, file.name)) continue;
+        try {
+          textFiles.set(path, await file.text());
+        } catch {
+          // ignore unreadable files
+        }
+      }
+
+      renderDashboard();
+    }
+
+    async function loadFromDirectoryHandle(dirHandle, prefix = '') {
+      for await (const [name, handle] of dirHandle.entries()) {
+        const path = prefix ? `${prefix}/${name}` : name;
+        if (handle.kind === 'directory') {
+          await loadFromDirectoryHandle(handle, path);
+          continue;
+        }
+        if (!shouldIndexFile(path, name)) continue;
+        try {
+          const file = await handle.getFile();
+          textFiles.set(path, await file.text());
+        } catch {
+          // ignore unreadable files
+        }
+      }
+    }
+
+    async function fetchText(path) {
+      try {
+        const response = await fetch(encodePath(path), { cache: 'no-store' });
+        if (!response.ok) return null;
+        return await response.text();
+      } catch {
+        return null;
+      }
+    }
+
+    function encodePath(path) {
+      return path.split('/').map((part) => encodeURIComponent(part)).join('/');
+    }
+
+    function hasWorkspaceFiles() {
+      return textFiles.has('README.md') || textFiles.has('role_workspace/world_model/ROLE_WORLD_MODEL_v1.md');
+    }
+
+    function renderDashboard() {
+      const hasWorkspace = hasWorkspaceFiles();
+      $('reload').disabled = false;
+      $('workspaceBadge').textContent = hasWorkspace ? '已加载工作区' : '未识别工作区';
+      $('workspaceBadge').className = hasWorkspace ? 'badge ok' : 'badge warn';
+      $('updatedAt').textContent = new Date().toLocaleString('zh-CN');
+
+      const readme = textFiles.get('README.md') || '';
+      const world = textFiles.get('role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
+      const boundary = textFiles.get('role_workspace/world_model/ROLE_BOUNDARY_v1.md') || '';
+      const ledger = textFiles.get('role_workspace/ledgers/TASK_LEDGER_v1.md') || '';
+      const evidenceLedger = textFiles.get('role_workspace/ledgers/EVIDENCE_LEDGER_v1.md') || '';
+      const blocked = textFiles.get('role_workspace/ledgers/BLOCKED_ITEMS_v1.md') || '';
+      const version = parseWorkspaceKitVersion(textFiles.get('.lbai/workspace.json') || '');
+      const roleTemplate = textFiles.get('lbai_system/templates/role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
+
+      $('workspaceName').textContent = firstHeading(readme) || 'LBAI 工作区看板';
+      $('workspaceSummary').textContent = 'Artifact-first 本地看板：跟踪 evidence、任务缺口、review 风险和 GitHub 同步状态。';
+      $('kitVersion').textContent = version ? `Kit ${version}` : '版本未读取';
+      $('kitVersion').className = version ? 'badge ok' : 'badge warn';
+      $('roleName').textContent = cleanValue(section(world, 'Role Name')) || '未设置，请运行 /lbai-init';
+      $('roleGoal').textContent = cleanValue(section(world, 'Role Goal')) || '未设置';
+      $('lbaiUnderstanding').textContent = cleanValue(section(world, 'Current Understanding of LBAI')) || '未设置';
+      $('boundarySummary').innerHTML = listHtml(linesFrom(section(boundary, 'Not Allowed Without Review')).slice(0, 7));
+      $('roleTemplateStatus').textContent = roleTemplate ? '已读取公司默认岗位模板；不会覆盖员工岗位记忆' : '未读取公司默认岗位模板';
+
+      const tasks = collectTasks(ledger);
+      const evidence = collectEvidence(evidenceLedger);
+      renderMetrics(tasks);
+      renderEvidenceMetrics(evidence);
+      renderWorkflowAlerts(tasks, evidence);
+      renderTasks(tasks);
+      renderEvidence(evidence);
+      renderBlocked(blocked);
+      renderGuardrails();
+
+      const missing = requiredFiles.filter((path) => !textFiles.has(path));
+      if (hasWorkspace && missing.length) {
+        setStatus(`已读取。缺少 ${missing.length} 个工作区文件；如刚创建请先运行 /lbai-init，或联系管理员确认模板完整。`, false);
+      } else if (hasWorkspace) {
+        setStatus('已读取当前工作区。', false);
+      } else if (isFileProtocol()) {
+        setStatus('未能自动读取：浏览器在 file:// 模式下禁止页面 fetch 同目录 Markdown。请点击「选择工作区文件夹」，或运行 python3 lbai_system/tools/serve_dashboard.py 后通过 http://127.0.0.1:8765/workspace_dashboard.html 打开。', true);
+      } else {
+        setStatus('未能读取工作区。请确认通过本地 HTTP 服务打开，且 workspace_dashboard.html 位于仓库根目录。', true);
+      }
+    }
+
+    function collectTasks(globalLedger) {
+      const rows = parseMarkdownTable(globalLedger).map((row) => ({
+        date: row.Date || '',
+        id: row['Task ID'] || '',
+        goal: stripTicks(row['Task Goal'] || ''),
+        status: row.Status || '',
+        review: row['Review Needed'] || '',
+        reviewReminder: '',
+        commit: row['Commit Readiness'] || '',
+        git: row['Git Status'] || '',
+        source: row['Source Artifacts'] || '',
+        remaining: '',
+        covers: '',
+        next: row['Next Dependency'] || ''
+      }));
+
+      const taskFolders = new Set();
+      for (const path of textFiles.keys()) {
+        const match = path.match(/^tasks\/([^/]+)\//);
+        if (match) taskFolders.add(match[1]);
+      }
+
+      for (const row of rows) {
+        enrichTaskFromArtifacts(row);
+      }
+
+      for (const folder of taskFolders) {
+        if (rows.some((row) => row.id === folder)) continue;
+        const scope = textFiles.get(`tasks/${folder}/task_scope.md`) || '';
+        const taskLedger = textFiles.get(`tasks/${folder}/task_ledger.md`) || '';
+        const gapRecord = textFiles.get(`tasks/${folder}/gap_record.md`) || '';
+        const missingInputs = textFiles.get(`tasks/${folder}/missing_inputs.md`) || '';
+        rows.push({
+          date: section(taskLedger, 'date'),
+          id: folder,
+          goal: cleanValue(section(scope, 'goal')) || cleanValue(section(scope, 'task_name')) || folder,
+          status: cleanValue(section(taskLedger, 'status')) || cleanValue(section(scope, 'status')) || 'OPEN',
+          review: cleanValue(section(taskLedger, 'review_needed')) || cleanValue(section(scope, 'review_needed')) || '',
+          reviewReminder: cleanValue(section(taskLedger, 'leader_review_reminder')) || cleanValue(section(scope, 'leader_review_reminder')) || cleanValue(section(gapRecord, 'leader_review_reminder')) || '',
+          commit: cleanValue(section(taskLedger, 'commit_readiness')) || '',
+          git: cleanValue(section(taskLedger, 'git_status')) || '',
+          source: cleanValue(section(taskLedger, 'source_artifacts')) || '',
+          remaining: compactListSection(section(taskLedger, 'remaining_gaps'))
+            || compactListSection(section(scope, 'remaining_gaps'))
+            || compactListSection(section(gapRecord, 'remaining_gaps'))
+            || missingInputsFrom(missingInputs).join('; '),
+          covers: compactListSection(section(gapRecord, 'covers_gaps')),
+          next: cleanValue(section(taskLedger, 'next_dependency')) || ''
+        });
+      }
+
+      return rows
+        .filter((row) => row.id || row.goal)
+        .sort((a, b) => String(b.date || b.id).localeCompare(String(a.date || a.id)))
+        .slice(0, 12);
+    }
+
+    function enrichTaskFromArtifacts(row) {
+      const folder = stripTicks(row.id);
+      if (!folder) return row;
+      const scope = textFiles.get(`tasks/${folder}/task_scope.md`) || '';
+      const taskLedger = textFiles.get(`tasks/${folder}/task_ledger.md`) || '';
+      const gapRecord = textFiles.get(`tasks/${folder}/gap_record.md`) || '';
+      const missingInputs = textFiles.get(`tasks/${folder}/missing_inputs.md`) || '';
+      row.status = row.status || cleanValue(section(taskLedger, 'status')) || cleanValue(section(scope, 'status'));
+      row.review = row.review || cleanValue(section(taskLedger, 'review_needed')) || cleanValue(section(scope, 'review_needed'));
+      row.reviewReminder = row.reviewReminder || cleanValue(section(taskLedger, 'leader_review_reminder')) || cleanValue(section(scope, 'leader_review_reminder')) || cleanValue(section(gapRecord, 'leader_review_reminder'));
+      row.git = row.git || cleanValue(section(taskLedger, 'git_status'));
+      row.source = row.source || compactListSection(section(taskLedger, 'source_artifacts')) || compactListSection(section(scope, 'evidence_artifacts'));
+      row.remaining = compactListSection(section(taskLedger, 'remaining_gaps'))
+        || compactListSection(section(scope, 'remaining_gaps'))
+        || compactListSection(section(gapRecord, 'remaining_gaps'))
+        || missingInputsFrom(missingInputs).join('; ');
+      row.covers = compactListSection(section(gapRecord, 'covers_gaps'));
+      row.next = row.next || cleanValue(section(taskLedger, 'next_dependency')) || cleanValue(section(taskLedger, 'next_step'));
+      return row;
+    }
+
+    function renderMetrics(tasks) {
+      $('metricTasks').textContent = tasks.length;
+      $('metricReady').textContent = tasks.filter((task) => taskIsExecutable(task)).length;
+      $('metricBlocked').textContent = tasks.filter((task) => upper(task.status) === 'BLOCKED').length;
+      $('metricTaskSyncBlocked').textContent = tasks.filter((task) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(task.git))).length;
+    }
+
+    function collectEvidence(markdown) {
+      return parseMarkdownTable(markdown).map((row) => ({
+        date: row.Date || '',
+        id: stripTicks(row['Evidence ID'] || ''),
+        kind: row['Source Type'] || row['Source Kind'] || '',
+        visibility: row['Source Visibility'] || '',
+        backend: row['Backend Ingestion Status'] || '',
+        status: row.Status || '',
+        sync: row['Sync Status'] || '',
+        next: row['Next Step'] || ''
+      }))
+        .filter((row) => row.id)
+        .sort((a, b) => String(b.date || b.id).localeCompare(String(a.date || a.id)))
+        .slice(0, 12);
+    }
+
+    function renderEvidenceMetrics(evidence) {
+      $('metricEvidence').textContent = evidence.length;
+      $('metricEvidenceSuggested').textContent = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC').length;
+      $('metricEvidenceSyncBlocked').textContent = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync))).length;
+    }
+
+    function renderWorkflowAlerts(tasks, evidence) {
+      const alerts = [];
+      const readyTasks = tasks.filter((task) => taskIsExecutable(task));
+      const blockedTasks = tasks.filter((task) => upper(task.status) === 'BLOCKED');
+      const reviewTasks = tasks.filter((task) => taskNeedsReview(task));
+      const suggestedEvidence = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC');
+      const reviewEvidence = evidence.filter((item) => upper(item.status) === 'NEEDS_REVIEW');
+      const syncBlockedEvidence = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync)));
+
+      for (const task of readyTasks.slice(0, 3)) {
+        alerts.push({
+          title: `可执行任务：${task.goal || task.id}`,
+          body: task.next || `/lbai-execute-task ${task.id}`,
+          tone: 'ready'
+        });
+      }
+      for (const item of suggestedEvidence.slice(0, 3)) {
+        alerts.push({
+          title: `资料可转任务：${item.id}`,
+          body: item.next || '确认后用 /lbai-new-task 创建正式任务',
+          tone: 'suggested'
+        });
+      }
+      for (const item of syncBlockedEvidence.slice(0, 3)) {
+        alerts.push({
+          title: `资料同步未完成：${item.id}`,
+          body: item.next || '检查 Git remote/upstream 或 hygiene 阻断',
+          tone: 'blocked'
+        });
+      }
+      for (const task of blockedTasks.slice(0, 3)) {
+        alerts.push({
+          title: `任务阻断：${task.goal || task.id}`,
+          body: task.remaining ? `剩余缺口：${task.remaining}` : task.next || '补齐缺口后再执行',
+          tone: 'blocked'
+        });
+      }
+      for (const item of reviewEvidence.slice(0, 3)) {
+        alerts.push({
+          title: `资料需 review：${item.id}`,
+          body: '对外发布前请负责人 review；本流程不阻断执行',
+          tone: 'review'
+        });
+      }
+      for (const task of reviewTasks.slice(0, 3)) {
+        alerts.push({
+          title: `任务需发布前 review：${task.goal || task.id}`,
+          body: task.reviewReminder || '负责人确认前不要对外发布',
+          tone: 'review'
+        });
+      }
+
+      const unique = [];
+      const seen = new Set();
+      for (const alert of alerts) {
+        const key = `${alert.title}|${alert.body}`;
+        if (!seen.has(key)) {
+          unique.push(alert);
+          seen.add(key);
+        }
+      }
+
+      if (!unique.length) {
+        $('workflowAlerts').innerHTML = '<p class="empty">暂无需要处理的闭环提醒。保存资料、创建任务或完成收尾后，这里会显示下一步。</p>';
+        return;
+      }
+      $('workflowAlerts').innerHTML = `<ul class="list">${unique.slice(0, 8).map((alert) => `
+        <li>
+          <strong>${escapeHtml(alert.title)}</strong><br>
+          <span class="pill ${escapeHtml(alert.tone)}">${escapeHtml(alert.tone)}</span>
+          <span class="empty">${escapeHtml(alert.body)}</span>
+        </li>
+      `).join('')}</ul>`;
+    }
+
+    function renderTasks(tasks) {
+      if (!tasks.length) {
+        $('taskTable').innerHTML = '<p class="empty">暂无总台账记录。完成 /lbai-finish-task 更新台账后，这里会显示最近任务。</p>';
+        return;
+      }
+      const rows = tasks.map((task) => `
+        <tr>
+          <td>${escapeHtml(task.date || '-')}</td>
+          <td>${escapeHtml(task.id || '-')}</td>
+          <td>${escapeHtml(task.goal || '-')}</td>
+          <td>${pill(task.status)}</td>
+          <td>${pill(task.git || 'NOT_SYNCED')}</td>
+          <td>${escapeHtml(compactCell(task.source || '-'))}</td>
+          <td>${escapeHtml(compactCell(task.remaining || (taskIsExecutable(task) ? '已覆盖' : '-')))}</td>
+          <td>${escapeHtml(task.next || '-')}</td>
+        </tr>
+      `).join('');
+      $('taskTable').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>任务</th>
+              <th>目标</th>
+              <th>状态</th>
+              <th>Git</th>
+              <th>来源</th>
+              <th>剩余缺口</th>
+              <th>下一步</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function renderEvidence(evidence) {
+      if (!evidence.length) {
+        $('evidenceTable').innerHTML = '<p class="empty">暂无资料记录。运行 /lbai-add-evidence 保存资料后，这里会显示最近 evidence。</p>';
+        return;
+      }
+      const rows = evidence.map((item) => `
+        <tr>
+          <td>${escapeHtml(item.date || '-')}</td>
+          <td>${escapeHtml(item.id || '-')}</td>
+          <td>${escapeHtml(item.kind || '-')}</td>
+          <td>${escapeHtml(item.visibility || '-')}</td>
+          <td>${escapeHtml(item.backend || '-')}</td>
+          <td>${pill(item.status || '-')}</td>
+          <td>${pill(item.sync || 'NOT_SYNCED')}</td>
+          <td>${escapeHtml(item.next || '-')}</td>
+        </tr>
+      `).join('');
+      $('evidenceTable').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>资料</th>
+              <th>类型</th>
+              <th>可见范围</th>
+              <th>后端入库</th>
+              <th>状态</th>
+              <th>同步</th>
+              <th>下一步</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    }
+
+    function renderBlocked(markdown) {
+      const rows = parseMarkdownTable(markdown);
+      if (!rows.length) {
+        $('blockedItems').innerHTML = '<p class="empty">暂无阻断事项。</p>';
+        return;
+      }
+      $('blockedItems').innerHTML = `<ul class="list">${rows.slice(0, 8).map((row) => `
+        <li>
+          <strong>${escapeHtml(row.Item || row.item || '阻断事项')}</strong><br>
+          ${escapeHtml(row['Block Reason'] || row.reason || '')}<br>
+          <span class="empty">${escapeHtml(row['Next Step'] || row.next || '')}</span>
+        </li>
+      `).join('')}</ul>`;
+    }
+
+    function renderGuardrails() {
+      const files = [
+        ['工作运行规则', 'lbai_system/company_guardrails/LBAI_WORK_RUNTIME_RULES_V2.md'],
+        ['对外表述边界', 'lbai_system/company_guardrails/PUBLIC_CLAIM_BOUNDARY.md'],
+        ['必须 Review 的内容', 'lbai_system/company_guardrails/REVIEW_REQUIRED_BOUNDARY.md'],
+        ['敏感数据边界', 'lbai_system/company_guardrails/SENSITIVE_DATA_BOUNDARY.md']
+      ];
+      $('guardrailDetails').innerHTML = files.map(([title, path]) => {
+        const text = textFiles.get(path);
+        if (!text) {
+          return `<details><summary>${escapeHtml(title)}</summary><pre>未读取到 ${escapeHtml(path)}</pre></details>`;
+        }
+        return `<details><summary>${escapeHtml(title)}</summary><pre>${escapeHtml(compactMarkdown(text))}</pre></details>`;
+      }).join('');
+    }
+
+    function parseMarkdownTable(markdown) {
+      const lines = markdown.split(/\r?\n/).filter((line) => line.trim().startsWith('|'));
+      if (lines.length < 2) return [];
+      const header = splitTableLine(lines[0]);
+      const rows = [];
+      for (const line of lines.slice(2)) {
+        const cells = splitTableLine(line);
+        if (!cells.length || cells.every((cell) => /^-+$/.test(cell))) continue;
+        const row = {};
+        header.forEach((key, index) => {
+          row[key] = cells[index] || '';
+        });
+        rows.push(row);
+      }
+      return rows;
+    }
+
+    function splitTableLine(line) {
+      return line
+        .trim()
+        .replace(/^\|/, '')
+        .replace(/\|$/, '')
+        .split('|')
+        .map((cell) => stripTicks(cell.trim()));
+    }
+
+    function section(markdown, name) {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = markdown.match(new RegExp(`(?:^|\\n)##\\s+${escaped}\\s*\\n([\\s\\S]*?)(?=\\n##\\s+|$)`, 'i'));
+      return match ? match[1].trim() : '';
+    }
+
+    function firstHeading(markdown) {
+      const match = markdown.match(/^#\s+(.+)$/m);
+      return match ? match[1].trim() : '';
+    }
+
+    function linesFrom(text) {
+      return text
+        .split(/\r?\n/)
+        .map((line) => line.replace(/^[-*]\s*/, '').replace(/^\d+\.\s*/, '').trim())
+        .filter(Boolean)
+        .filter((line) => !line.startsWith('<fill'));
+    }
+
+    function compactListSection(text) {
+      return linesFrom(text)
+        .filter((item) => upper(item) !== 'NONE')
+        .join('; ');
+    }
+
+    function missingInputsFrom(markdown) {
+      return markdown
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.startsWith('-'))
+        .map((line) => line.replace(/^[-*]\s*/, '').trim())
+        .filter((item) => item && upper(item) !== 'NONE' && !upper(item).startsWith('RESOLVED:'));
+    }
+
+    function listHtml(items) {
+      if (!items.length) return '<span class="empty">未设置</span>';
+      return `<ul class="list">${items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+    }
+
+    function cleanValue(value) {
+      const text = value.trim();
+      if (!text || /^<.*>$/.test(text)) return '';
+      return text;
+    }
+
+    function compactMarkdown(text) {
+      const cleaned = text
+        .split(/\r?\n/)
+        .filter((line) => !line.trim().startsWith('---'))
+        .join('\n')
+        .trim();
+      return cleaned.length > 1800 ? `${cleaned.slice(0, 1800)}\n\n...` : cleaned;
+    }
+
+    function compactCell(text) {
+      const value = String(text || '').replace(/\s+/g, ' ').trim();
+      if (!value || value === '-') return value || '-';
+      return value.length > 96 ? `${value.slice(0, 96)}...` : value;
+    }
+
+    function pill(value) {
+      const label = String(value || '-').trim() || '-';
+      const cls = label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+      return `<span class="pill ${cls}">${escapeHtml(label)}</span>`;
+    }
+
+    function upper(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function hasReviewReminder(value) {
+      const normalized = upper(value);
+      return Boolean(normalized) && !['NONE', 'FALSE', 'NO'].includes(normalized);
+    }
+
+    function taskNeedsReview(task) {
+      return ['TRUE', 'YES', 'REVIEW', 'NEEDS_REVIEW'].includes(upper(task.review))
+        || hasReviewReminder(task.reviewReminder);
+    }
+
+    function taskIsExecutable(task) {
+      return upper(task.status) === 'OPEN' && !task.remaining;
+    }
+
+    function stripTicks(value) {
+      return String(value || '').replace(/`/g, '').trim();
+    }
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function setStatus(message, warning) {
+      $('status').textContent = message;
+      $('status').style.borderColor = warning ? 'rgba(163, 58, 58, 0.35)' : 'var(--line)';
+      $('status').style.color = warning ? 'var(--danger)' : 'var(--muted)';
+    }
+  </script>
+</body>
+</html>

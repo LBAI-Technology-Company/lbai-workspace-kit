@@ -1,0 +1,126 @@
+{
+  "schema_version": "prompt_lab_scenarios_v1",
+  "scenarios": [
+    {
+      "scenario_id": "s01_weekly_meeting_archive",
+      "category": "meeting_minutes",
+      "lifecycle": "evidence_only",
+      "employee_role": "行政助理",
+      "task_request": "归档本周研发周会纪要，供项目组检索。",
+      "source_material": "【Mock 研发周会纪要】\n时间：2026-06-16 14:00-15:00\n地点：3F 梧桐会议室 / 腾讯会议\n参会：后端组(王磊/赵敏)、前端组(陈静)、SRE(刘洋)、记录人：行政-小林\n议题1：6.18 大促容量评估——SRE 确认 K8s 节点池可扩至 120%，需周五前完成压测报告\n议题2：订单服务慢查询——后端组本周修复 3 条 P1 SQL，剩余 2 条排入 sprint 24\n决议：压测报告 6/20 前提交；慢查询修复进度每周一同步\n未决：是否需要临时加购 CDN 带宽（待财务批复）\n记录人：小林",
+      "expected_behavior": "add_evidence meeting_note CAPTURED，含会议时间与议题元数据",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "s02_meeting_action_open",
+      "category": "meeting_minutes",
+      "lifecycle": "task_intake",
+      "employee_role": "项目经理",
+      "task_request": "根据产品评审会决议，整理 Q3 会员体系改版 PRD 大纲。",
+      "source_material": "【Mock 产品评审会】\n时间：2026-06-15 16:00\n参会：产品总监、会员 PM、设计负责人\n决议：6/25 前输出会员体系改版 PRD 大纲，覆盖等级规则、权益对比、迁移方案三章\n约束：不改动现有付费会员价格；需标注与法务确认过的权益表述\n记录人：PM-张婷",
+      "meeting_action_item": "6/25 前输出会员体系改版 PRD 大纲",
+      "expected_behavior": "new_task OPEN，missing 仅非阻断推荐项",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "s03_weekly_status_report",
+      "category": "internal_report",
+      "lifecycle": "task_intake",
+      "employee_role": "运营专员",
+      "task_request": "写本周渠道运营周报给部门负责人。",
+      "source_material": "【Mock 运营数据摘录 — 经 BI 导出确认】\n周期：2026-06-09 ~ 2026-06-15\n渠道A：UV 12,340（WoW +8%），注册转化 3.2%\n渠道B：UV 8,920（WoW -2%），注册转化 2.7%\n投放 spend：¥86,400；CAC 渠道A ¥42、渠道B ¥51\n异常：渠道B 周三落地页加载超时 40min（已恢复）\n下周计划：渠道A 加大信息流测试预算 ¥20k",
+      "expected_behavior": "new_task OPEN，来源数据齐全可写周报",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "s04_competitive_analysis_blocked",
+      "category": "manager_request",
+      "lifecycle": "task_intake",
+      "employee_role": "产品专员",
+      "task_request": "老板明天要竞品功能对比一页纸，重点看 A 公司新发布的 AI 助手。",
+      "source_material": "【Mock 口头布置】\n总监：「你对比一下我们和 A 公司 AI 助手，明天晨会我要讲。」\n员工：目前只有朋友圈转发的截图，没有官方文档或试用账号。",
+      "expected_behavior": "new_task BLOCKED，缺竞品官方资料/试用来源，不编造功能",
+      "risk_tags": ["missing_source", "external_claim"]
+    },
+    {
+      "scenario_id": "s05_customer_email_archive",
+      "category": "customer_feedback",
+      "lifecycle": "evidence_only",
+      "employee_role": "客户成功经理",
+      "task_request": "归档客户关于导出超时投诉的邮件线程。",
+      "source_material": "【Mock 客户邮件】\n发件人：李伟（Acme 物流 IT 负责人，邮箱已脱敏）\n时间：2026-06-14 09:32\n主题：Re: 报表导出再次超时\n正文：\n我们月结窗口 6/15-6/18，昨晚批量导出 8 万行订单仍失败（HTTP 504）。\n6/10 你们承诺的索引优化似乎未生效。请给出明确修复时间和临时规避方案。\n— 李伟",
+      "expected_behavior": "add_evidence customer_feedback CAPTURED",
+      "risk_tags": ["customer_claim", "sensitive_customer"]
+    },
+    {
+      "scenario_id": "s06_case_study_blocked",
+      "category": "customer_feedback",
+      "lifecycle": "task_intake",
+      "employee_role": "市场专员",
+      "task_request": "根据客户复盘会写一份 ROI 提升案例用于官网。",
+      "source_material": "【Mock 复盘会摘录】\n客户：某零售集团（未授权对外引用）\n现场提及「上线后效率提升明显」「ROI 大概翻倍」——无书面授权、无计算口径、无可公开数据",
+      "expected_behavior": "new_task BLOCKED，缺客户授权与 ROI 口径，无泛化公司流程来源项",
+      "risk_tags": ["customer_claim", "external_review"]
+    },
+    {
+      "scenario_id": "s07_travel_policy_summary",
+      "category": "policy_summary",
+      "lifecycle": "task_intake",
+      "employee_role": "HR 专员",
+      "task_request": "把新版差旅政策整理成一页 FAQ 给全员。",
+      "source_material": "【Mock 差旅政策 v3.2 摘录 — HR 已发布】\n生效日：2026-07-01\n· 国内机票：经济舱；提前 3 天预订\n· 酒店：一线城市上限 ¥600/晚，二线 ¥450/晚\n· 餐补：出差日 ¥120/天（无需发票）\n· 超标需直属总监 + 财务审批\n· 禁止私人行程与公司出差合并报销",
+      "expected_behavior": "new_task OPEN，政策文本已提供",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "s08_onboarding_welcome",
+      "category": "hr_copy",
+      "lifecycle": "task_intake",
+      "employee_role": "HRBP",
+      "task_request": "给下周一入职的数据分析师写欢迎邮件和首日 checklist。",
+      "source_material": "【Mock 入职信息 — HRIS 导出】\n姓名：周航（化名处理对外）\n岗位：商业分析部 · 数据分析师\n报到：2026-06-23 09:30，11F 人力接待\nBuddy：分析组-孙悦\n首日：账号开通、合规培训、部门介绍、Mac 领取\n禁止在邮件中写具体薪资",
+      "expected_behavior": "new_task OPEN，内部 HR 文案",
+      "risk_tags": ["internal_only", "hr_sensitive"]
+    },
+    {
+      "scenario_id": "s09_quotation_blocked",
+      "category": "sales_material",
+      "lifecycle": "task_intake",
+      "employee_role": "销售经理",
+      "task_request": "给客户 GlobalTech 出 Enterprise 版年度报价单。",
+      "source_material": "【Mock 销售对话】\n客户要 200 seat Enterprise，要求 15% 折扣并写「含专属 SLA 99.95%」。\n销售手头只有公开价目表截图，无财务特批价、无法务确认的 SLA 模板。",
+      "expected_behavior": "new_task BLOCKED，缺定价审批与 SLA/承诺来源",
+      "risk_tags": ["pricing", "customer_commitment"]
+    },
+    {
+      "scenario_id": "s10_feature_brief_open",
+      "category": "product_explanation",
+      "lifecycle": "task_intake",
+      "employee_role": "产品经理",
+      "task_request": "给销售团队写「智能对账」功能一页说明，用于售前演示。",
+      "source_material": "【Mock 内部 PRD 摘录 v1.4 — 已评审】\n功能：自动匹配银行流水与 ERP 订单\n已上线范围：对公账户、T+1 同步、匹配规则 12 条\n不支持：个人户、实时同步、跨境多币种\n演示限制：Demo 环境最多 500 条样本\n对外口径：不得承诺未上线能力",
+      "expected_behavior": "new_task OPEN，边界清晰",
+      "risk_tags": ["internal_only"]
+    },
+    {
+      "scenario_id": "s11_press_release_blocked",
+      "category": "external_review",
+      "lifecycle": "task_intake",
+      "employee_role": "公关专员",
+      "task_request": "起草新一轮融资新闻稿，明天给媒体 embargo。",
+      "source_material": "【Mock 公关需求】\n口径要求写「行业第一」「客户数破 10 万」\n目前仅有 PR 同事口述，无 IR/法务审阅稿、无经审计客户数、无 CEO 引语授权",
+      "expected_behavior": "new_task BLOCKED + review_needed，缺法务/IR 来源",
+      "risk_tags": ["external_review", "overclaim", "legal"]
+    },
+    {
+      "scenario_id": "s12_feishu_chat_archive",
+      "category": "chat_record",
+      "lifecycle": "evidence_only",
+      "employee_role": "后端工程师",
+      "task_request": "归档飞书群里关于 API 版本废弃的讨论结论。",
+      "source_material": "【Mock 飞书群聊导出 — 平台组】\n时间：2026-06-14 11:05-11:40\n参与：@架构-老周 @后端-阿Ken @客户端-Mia\n讨论：v1 订单 API 2026-09-30 停止维护\n结论：v2 已覆盖 95% 调用；剩余 5% 由 @阿Ken 6/30 前发迁移清单\nMia：客户端 7 月版本起默认走 v2\n记录人：阿Ken",
+      "expected_behavior": "add_evidence chat_record CAPTURED",
+      "risk_tags": ["internal_only", "engineering"]
+    }
+  ]
+}

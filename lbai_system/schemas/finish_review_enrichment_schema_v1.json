@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Finish Review Enrichment v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "finish_verdict",
+    "completeness_summary",
+    "gaps",
+    "overclaim_risks",
+    "next_step"
+  ],
+  "properties": {
+    "schema_version": { "const": "finish_review_enrichment_v1" },
+    "finish_verdict": { "enum": ["APPROVE_FINISH", "BLOCK_FINISH"] },
+    "completeness_summary": { "type": "string" },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "overclaim_risks": { "type": "array", "items": { "type": "string" } },
+    "review_notes": { "type": "array", "items": { "type": "string" } },
+    "role_memory_feedback_candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "title", "content"],
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "suggested_rule": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "severity": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_step": { "type": "string" }
+  }
+}

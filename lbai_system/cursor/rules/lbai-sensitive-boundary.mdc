@@ -1,0 +1,29 @@
+---
+description: LBAI sensitive information boundary
+alwaysApply: true
+---
+
+# LBAI Sensitive Information Boundary
+
+Canonical source: `lbai_system/company_guardrails/SENSITIVE_DATA_BOUNDARY.md`.
+
+Never write the following into repo artifacts:
+
+- password
+- API key
+- access token
+- secret token
+- private key
+- customer confidential data
+- regulated data
+- financial account information
+- legal privileged communication
+- candidate sensitive personal information beyond necessity
+- unnecessary personal data such as phone numbers
+- private source code without approval
+
+If sensitive information appears in user input, do not reproduce it. Run or follow `/lbai-add-evidence` with AI enrichment, then call `lbai_system/tools/add_evidence.py --enrichment <json_path>` so the content is redacted before it is saved. For legacy task-local inputs, `archive_input.py` is fallback only. If safe capture is not possible, replace the sensitive content with:
+
+`[SENSITIVE INFORMATION REDACTED - USE APPROVED SECURE CHANNEL]`
+
+Before commit readiness and private GitHub sync, run or follow `lbai_system/tools/finish_task.py <task_folder>`, which checks the task folder, task ledger, and current Git changes. Automatic sync may stage only the current task folder and `role_workspace/ledgers/TASK_LEDGER_v1.md`.

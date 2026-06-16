@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Init Enrichment v1",
+  "type": "object",
+  "required": ["schema_version", "sections"],
+  "properties": {
+    "schema_version": { "const": "init_enrichment_v1" },
+    "sections": {
+      "type": "object",
+      "required": [
+        "用户姓名",
+        "岗位名称",
+        "主要职责",
+        "对话习惯"
+      ],
+      "properties": {
+        "用户姓名": { "type": "string" },
+        "岗位名称": { "type": "string" },
+        "主要职责": { "type": "string" },
+        "对话习惯": { "type": "string" }
+      }
+    }
+  }
+}

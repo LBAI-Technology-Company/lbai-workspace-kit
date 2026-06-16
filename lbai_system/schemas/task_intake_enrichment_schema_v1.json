@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Task Intake Enrichment v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "task_description",
+    "goal",
+    "expected_output",
+    "known_information",
+    "missing_inputs",
+    "recommended_inputs",
+    "status",
+    "review_needed",
+    "completion_conditions"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "task_intake_enrichment_v1" },
+    "task_description": { "type": "string", "minLength": 1 },
+    "goal": { "type": "string", "minLength": 1 },
+    "expected_output": { "type": "string", "minLength": 1 },
+    "known_information": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["summary", "source_kind"],
+        "properties": {
+          "summary": { "type": "string", "minLength": 1 },
+          "source_kind": {
+            "enum": [
+              "conversation_context",
+              "company_knowledge",
+              "role_context",
+              "linked_evidence",
+              "external_source",
+              "assumption"
+            ]
+          },
+          "source_ref": { "type": "string" }
+        }
+      }
+    },
+    "missing_inputs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "recommended_inputs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "status": { "enum": ["OPEN", "BLOCKED"] },
+    "review_needed": { "type": "boolean" },
+    "review_reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "completion_conditions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "execution_notes": { "type": "string" }
+  }
+}

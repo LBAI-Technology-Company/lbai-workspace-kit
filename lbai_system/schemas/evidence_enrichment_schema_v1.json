@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lbai/evidence_enrichment_schema_v1.json",
+  "title": "LBAI Evidence Metadata Enrichment v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "title",
+    "source_type",
+    "source_origin",
+    "source_occurred_at",
+    "source_visibility"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "evidence_enrichment_v1"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_type": {
+      "type": "string",
+      "enum": [
+        "meeting_note",
+        "chat_record",
+        "customer_feedback",
+        "interview",
+        "draft",
+        "data_note",
+        "policy",
+        "reference",
+        "task_material",
+        "general"
+      ]
+    },
+    "source_origin": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_occurred_at": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_visibility": {
+      "type": "string",
+      "enum": ["private", "team", "company"]
+    },
+    "related_objects": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "language": {
+      "type": "string"
+    },
+    "backend_ingestion_hint": {
+      "type": "string"
+    },
+    "admissibility_status": {
+      "type": "string",
+      "enum": ["CAPTURED", "NEEDS_REVIEW"]
+    },
+    "review_reasons": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
