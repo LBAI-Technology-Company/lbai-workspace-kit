@@ -81,6 +81,8 @@ python3 lbai_system/prompt_lab/prompt_lab.py next-step --run prompt_lab/runs/<ru
 
 See `lbai_system/prompt_lab/FULL_CHAIN_ITERATION.md` for the step-by-step chain and example scenarios in `lbai_system/prompt_lab/templates/full_chain_scenarios.example.json`.
 
+For `intake_evidence` mock runs, copy `lbai_system/prompt_lab/templates/white_collar_daily_scenarios.example.json` into `prompt_lab/runs/<run_id>/round_001/scenario_inputs/scenarios.json`, validate with `prompt_lab.py validate --kind scenarios --file <path>`, then continue with `next-step`. Example files are fictional mock data safe to keep in the kit; run outputs under `prompt_lab/runs/` stay local-only and must be removed with `finalize`.
+
 After AI writes mock `task_output.md` under `chain_outputs/<scenario_id>/`:
 
 ```bash
