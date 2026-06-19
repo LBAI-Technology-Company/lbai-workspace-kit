@@ -501,15 +501,19 @@
 
     .interaction-diagram {
       margin: 18px 0 0;
-      padding: 26px;
-      background: #ffffff;
-      border: 1px solid var(--line);
+      padding: 28px;
+      color: #ffffff;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(89, 195, 147, 0.22), transparent 34%),
+        linear-gradient(135deg, rgba(20, 32, 51, 0.98), rgba(22, 62, 83, 0.94));
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: var(--radius);
-      box-shadow: 0 14px 50px rgba(20, 32, 51, 0.08);
+      box-shadow: var(--shadow);
     }
 
     .interaction-diagram h3 {
       margin: 0 0 18px;
+      color: #ffffff;
       font-size: 22px;
       line-height: 1.24;
     }
@@ -517,21 +521,32 @@
     .interaction-map {
       display: grid;
       grid-template-columns: minmax(0, 1fr) minmax(120px, 0.42fr) minmax(0, 1fr) minmax(120px, 0.42fr) minmax(0, 1fr);
-      gap: 12px;
+      gap: 14px;
       align-items: stretch;
     }
 
     .system-node {
-      min-height: 184px;
-      padding: 20px;
-      background: #f8fbff;
-      border: 1px solid #d6e2f2;
+      position: relative;
+      min-height: 198px;
+      padding: 22px;
+      background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+      border: 1px solid rgba(255, 255, 255, 0.72);
       border-radius: var(--radius);
+      box-shadow: 0 18px 46px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+    }
+
+    .system-node::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 5px;
+      background: var(--green);
     }
 
     .system-node strong {
       display: block;
-      margin-bottom: 8px;
+      margin: 0 0 8px;
       color: var(--ink);
       font-size: 20px;
       line-height: 1.24;
@@ -554,63 +569,116 @@
       margin: 5px 0;
     }
 
-    .system-node.employee { border-top: 5px solid var(--green); }
-    .system-node.github { border-top: 5px solid var(--navy); }
-    .system-node.service { border-top: 5px solid var(--blue); }
+    .system-node.github::before { background: var(--navy); }
+    .system-node.service::before { background: var(--blue); }
 
     .system-link {
-      display: grid;
-      grid-template-rows: 1fr auto 1fr;
+      position: relative;
+      display: flex;
       align-items: center;
-      min-height: 184px;
-      color: var(--muted);
+      justify-content: center;
+      min-height: 198px;
+      color: rgba(255, 255, 255, 0.76);
       font-size: 12px;
       text-align: center;
     }
 
-    .system-link::before,
+    .system-link::before {
+      content: "";
+      position: absolute;
+      left: -14px;
+      right: -14px;
+      top: 50%;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(89, 195, 147, 0.24), #59c393);
+      transform: translateY(-50%);
+    }
+
     .system-link::after {
       content: "";
-      justify-self: center;
-      width: 2px;
-      height: 100%;
-      background: #d6e2f2;
+      position: absolute;
+      right: -17px;
+      top: 50%;
+      width: 0;
+      height: 0;
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+      border-left: 10px solid #59c393;
+      transform: translateY(-50%);
     }
 
     .system-link span {
       position: relative;
+      z-index: 1;
       display: block;
-      padding: 10px 10px 12px;
-      color: var(--ink);
-      background: #ffffff;
-      border: 1px solid var(--line);
+      padding: 10px 12px 12px;
+      color: #ffffff;
+      background: rgba(20, 32, 51, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.2);
       border-radius: 6px;
       font-weight: 720;
       line-height: 1.35;
-      box-shadow: 0 8px 24px rgba(20, 32, 51, 0.07);
+      box-shadow: 0 14px 32px rgba(0, 0, 0, 0.22);
     }
 
-    .system-link span::before,
-    .system-link span::after {
+    .system-link.github-service::before {
+      background: linear-gradient(90deg, rgba(47, 111, 214, 0.24), #70a4ff);
+    }
+
+    .system-link.github-service::after {
+      border-left-color: #70a4ff;
+    }
+
+    .api-flow {
+      position: relative;
+      grid-column: 1 / -1;
+      margin-top: 12px;
+      padding: 22px 22px 0;
+      min-height: 78px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .api-flow::before {
       content: "";
       position: absolute;
-      top: 50%;
-      width: 22px;
+      left: 13%;
+      right: 13%;
+      top: 34px;
       height: 2px;
-      background: var(--green);
+      background: linear-gradient(90deg, #70a4ff, #59c393);
     }
 
-    .system-link span::before {
-      right: 100%;
+    .api-flow::after {
+      content: "";
+      position: absolute;
+      right: 12.4%;
+      top: 34px;
+      width: 0;
+      height: 0;
+      border-top: 7px solid transparent;
+      border-bottom: 7px solid transparent;
+      border-left: 10px solid #59c393;
+      transform: translateY(-50%);
     }
 
-    .system-link span::after {
-      left: 100%;
-    }
-
-    .system-link.github-service span::before,
-    .system-link.github-service span::after {
-      background: var(--blue);
+    .api-flow b {
+      position: relative;
+      z-index: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 40px;
+      padding: 0 16px;
+      color: #0d1828;
+      background: #ffffff;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.64);
+      box-shadow: 0 14px 34px rgba(0, 0, 0, 0.2);
+      font-size: 13px;
+      line-height: 1.35;
+      text-align: center;
     }
 
     .interaction-notes {
@@ -622,9 +690,9 @@
 
     .interaction-note {
       padding: 14px 16px;
-      color: var(--muted);
-      background: #f8fbff;
-      border: 1px solid #d6e2f2;
+      color: rgba(255, 255, 255, 0.76);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: var(--radius);
       font-size: 13px;
     }
@@ -632,7 +700,7 @@
     .interaction-note strong {
       display: block;
       margin-bottom: 4px;
-      color: var(--ink);
+      color: #ffffff;
       font-size: 14px;
     }
 
@@ -781,9 +849,14 @@
       }
       .system-link::before,
       .system-link::after,
-      .system-link span::before,
-      .system-link span::after {
+      .api-flow::before,
+      .api-flow::after {
         display: none;
+      }
+      .api-flow {
+        grid-column: auto;
+        min-height: auto;
+        padding: 0;
       }
       .interaction-notes {
         grid-template-columns: 1fr;
@@ -1159,9 +1232,6 @@
         </div>
         <p class="section-summary">员工端轻量落盘，后端集中处理。这个边界让产品能先进入真实工作流，再逐步扩展为组织知识基础设施。</p>
       </div>
-      <div class="architecture-wrap">
-        <img src="lbai-workspace-kit-service-architecture.zh-CN.png" alt="LBAI Workspace Kit 与后端 Service 架构闭环图">
-      </div>
       <figure class="interaction-diagram" aria-label="员工插件端、GitHub 与服务端交互关系图">
         <h3>员工插件端 + GitHub + 服务端的交互关系</h3>
         <div class="interaction-map">
@@ -1197,6 +1267,9 @@
               <li>返回 evidence_pack</li>
               <li>权限过滤和审计</li>
             </ul>
+          </div>
+          <div class="api-flow">
+            <b>插件端调用检索 API，服务端返回 evidence_pack 支撑任务输出</b>
           </div>
         </div>
         <div class="interaction-notes" aria-label="关键交互说明">
