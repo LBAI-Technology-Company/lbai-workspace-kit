@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.10"
+$InstallerVersion = "1.4.11"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -13,9 +13,21 @@ $VenvDir = Join-Path $LbaiHome "venv"
 $PathMarker = "# LBAI Workspace Kit CLI"
 $CodexPluginMarketplace = "lbai-internal"
 $InstallStatus = @{}
+$InstallStep = 0
+$InstallStepsTotal = 12
 
 function Write-Info($Message) {
     Write-Host $Message
+}
+
+function Write-Step([string]$Message) {
+    $script:InstallStep++
+    Write-Info ""
+    Write-Info ("[步骤 {0}/{1}] {2}" -f $script:InstallStep, $script:InstallStepsTotal, $Message)
+}
+
+function Write-StepDone {
+    Write-Info "  -> 完成"
 }
 
 function Set-InstallStatus([string]$Name, [string]$State, [string]$Detail = "") {
@@ -82,7 +94,7 @@ function Ensure-WingetPackage([string]$Id) {
 }
 
 function Ensure-Prerequisites {
-    Write-Info "正在检查运行环境（Git、Python 3.10+）..."
+    Write-Step "检查运行环境（Git、Python 3.10+）"
 
     if (-not (Test-Command git)) {
         if (-not (Ensure-WingetPackage "Git.Git")) {
@@ -118,6 +130,7 @@ function Ensure-Prerequisites {
     Write-Info "环境检查通过：$pythonVersion"
     Set-InstallStatus "Git" "OK" (git --version)
     Set-InstallStatus "Python" "OK" $pythonVersion
+    Write-StepDone
 }
 
 function Get-LatestReleaseTagSoft {
@@ -152,43 +165,60 @@ function Bootstrap-LatestInstaller {
     if ($env:LBAI_INSTALL_BOOTSTRAP -eq "1") {
         return
     }
+    Write-Step "检查安装脚本是否需要从 GitHub 更新"
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "lbai_core/lbai/cli.py"))) {
+        Write-Info "  -> 使用本地 checkout，无需更新安装脚本"
         return
     }
 
+    Write-Step "解析 GitHub 最新 release 版本"
     $tag = Get-LatestReleaseTagSoft
     if (-not $tag) {
         Write-Info "WARNING: 无法解析最新 release tag，继续使用当前 install.ps1。"
         return
     }
+    Write-Info "  -> 最新 release: $tag"
 
+    Write-Step "从 GitHub 拉取最新 install.ps1（如本地脚本较旧）"
     foreach ($url in @(
         "https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://raw.githubusercontent.com/$Repo/$tag/install.ps1",
         "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
     )) {
+        Write-Info "  尝试: $url"
         try {
             $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
             if ($script -notmatch 'Write-InstallSummary') {
+                Write-Info "  -> 此地址不可用，尝试下一个..."
                 continue
             }
             if ($script -match 'InstallerVersion = "([^"]+)"' -and $Matches[1] -eq $InstallerVersion) {
+                Write-Info "  -> 当前安装脚本已是最新 ($InstallerVersion)"
                 return
             }
-            Write-Info "正在从 GitHub 拉取最新 install.ps1 ($tag)..."
+            Write-Info "  -> 切换到 GitHub 最新安装脚本 ($tag)..."
             $env:LBAI_INSTALL_BOOTSTRAP = "1"
             $env:LBAI_VERSION = $tag
             Invoke-Expression $script
             exit $LASTEXITCODE
         } catch {
+            Write-Info "  -> 此地址不可用，尝试下一个..."
             continue
         }
     }
     Write-Info "WARNING: 无法从 GitHub 拉取最新 install.ps1，继续使用当前安装脚本。"
 }
 
+Write-Info ""
+Write-Info "=========================================="
+Write-Info "LBAI Workspace Kit 安装程序 v$InstallerVersion"
+Write-Info "开始安装..."
+Write-Info "=========================================="
+
 Bootstrap-LatestInstaller
+
+$script:InstallStep = 0
 
 function Test-PythonVersion([string[]]$Command) {
     try {
@@ -225,13 +255,16 @@ function Resolve-PythonCommand {
 }
 
 function Install-KitFromRelease([string]$Tag) {
+    Write-Step "下载并安装 LBAI Workspace Kit"
     $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("lbai-install-" + [guid]::NewGuid().ToString())
     New-Item -ItemType Directory -Path $tmp -Force | Out-Null
     $archive = Join-Path $tmp "lbai-workspace-kit.zip"
     $url = "https://github.com/$Repo/archive/refs/tags/$Tag.zip"
 
-    Write-Info "Downloading LBAI Workspace Kit $Tag ..."
+    Write-Info "  尝试: $url"
+    Write-Info "  正在下载 LBAI Workspace Kit $Tag ..."
     Invoke-WebRequest -Uri $url -OutFile $archive -TimeoutSec 600
+    Write-Info "  正在解压并写入 $InstallDir ..."
     Expand-Archive -Path $archive -DestinationPath $tmp -Force
     $src = Get-ChildItem -Path $tmp -Directory | Where-Object { $_.Name -like "lbai-workspace-kit-*" } | Select-Object -First 1
     if (-not $src) {
@@ -244,9 +277,11 @@ function Install-KitFromRelease([string]$Tag) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
     New-Item -ItemType Directory -Path $BinDir -Force | Out-Null
     Copy-Item -Path (Join-Path $src.FullName "*") -Destination $InstallDir -Recurse -Force
+    Write-StepDone
 }
 
 function Ensure-UserPath {
+    Write-Step "配置用户 PATH（lbai 命令）"
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
     if ($userPath -notlike "*$BinDir*") {
         if ([string]::IsNullOrWhiteSpace($userPath)) {
@@ -262,9 +297,11 @@ function Ensure-UserPath {
         Write-Info "PATH 已包含 lbai。"
         Set-InstallStatus "Path" "OK" "已包含 lbai ($BinDir)"
     }
+    Write-StepDone
 }
 
 function New-PythonRuntime([string[]]$PythonCommand) {
+    Write-Info "  正在创建 Python 虚拟环境: $VenvDir"
     if (Test-Path $VenvDir) {
         Remove-Item -Recurse -Force $VenvDir
     }
@@ -285,7 +322,8 @@ function New-PythonRuntime([string[]]$PythonCommand) {
     }
 
     $requirements = Join-Path $InstallDir "lbai_core\requirements.txt"
-    & $venvPython -m pip install --quiet --disable-pip-version-check -r $requirements | Out-Null
+    Write-Info "  正在安装 Python 依赖 (jsonschema)..."
+    & $venvPython -m pip install --disable-pip-version-check -r $requirements | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Fail "could not install Python dependencies into $VenvDir. Check network or pip configuration, then rerun install.ps1."
     }
@@ -356,6 +394,7 @@ function Install-CodexViaGithubBinary {
 }
 
 function Ensure-CodexCli {
+    Write-Step "安装或检查 Codex CLI"
     if ($env:LBAI_SKIP_CODEX_CLI -eq "1") {
         Write-Info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
         Set-InstallStatus "CodexCli" "SKIPPED" "LBAI_SKIP_CODEX_CLI=1"
@@ -431,6 +470,8 @@ function Test-CodexReady {
 function Ensure-CodexPlugin {
     param([string]$ReleaseTag)
 
+    Write-Step "安装 Codex 插件 (lbai-workspace)"
+
     if ($env:LBAI_SKIP_CODEX_PLUGIN -eq "1" -or $env:LBAI_SKIP_CODEX_CLI -eq "1") {
         Write-Info "跳过 Codex 插件安装（LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1）。"
         Set-InstallStatus "CodexMarketplace" "SKIPPED" "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
@@ -493,13 +534,14 @@ function Ensure-CodexPlugin {
 }
 
 function Ensure-SharedWorkspace {
+    Write-Step "创建/更新公用工作区 (~/.lbai/workspace)"
     if ($env:LBAI_SKIP_WORKSPACE_INIT -eq "1") {
         Write-Info "跳过公用工作区初始化（LBAI_SKIP_WORKSPACE_INIT=1）。"
         Set-InstallStatus "Workspace" "SKIPPED" "LBAI_SKIP_WORKSPACE_INIT=1"
         return
     }
 
-    Write-Info "正在创建/更新公用 LBAI 工作区（~/.lbai/workspace）..."
+    Write-Info "  运行: lbai workspace ensure"
     $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure 2>&1 | Out-String
     Write-Info $output.TrimEnd()
     if ($output -match 'workspace_ensure_status: READY') {
@@ -515,20 +557,24 @@ function Ensure-SharedWorkspace {
 
 Ensure-Prerequisites
 $pythonCommand = Resolve-PythonCommand
+Write-Step "解析 GitHub 最新 release 版本"
 $releaseTag = Get-LatestReleaseTag
-Write-Info "Latest release: $releaseTag"
+Write-Info "  -> 最新 release: $releaseTag"
+Write-StepDone
 Install-KitFromRelease -Tag $releaseTag
+Write-Step "创建 Python 运行环境与 lbai 命令"
 $runtimePython = New-PythonRuntime -PythonCommand $pythonCommand
+Write-Info "  正在写入 $(Join-Path $BinDir 'lbai.cmd') ..."
 Write-LbaiLauncher -RuntimePython $runtimePython
+Write-StepDone
 Ensure-UserPath
 Ensure-CodexCli
 Ensure-CodexPlugin -ReleaseTag $releaseTag
 Ensure-SharedWorkspace
 Set-InstallStatus "PyDeps" "OK" "jsonschema 等 ($VenvDir)"
-Write-Info "Installed Python runtime and dependencies (jsonschema)."
 
 if (-not $env:LBAI_SKIP_BACKEND_AUTH -and -not [Console]::IsInputRedirected) {
-    Write-Info "Optional backend knowledge service setup."
+    Write-Step "可选：后端知识服务登录"
     $backendExit = & (Join-Path $BinDir "lbai.cmd") auth backend-login --optional
     if ($backendExit -eq 0) {
         Set-InstallStatus "Backend" "OK" "已完成或已跳过"
@@ -546,6 +592,7 @@ if (Test-Path $versionFile) {
 }
 
 Set-InstallStatus "Lbai" "OK" "v$kitVersion ($(Join-Path $BinDir 'lbai.cmd'))"
+Write-Step "输出安装结果汇总"
 Write-InstallSummary
 
 Write-Info "Release: $releaseTag"

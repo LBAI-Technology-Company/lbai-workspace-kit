@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.11
+
+- Print numbered install steps (`[步骤 N/12]`) and per-URL download progress so users can see where install stalls.
+
 ## 1.4.10
 
 - Auto-create and register shared workspace at `~/.lbai/workspace` during install via `lbai workspace ensure`.

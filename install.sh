@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.10"
+INSTALLER_VERSION="1.4.11"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -23,6 +23,19 @@ ST_WORKSPACE=""
 
 info() {
   printf '%s\n' "$*"
+}
+
+INSTALL_STEP=0
+INSTALL_STEPS_TOTAL=12
+
+step() {
+  INSTALL_STEP=$((INSTALL_STEP + 1))
+  info ""
+  info "[步骤 ${INSTALL_STEP}/${INSTALL_STEPS_TOTAL}] $*"
+}
+
+step_done() {
+  info "  -> 完成"
 }
 
 set_st() {
@@ -150,20 +163,28 @@ bootstrap_latest_installer() {
     return 0
   fi
 
+  step "检查安装脚本是否需要从 GitHub 更新"
+
   script_dir="$(detect_script_dir || true)"
   if [ -n "$script_dir" ] && [ -f "$script_dir/lbai_core/lbai/cli.py" ] && [ -d "$script_dir/workspace_template" ]; then
+    info "  -> 使用本地 checkout，无需更新安装脚本"
     return 0
   fi
 
   if ! have_cmd curl; then
+    info "  -> 未检测到 curl，跳过安装脚本更新"
     return 0
   fi
 
+  step "解析 GitHub 最新 release 版本"
   tag="$(fetch_latest_release_tag_soft || true)"
   if [ -z "$tag" ]; then
     info "WARNING: 无法解析最新 release tag，继续使用当前 install.sh。"
     return 0
   fi
+  info "  -> 最新 release: $tag"
+
+  step "从 GitHub 拉取最新 install.sh（如 CDN/本地脚本较旧）"
   tmp="$(mktemp -d)"
   fetched=0
   for url in \
@@ -172,12 +193,15 @@ bootstrap_latest_installer() {
     "https://ghproxy.net/https://raw.githubusercontent.com/$REPO/$tag/install.sh" \
     "https://raw.githubusercontent.com/$REPO/$tag/install.sh"
   do
+    info "  尝试: $url"
     if curl -fsSL --connect-timeout 20 --max-time 120 "$url" -o "$tmp/install.sh" 2>/dev/null \
       && grep -q 'print_install_summary' "$tmp/install.sh" 2>/dev/null
     then
       fetched=1
+      info "  -> 下载成功"
       break
     fi
+    info "  -> 此地址不可用，尝试下一个..."
     rm -f "$tmp/install.sh"
   done
 
@@ -190,15 +214,22 @@ bootstrap_latest_installer() {
   remote_version="$(sed -n 's/^INSTALLER_VERSION="\([^"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
   if [ -n "${INSTALLER_VERSION:-}" ] && [ -n "$remote_version" ] && [ "$remote_version" = "$INSTALLER_VERSION" ]; then
     rm -rf "$tmp"
+    info "  -> 当前安装脚本已是最新 ($INSTALLER_VERSION)"
     return 0
   fi
 
-  info "正在从 GitHub 拉取最新 install.sh ($tag)..."
+  info "  -> 切换到 GitHub 最新安装脚本 ($tag, v$remote_version)..."
   chmod +x "$tmp/install.sh"
   export LBAI_INSTALL_BOOTSTRAP=1
   export LBAI_VERSION="$tag"
   exec /bin/sh "$tmp/install.sh" "$@"
 }
+
+info ""
+info "=========================================="
+info "LBAI Workspace Kit 安装程序 v${INSTALLER_VERSION}"
+info "开始安装..."
+info "=========================================="
 
 bootstrap_latest_installer
 
@@ -272,8 +303,8 @@ ensure_prerequisites_linux() {
 }
 
 ensure_prerequisites() {
+  step "检查运行环境（Git、Python 3.10+、curl）"
   os="$(uname -s 2>/dev/null || true)"
-  info "正在检查运行环境（Git、Python 3.10+）..."
   case "$os" in
     Darwin)
       ensure_prerequisites_macos
@@ -302,6 +333,7 @@ ensure_prerequisites() {
   set_st CURL OK "$(curl --version 2>/dev/null | head -n 1 | cut -d' ' -f1-2)"
   info "环境检查通过：$(git --version 2>/dev/null | head -n 1)"
   info "环境检查通过：$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
+  step_done
 }
 
 CODEX_CLI_INSTALL_URL="https://chatgpt.com/codex/install.sh"
@@ -358,6 +390,7 @@ codex_cli_available() {
 }
 
 install_codex_via_official_script() {
+  info "  尝试 OpenAI 官方安装脚本（可能较慢或超时）..."
   CODEX_NON_INTERACTIVE=1 curl -fsSL --connect-timeout 20 --max-time 300 "$CODEX_CLI_INSTALL_URL" | sh
 }
 
@@ -415,9 +448,11 @@ install_codex_via_github_binary() {
 }
 
 ensure_codex_cli() {
+  step "安装或检查 Codex CLI"
   if [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
     info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
     set_st CODEX_CLI SKIPPED "LBAI_SKIP_CODEX_CLI=1"
+    step_done
     return 0
   fi
 
@@ -427,6 +462,7 @@ ensure_codex_cli() {
     *)
       info "当前系统跳过 Codex CLI 自动安装。"
       set_st CODEX_CLI SKIPPED "当前系统不支持自动安装"
+      step_done
       return 0
       ;;
   esac
@@ -435,12 +471,14 @@ ensure_codex_cli() {
     version="$(codex --version 2>/dev/null | head -n 1)"
     info "环境检查通过：$version"
     set_st CODEX_CLI OK "$version"
+    step_done
     return 0
   fi
 
   if ! have_cmd curl; then
     info "WARNING: 未检测到 curl，跳过 Codex CLI 自动安装。"
     set_st CODEX_CLI FAILED "缺少 curl"
+    step_done
     return 0
   fi
 
@@ -457,6 +495,7 @@ ensure_codex_cli() {
     info "  npm install -g @openai/codex"
     info "  或从 https://github.com/openai/codex/releases 下载对应平台二进制到 ~/.local/bin"
     set_st CODEX_CLI FAILED "自动安装失败，见上方手动命令"
+    step_done
     return 0
   fi
 
@@ -465,6 +504,7 @@ ensure_codex_cli() {
     version="$(codex --version 2>/dev/null | head -n 1)"
     info "环境检查通过：$version"
     set_st CODEX_CLI OK "$version"
+    step_done
     return 0
   fi
 
@@ -472,12 +512,14 @@ ensure_codex_cli() {
     info "Codex CLI 已安装到 $HOME/.local/bin/codex。"
     info "若当前终端仍找不到 codex，请运行 source ~/.zprofile 或 source ~/.zshrc 后重试。"
     set_st CODEX_CLI WARN "已安装到 ~/.local/bin/codex，需 source shell 配置"
+    step_done
     return 0
   fi
 
   info "WARNING: Codex CLI 安装脚本已执行，但未检测到 codex 命令。"
   info "  请新开终端，或运行 source ~/.zprofile / source ~/.zshrc 后再试。"
   set_st CODEX_CLI WARN "安装脚本已执行，当前终端未检测到 codex"
+  step_done
   return 0
 }
 
@@ -499,12 +541,14 @@ codex_cli_ready() {
 }
 
 ensure_codex_plugin() {
+  step "安装 Codex 插件 (lbai-workspace)"
   plugin_tag="${LBAI_PLUGIN_REF:-${RELEASE_TAG:-}}"
 
   if [ "${LBAI_SKIP_CODEX_PLUGIN:-}" = "1" ] || [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
     info "跳过 Codex 插件安装（LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1）。"
     set_st CODEX_MP SKIPPED "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
     set_st CODEX_PLUGIN SKIPPED "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
+    step_done
     return 0
   fi
 
@@ -513,6 +557,7 @@ ensure_codex_plugin() {
     info "  请先 source ~/.zprofile 或 ~/.zshrc，然后重新运行 install.sh。"
     set_st CODEX_MP FAILED "codex 不可用"
     set_st CODEX_PLUGIN FAILED "codex 不可用，需先安装/配置 Codex CLI"
+    step_done
     return 0
   fi
 
@@ -520,6 +565,7 @@ ensure_codex_plugin() {
     info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
     set_st CODEX_MP FAILED "无法确定 release tag"
     set_st CODEX_PLUGIN FAILED "无法确定 release tag"
+    step_done
     return 0
   fi
 
@@ -542,34 +588,39 @@ ensure_codex_plugin() {
     info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
     set_st CODEX_MP FAILED "marketplace 配置失败，见上方手动命令"
     set_st CODEX_PLUGIN FAILED "依赖 marketplace，未安装"
+    step_done
     return 0
   fi
 
   set_st CODEX_MP OK "$CODEX_PLUGIN_MARKETPLACE ($plugin_tag)"
 
-  info "正在安装 lbai-workspace 插件..."
+  info "  正在安装 lbai-workspace 插件..."
   run_codex plugin remove lbai-workspace >/dev/null 2>&1 || true
   if run_codex plugin add "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"; then
     info "已安装 Codex 插件: lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
     info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
     set_st CODEX_PLUGIN OK "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+    step_done
     return 0
   fi
 
   info "WARNING: Codex 插件安装失败。请手动运行："
   info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
   set_st CODEX_PLUGIN FAILED "插件安装失败，见上方手动命令"
+  step_done
   return 0
 }
 
 ensure_shared_workspace() {
+  step "创建/更新公用工作区 (~/.lbai/workspace)"
   if [ "${LBAI_SKIP_WORKSPACE_INIT:-}" = "1" ]; then
     info "跳过公用工作区初始化（LBAI_SKIP_WORKSPACE_INIT=1）。"
     set_st WORKSPACE SKIPPED "LBAI_SKIP_WORKSPACE_INIT=1"
+    step_done
     return 0
   fi
 
-  info "正在创建/更新公用 LBAI 工作区（~/.lbai/workspace）..."
+  info "  运行: lbai workspace ensure"
   workspace_output="$("$BIN_DIR/lbai" workspace ensure 2>&1)" || true
   printf '%s\n' "$workspace_output"
   if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: READY'; then
@@ -579,10 +630,12 @@ ensure_shared_workspace() {
     else
       set_st WORKSPACE OK "~/.lbai/workspace"
     fi
+    step_done
     return 0
   fi
 
   set_st WORKSPACE FAILED "公用工作区初始化失败"
+  step_done
   return 0
 }
 
@@ -606,6 +659,7 @@ detect_shell_rc() {
 }
 
 ensure_shell_path() {
+  step "配置 Shell PATH（lbai 命令）"
   shell_rc="$(detect_shell_rc || true)"
   path_export="export PATH=\"$BIN_DIR:\$PATH\""
 
@@ -613,6 +667,7 @@ ensure_shell_path() {
     info "Could not detect a shell rc file. Add lbai to PATH manually:"
     info "  $path_export"
     set_st PATH WARN "未检测到 shell 配置文件，需手动加入 PATH"
+    step_done
     return 0
   fi
 
@@ -620,6 +675,7 @@ ensure_shell_path() {
   if grep -qF "$PATH_MARKER" "$shell_rc" 2>/dev/null || grep -qF "$BIN_DIR" "$shell_rc" 2>/dev/null; then
     info "PATH already configured in $shell_rc"
     set_st PATH OK "已配置 ($shell_rc)"
+    step_done
     return 0
   fi
 
@@ -630,6 +686,7 @@ ensure_shell_path() {
   info "Added lbai to PATH in $shell_rc"
   info "Run: source $shell_rc"
   set_st PATH OK "已写入 ($shell_rc)"
+  step_done
 }
 
 read_kit_version() {
@@ -641,6 +698,7 @@ read_kit_version() {
 }
 
 create_python_runtime() {
+  info "  正在创建 Python 虚拟环境: $VENV_DIR"
   rm -rf "$VENV_DIR"
   if ! "$PYTHON_BIN" -m venv "$VENV_DIR" >/dev/null 2>&1; then
     fail "could not create Python runtime at $VENV_DIR. Install Python venv support and rerun install.sh."
@@ -651,7 +709,8 @@ create_python_runtime() {
     fail "Python runtime was created but $venv_python is not executable"
   fi
 
-  if ! "$venv_python" -m pip install --quiet --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt"; then
+  info "  正在安装 Python 依赖 (jsonschema)..."
+  if ! "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt"; then
     fail "could not install Python dependencies into $VENV_DIR. Check network or pip configuration, then rerun install.sh."
   fi
 
@@ -669,22 +728,25 @@ download_archive() {
   archive="$1"
   archive_dir="$(dirname "$archive")"
 
-  info "Downloading LBAI Workspace Kit $RELEASE_TAG..."
+  info "  正在下载 LBAI Workspace Kit $RELEASE_TAG ..."
   for url in \
     "https://ghproxy.net/https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz" \
     "https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz" \
     "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz"
   do
+    info "  尝试: $url"
     if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" 2>/dev/null \
       && tar -tzf "$archive" >/dev/null 2>&1
     then
+      info "  -> 下载成功"
       return 0
     fi
+    info "  -> 此地址不可用，尝试下一个..."
     rm -f "$archive"
   done
 
   if command -v gh >/dev/null 2>&1; then
-    rm -f "$archive"
+    info "  尝试: gh release download $RELEASE_TAG"
     if gh release download "$RELEASE_TAG" --repo "$REPO" --archive=tar.gz --dir "$archive_dir" >/dev/null 2>&1; then
       candidate="$(find "$archive_dir" -maxdepth 1 -name '*.tar.gz' | head -n 1)"
       if [ -n "$candidate" ] && tar -tzf "$candidate" >/dev/null 2>&1; then
@@ -700,10 +762,12 @@ download_archive() {
 
 clone_and_install() {
   tmp="$1"
+  info "  下载失败，尝试 git clone..."
   for git_url in \
     "https://ghproxy.net/https://github.com/$REPO.git" \
     "https://github.com/$REPO.git"
   do
+    info "  尝试: git clone --branch $RELEASE_TAG from $git_url"
     clone_dir="$tmp/git-clone"
     rm -rf "$clone_dir"
     if git clone --depth 1 --branch "$RELEASE_TAG" "$git_url" "$clone_dir" >/dev/null 2>&1; then
@@ -715,20 +779,27 @@ clone_and_install() {
 }
 
 download_and_install() {
+  step "下载并安装 LBAI Workspace Kit"
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT INT TERM
   archive="$tmp/lbai-workspace-kit.tar.gz"
 
   if download_archive "$archive"; then
+    info "  正在解压安装包..."
     tar -xzf "$archive" -C "$tmp"
     src="$(find "$tmp" -maxdepth 1 -type d -name 'lbai-workspace-kit-*' | head -n 1)"
     [ -n "$src" ] || fail "downloaded archive did not contain lbai-workspace-kit"
+    info "  正在写入 $INSTALL_DIR ..."
     install_from_dir "$src"
+    step_done
     return 0
   fi
 
   clone_and_install "$tmp" || fail "download failed; check network and retry"
+  step_done
 }
+
+INSTALL_STEP=0
 
 ensure_prerequisites
 
@@ -737,21 +808,26 @@ PYTHON_BIN="$(resolve_python_bin)"
 
 SCRIPT_DIR="$(detect_script_dir || true)"
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
-  info "Installing from local checkout: $SCRIPT_DIR"
+  step "从本地目录安装 LBAI Workspace Kit"
+  info "  来源: $SCRIPT_DIR"
   install_from_dir "$SCRIPT_DIR"
   if [ -f "$SCRIPT_DIR/VERSION" ]; then
     RELEASE_TAG="v$(tr -d '[:space:]' < "$SCRIPT_DIR/VERSION")"
   else
     RELEASE_TAG="local"
   fi
+  step_done
 else
+  step "解析 GitHub 最新 release 版本"
   RELEASE_TAG="$(resolve_latest_release_tag)"
-  info "Latest release: $RELEASE_TAG"
+  info "  -> 最新 release: $RELEASE_TAG"
+  step_done
   download_and_install
 fi
 
-chmod +x "$INSTALL_DIR/lbai_core/bin/lbai"
+step "创建 Python 运行环境与 lbai 命令"
 RUNTIME_PYTHON="$(create_python_runtime)"
+info "  正在写入 $BIN_DIR/lbai ..."
 cat > "$BIN_DIR/lbai" <<EOF
 #!/usr/bin/env sh
 set -eu
@@ -761,16 +837,17 @@ export PYTHONPATH="$INSTALL_DIR/lbai_core\${PYTHONPATH:+:\$PYTHONPATH}"
 exec "$RUNTIME_PYTHON" -m lbai.cli "\$@"
 EOF
 chmod +x "$BIN_DIR/lbai"
+step_done
+
 ensure_shell_path
 ensure_codex_cli
 ensure_codex_plugin
 ensure_shared_workspace
 
 set_st PYDEPS OK "jsonschema 等 ($VENV_DIR)"
-info "Installed Python runtime and dependencies (jsonschema)."
 
 if [ -t 0 ] && [ "${LBAI_SKIP_BACKEND_AUTH:-}" != "1" ]; then
-  info "Optional backend knowledge service setup."
+  step "可选：后端知识服务登录"
   if "$BIN_DIR/lbai" auth backend-login --optional; then
     set_st BACKEND OK "已完成或已跳过"
   else
@@ -780,6 +857,7 @@ else
   set_st BACKEND SKIPPED "非交互环境或 LBAI_SKIP_BACKEND_AUTH=1"
 fi
 
+step "输出安装结果汇总"
 kit_version="$(read_kit_version)"
 set_st LBAI OK "v$kit_version ($BIN_DIR/lbai)"
 

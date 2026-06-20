@@ -131,7 +131,9 @@ class TestPromptSchemaInventory:
 
         assert 'ensure_codex_cli' in install_sh
         assert 'ensure_codex_plugin' in install_sh
+        assert '[步骤' in install_sh
         assert 'ensure_shared_workspace' in install_sh
+        assert 'Write-Step' in install_ps1
         assert 'workspace ensure' in install_sh
         assert 'print_install_summary' in install_sh
         assert '安装结果汇总' in install_sh
