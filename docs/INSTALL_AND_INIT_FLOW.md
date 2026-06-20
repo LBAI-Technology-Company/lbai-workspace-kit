@@ -10,7 +10,7 @@ macOS / Linux:
 curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zprofile
 source ~/.zshrc
-lbai auth login
+lbai github auth token
 lbai auth backend-login
 ```
 
@@ -37,7 +37,7 @@ irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspac
 Close and reopen PowerShell after install, then run:
 
 ```powershell
-lbai auth login
+lbai github auth token
 lbai auth backend-login
 ```
 
@@ -52,10 +52,10 @@ Do not pass tokens as command-line arguments.
 Good:
 
 ```bash
-lbai auth login
+lbai github auth token
 ```
 
-`lbai auth login` behavior:
+`lbai github auth token` behavior:
 
 - First run: paste a GitHub token when prompted; LBAI saves it and **automatically syncs Git credentials** so bare `git push` works
 - Token already saved: press Enter to **re-sync Git credentials** (fixes 401 after token rotation without re-pasting if the saved file is already updated)
@@ -106,7 +106,7 @@ lbai init-workspace \
 ## Init Steps
 
 ```text
-1. Read GitHub authentication from `lbai auth login`, `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI credential state.
+1. Read GitHub authentication from `lbai github auth token`, `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI credential state.
 2. Clone the private repo into the selected local path, or use an existing local Git repo.
 3. Copy files from `workspace_template/`.
 4. Overwrite company-managed paths.
@@ -173,7 +173,7 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
    curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 
 2. 登录 GitHub：
-   lbai auth login
+   lbai github auth token
    （向管理员索取 GitHub Token，需有 private repo 读写权限；粘贴后会自动同步 Git 凭据）
    lbai auth doctor
    lbai auth backend-login

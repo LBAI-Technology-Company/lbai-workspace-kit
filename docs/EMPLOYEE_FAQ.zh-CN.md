@@ -32,7 +32,7 @@ lbai auth doctor
 ### 第 2 步：一键修复（最常见）
 
 ```bash
-lbai auth login
+lbai github auth token
 ```
 
 - **换了新 Token**：粘贴新 Token 回车（会自动同步到 Git）
@@ -85,7 +85,7 @@ lbai auth doctor
 ## 换电脑怎么恢复
 
 1. 重新安装：`curl ... install.sh | sh` 或 Windows 的 `install.ps1`。
-2. `lbai auth login`。
+2. `lbai github auth token`。
 3. `git clone` 你的 private 工作区 repo，或 `lbai init-workspace` 绑定已有 repo。
 4. 用 Cursor/Codex 打开克隆目录，运行 `lbai doctor` 确认 READY。
 

@@ -51,7 +51,7 @@ def main() -> int:
     if not lbai:
         return blocked(
             'lbai_cli_missing',
-            'Install the LBAI CLI, run lbai auth login, then run lbai init-workspace.',
+            'Install the LBAI CLI, run lbai github auth token, then run lbai init-workspace.',
         )
 
     command = [

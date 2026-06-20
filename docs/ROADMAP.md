@@ -9,7 +9,7 @@ Deliverables:
 - Public GitHub repo `lbai-workspace-kit`
 - `install.sh` and `install.ps1`
 - Local `lbai` command
-- `lbai auth login`
+- `lbai github auth token`
 - `lbai init-workspace`
 - Existing private repo flow
 - Workspace template copy

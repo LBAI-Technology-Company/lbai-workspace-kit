@@ -11,7 +11,7 @@
 先安装 LBAI CLI，完成认证：
 
 ```text
-lbai auth login
+lbai github auth token
 lbai auth backend-login
 ```
 
@@ -59,7 +59,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.11，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.12，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 
@@ -76,7 +76,7 @@ lbai update-kit
 | `lbai_cli_missing` | 安装 LBAI CLI 后重新打开终端 |
 | `workspace_not_initialized` | 运行 `lbai init-workspace` 或 `lbai workspace set --path <lbai-workspace>` |
 | `workspace_update_required` | 在工作区运行 `lbai update-kit` |
-| GitHub 认证不可用 | 运行 `lbai auth login` |
+| GitHub 认证不可用 | 运行 `lbai github auth token` |
 | 知识服务认证不可用 | 运行 `lbai auth backend-login` |
 | 缺少 origin/upstream | 修复 private workspace 的 Git remote 和跟踪分支 |
 | 插件升级后未生效 | 新建 Codex 线程 |

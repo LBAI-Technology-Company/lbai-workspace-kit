@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.11"
+INSTALLER_VERSION="1.4.12"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -873,7 +873,7 @@ fi
 if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -f "$HOME/.zprofile" ]; then
   info "  source ~/.zprofile   # Codex CLI PATH（macOS 常见）"
 fi
-info "  lbai auth login"
+info "  lbai github auth token"
 info "  lbai auth doctor"
 info "  lbai auth backend-login"
 info "  在任意 Codex 项目中运行 /lbai-init"

@@ -25,7 +25,7 @@ Covered:
 Partially covered:
 
 - `lbai execute-task`: Agent writes `execution_plan.md` and `task_output.md` via prompt; no JSON enrichment tool.
-- `lbai auth login`: stores a token outside the workspace in the local LBAI home directory. A future version can use system Keychain or GitHub device login.
+- `lbai github auth token`: stores a token outside the workspace in the local LBAI home directory. A future version can use system Keychain or GitHub device login.
 
 Not included by design:
 

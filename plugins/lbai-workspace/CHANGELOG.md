@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.12
+
+- Rename `lbai auth login` to `lbai github auth token` for clearer GitHub PAT configuration.
+
 ## 1.4.11
 
 - Print numbered install steps (`[步骤 N/12]`) and per-URL download progress so users can see where install stalls.

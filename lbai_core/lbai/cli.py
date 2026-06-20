@@ -46,6 +46,7 @@ EMPLOYEE_DEFAULT_PATHS = [
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
+GITHUB_AUTH_TOKEN_CMD = 'lbai github auth token'
 PLUGIN_MIN_WORKSPACE_VERSION = '1.4.1'
 
 DOCTOR_REQUIRED_FILES = [
@@ -224,25 +225,25 @@ def git_credential_sync_status() -> tuple[str, str]:
         if cred and token == cred:
             return 'ok', '已保存 Token 与 Git 凭据一致'
         if cred:
-            return 'stale', 'Git 凭据与已保存 Token 不一致；请运行 lbai auth login 粘贴新 Token，或直接回车重新同步'
-        return 'missing', 'Token 已保存但未同步到 Git；请运行 lbai auth login 并直接回车重新同步'
+            return 'stale', 'Git 凭据与已保存 Token 不一致；请运行 lbai github auth token 粘贴新 Token，或直接回车重新同步'
+        return 'missing', 'Token 已保存但未同步到 Git；请运行 lbai github auth token 并直接回车重新同步'
     if gh_authenticated():
         if cred:
             return 'ok', '使用 GitHub CLI 凭据'
         ok, msg = setup_gh_for_git()
         if ok:
             return 'ok', msg
-        return 'needs_setup', 'gh 已登录但 Git 未配置；请运行 lbai auth login 并直接回车'
+        return 'needs_setup', 'gh 已登录但 Git 未配置；请运行 lbai github auth token 并直接回车'
     if cred:
         return 'ok', 'Git 凭据管理器已配置'
-    return 'missing', '尚未配置 GitHub 认证；请运行 lbai auth login'
+    return 'missing', '尚未配置 GitHub 认证；请运行 lbai github auth token'
 
 
 def print_git_credential_sync(ok: bool, message: str) -> None:
     print(f'git_credential_sync: {"OK" if ok else "NEEDS_ATTENTION"}')
     print(f'git_credential_note: {message}')
     if not ok:
-        print('manual_fix: 重新运行 lbai auth login；若仍失败，联系管理员确认 Token 是否有 repo 权限')
+        print(f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}；若仍失败，联系管理员确认 Token 是否有 repo 权限')
 
 
 def ensure_git_credentials_synced() -> tuple[bool, str]:
@@ -607,7 +608,7 @@ def uninstall(args: argparse.Namespace) -> int:
     return 0
 
 
-def auth_login(_args: argparse.Namespace) -> int:
+def github_auth_token(_args: argparse.Namespace) -> int:
     path = auth_token_path()
     source = auth_source_label()
 
@@ -636,7 +637,7 @@ def auth_login(_args: argparse.Namespace) -> int:
                 return 0 if ok else 2
             print('auth_status: BLOCKED')
             print('reason: empty token')
-            print('next_step: 向管理员索取 GitHub Token（需 repo 权限），或先运行 gh auth login 后再执行 lbai auth login 并回车')
+            print(f'next_step: 向管理员索取 GitHub Token（需 repo 权限），或先运行 gh auth login 后再执行 {GITHUB_AUTH_TOKEN_CMD} 并回车')
             return 2
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -740,10 +741,10 @@ def auth_doctor(_args: argparse.Namespace) -> int:
         return 0
     if sync_status in {'stale', 'missing', 'needs_setup'}:
         print('auth_status: NEEDS_SYNC')
-        print('next_step: lbai auth login  # 粘贴新 Token，或直接回车重新同步')
+        print(f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 粘贴新 Token，或直接回车重新同步')
         return 2
     print('auth_status: BLOCKED')
-    print('next_step: lbai auth login  # 粘贴管理员提供的 GitHub Token')
+    print(f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 粘贴管理员提供的 GitHub Token')
     return 2
 
 
@@ -1064,7 +1065,7 @@ def doctor_report(args: argparse.Namespace) -> dict:
     ready = not missing and compatible and checks_ok and backend_ok and git_ok and upstream_ok
 
     if not report['authentication']['github_available']:
-        report['next_steps'].append('Run lbai auth login before a workflow that pushes to GitHub.')
+        report['next_steps'].append(f'Run {GITHUB_AUTH_TOKEN_CMD} before a workflow that pushes to GitHub.')
     if require_backend and not backend_ok:
         report['next_steps'].append('Run lbai auth backend-login before using knowledge search.')
     if not report['git']['origin_configured']:
@@ -1402,7 +1403,7 @@ def workspace_ensure(args: argparse.Namespace) -> int:
                 if result.returncode != 0:
                     print('workspace_ensure_status: BLOCKED')
                     print('reason: git clone failed')
-                    print('next_step: check repo URL, token permissions, or run lbai auth login')
+                    print(f'next_step: check repo URL, token permissions, or run {GITHUB_AUTH_TOKEN_CMD}')
                     return result.returncode or 2
 
         local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1460,9 +1461,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument('--version', action='version', version=f'lbai {read_version()}')
     sub = parser.add_subparsers(dest='command')
 
-    auth = sub.add_parser('auth')
+    auth = sub.add_parser('auth', help='Backend auth and credential checks.')
     auth_sub = auth.add_subparsers(dest='auth_command')
-    auth_sub.add_parser('login')
     backend_login = auth_sub.add_parser('backend-login')
     backend_login.add_argument('--api-key')
     backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
@@ -1472,7 +1472,16 @@ def build_parser() -> argparse.ArgumentParser:
     backend_login.add_argument('--verify-timeout', type=int, default=10)
     backend_login.add_argument('--no-verify', action='store_true')
     backend_login.add_argument('--optional', action='store_true')
-    auth_sub.add_parser('doctor')
+    auth_sub.add_parser('doctor', help='Check GitHub token sync and backend auth status.')
+
+    github = sub.add_parser('github', help='GitHub integration for LBAI CLI.')
+    github_sub = github.add_subparsers(dest='github_command')
+    github_auth = github_sub.add_parser('auth', help='Configure GitHub authentication.')
+    github_auth_sub = github_auth.add_subparsers(dest='github_auth_command')
+    github_auth_sub.add_parser(
+        'token',
+        help='Save GitHub personal access token and sync Git credentials.',
+    )
 
     init = sub.add_parser('init-workspace')
     init.add_argument('--repo-url')
@@ -1554,13 +1563,17 @@ def main(argv: list[str] | None = None) -> int:
     known, extra = parser.parse_known_args(argv)
 
     if known.command == 'auth':
-        if known.auth_command == 'login':
-            return auth_login(known)
         if known.auth_command == 'backend-login':
             return auth_backend_login(known)
         if known.auth_command == 'doctor':
             return auth_doctor(known)
-        parser.error('auth requires login, backend-login, or doctor')
+        parser.error(f'auth requires backend-login or doctor; use {GITHUB_AUTH_TOKEN_CMD} for GitHub token setup')
+    if known.command == 'github':
+        if known.github_command == 'auth':
+            if known.github_auth_command == 'token':
+                return github_auth_token(known)
+            parser.error('github auth requires token')
+        parser.error('github requires auth')
     if known.command == 'init-workspace':
         return init_workspace(known)
     if known.command == 'doctor':

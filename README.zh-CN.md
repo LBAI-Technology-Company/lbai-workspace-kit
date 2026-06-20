@@ -15,7 +15,7 @@
    ```powershell
    irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
    ```
-2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
+2. **登录 GitHub**：`lbai github auth token`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
 3. **确认认证**：`lbai auth doctor`（应显示 `auth_status: READY`）。
 4. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
 5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。初始化成功后会自动注册为本机默认 active workspace（`~/.lbai/config.json`）。
@@ -54,7 +54,7 @@ lbai-core + init-workspace installer
 
 需要支持：
 
-- `lbai auth login`
+- `lbai github auth token`
 - `lbai auth backend-login`
 - `lbai init-workspace`
 - `lbai doctor`
@@ -114,7 +114,7 @@ Release: v<版本号>
 **第 2 步：登录 GitHub**
 
 ```bash
-lbai auth login
+lbai github auth token
 ```
 
 - 首次使用：按提示粘贴管理员发给你的 GitHub Token（保存后**自动同步到 Git**，终端 `git push` 也能用）
@@ -274,7 +274,7 @@ Evidence 与 task 保持独立：`/lbai-add-evidence` 只归档资料，不记�
 推荐：
 
 ```bash
-lbai auth login
+lbai github auth token
 ```
 
 避免：
@@ -297,7 +297,7 @@ task artifacts
 命令行历史
 ```
 
-认证来源优先级：`lbai auth login` 保存的 Token → 环境变量 `GITHUB_TOKEN` / `GH_TOKEN` → GitHub CLI（`gh auth login`）。
+认证来源优先级：`lbai github auth token` 保存的 Token → 环境变量 `GITHUB_TOKEN` / `GH_TOKEN` → GitHub CLI（`gh auth login`）。
 
 ## 项目目录职责
 

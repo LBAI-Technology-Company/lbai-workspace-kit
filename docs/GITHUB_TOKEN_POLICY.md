@@ -21,7 +21,7 @@ logs
 
 ## Recommended MVP
 
-`lbai auth login` should prompt securely:
+`lbai github auth token` should prompt securely:
 
 ```text
 Paste GitHub token:
@@ -70,7 +70,7 @@ Then `lbai` can rely on Git credential state rather than storing a token directl
 The initializer should not ask for the token in the same prompt as repo URL and path. Authentication is a separate step:
 
 ```bash
-lbai auth login
+lbai github auth token
 lbai init-workspace
 ```
 

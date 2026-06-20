@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.11',
+        '1.4.12',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.11'
-    assert report['workspace_kit_version'] == '1.4.11'
+    assert report['cli_version'] == '1.4.12'
+    assert report['workspace_kit_version'] == '1.4.12'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.11'
+    assert report['plugin_version'] == '1.4.12'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -188,6 +188,19 @@ def path_without_gh() -> str:
     return ':'.join(parts)
 
 
+def import_workspace_cli():
+    workspace_core = str(kit_root() / 'lbai_core')
+    for key in list(sys.modules):
+        if key == 'lbai' or key.startswith('lbai.'):
+            del sys.modules[key]
+    while workspace_core in sys.path:
+        sys.path.remove(workspace_core)
+    sys.path.insert(0, workspace_core)
+    import lbai.cli as cli_module
+
+    return cli_module
+
+
 def test_git_credential_sync_roundtrip(tmp_path, monkeypatch):
     home = tmp_path / 'lbai_home'
     cred_store = tmp_path / 'git-credentials'
@@ -210,6 +223,39 @@ def test_git_credential_sync_roundtrip(tmp_path, monkeypatch):
     ok, message = sync_git_credentials(token)
     assert ok, message
     assert git_credential_password() == token
+
+
+def test_cli_github_auth_token_stores_token(tmp_path, monkeypatch):
+    home = tmp_path / 'lbai_home'
+    cred_store = tmp_path / 'git-credentials'
+    gitconfig = tmp_path / 'gitconfig'
+    gitconfig.write_text(
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.setenv('LBAI_HOME', str(home))
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
+    monkeypatch.setenv('PATH', path_without_gh())
+    cli_module = import_workspace_cli()
+    import argparse
+
+    monkeypatch.setattr(cli_module.getpass, 'getpass', lambda _prompt: 'lbai_github_auth_token_test')
+    rc = cli_module.github_auth_token(argparse.Namespace())
+    assert rc == 0
+    assert cli_module.auth_token_path().read_text(encoding='utf-8').strip() == 'lbai_github_auth_token_test'
+    assert cred_store.exists()
+    assert 'lbai_github_auth_token_test' in cred_store.read_text(encoding='utf-8')
+
+
+def test_cli_auth_login_removed(tmp_path):
+    home = tmp_path / 'lbai_home'
+    home.mkdir()
+    result = run_cli('auth', 'login', env_extra={'LBAI_HOME': str(home)})
+    assert result.returncode != 0
+    combined = result.stdout + result.stderr
+    assert "invalid choice: 'login'" in combined
+    assert '已更名' not in combined
 
 
 def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):

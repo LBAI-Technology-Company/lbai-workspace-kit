@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.11"
+$InstallerVersion = "1.4.12"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -599,7 +599,7 @@ Write-Info "Release: $releaseTag"
 Write-Info ""
 Write-Info "Next steps:"
 Write-Info "  关闭并重新打开 PowerShell"
-Write-Info "  lbai auth login"
+Write-Info "  lbai github auth token"
 Write-Info "  lbai auth doctor"
 Write-Info "  lbai auth backend-login"
 Write-Info "  在任意 Codex 项目中运行 /lbai-init"

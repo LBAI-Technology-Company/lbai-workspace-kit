@@ -9,7 +9,7 @@ In this first migrated version, `lbai_core` owns installation, initialization, u
 Terminal commands:
 
 ```text
-lbai auth login
+lbai github auth token
 lbai auth doctor
 lbai init-workspace
 lbai doctor
@@ -33,7 +33,7 @@ These workflows are routed through `lbai_system/tools/`, but commands that need 
 
 ## MVP Command Boundaries
 
-`lbai auth login` captures GitHub authentication safely. It must not accept tokens through command-line arguments. After saving a token, it syncs Git credential helpers so bare `git push` works. Pressing Enter re-syncs credentials without requiring a new token unless the user wants to replace it.
+`lbai github auth token` captures GitHub authentication safely. It must not accept tokens through command-line arguments. After saving a token, it syncs Git credential helpers so bare `git push` works. Pressing Enter re-syncs credentials without requiring a new token unless the user wants to replace it.
 
 `lbai init-workspace` uses the existing private repo flow:
 

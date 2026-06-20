@@ -158,7 +158,7 @@ lbai-workspace-zhangsan
 
 1. 从管理员那里拿到自己的 private 仓库地址和 GitHub Token
 2. 在终端运行公司安装命令（见下方）
-3. 运行 `lbai auth login`
+3. 运行 `lbai github auth token`
 4. 运行 `lbai init-workspace`
 5. 用 Cursor 或 Codex 打开初始化后的本地工作区
 6. 运行 `/lbai-init` 填写岗位信息
@@ -178,7 +178,7 @@ Windows（PowerShell）：
 irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
-Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行 `lbai auth login` 和 `lbai init-workspace`。
+Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行 `lbai github auth token` 和 `lbai init-workspace`。
 
 Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项目通过 `AGENTS.md` 和 `lbai_system/codex/skills/lbai-workflow/SKILL.md` 提供项目级适配，只影响当前仓库；`.agents/skills/` 是项目内薄适配文件，只做命令入口转发准备，真实规则仍以共享契约为准。当前稳定入口是 `/lbai-*`，不是 `$lbai-*`。
 
@@ -187,7 +187,7 @@ Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项�
 新员工建议按这个顺序配置：
 
 1. 安装 `lbai` 命令。
-2. 运行 `lbai auth login`，保存 GitHub 认证。首次使用粘贴 Token；已保存过 Token 或已通过 `gh auth login` 登录时，直接回车即可。
+2. 运行 `lbai github auth token`，保存 GitHub 认证。首次使用粘贴 Token；已保存过 Token 或已通过 `gh auth login` 登录时，直接回车即可。
 3. 运行 `lbai init-workspace`，输入管理员提供的 private repo URL；Mac / Windows 会弹出文件夹选择窗口，取消则默认保存在当前目录下的仓库同名文件夹。
 4. 进入初始化后的本地工作区，运行 `lbai doctor`。
 5. 用 Cursor 或 Codex 打开这个本地工作区。
@@ -205,7 +205,7 @@ Codex 不需要把本项目的 LBAI skill 安装到 `~/.codex/skills/`。本项�
 在终端运行：
 
 ```bash
-lbai auth login
+lbai github auth token
 lbai init-workspace
 ```
 
