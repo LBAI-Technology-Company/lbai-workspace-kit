@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.4
+
+- Bootstrap stale `curl | sh` installers by re-fetching the latest `install.sh` / `install.ps1` from GitHub release tags (fixes jsDelivr `@latest` cache lag).
+- Add Codex CLI fallback installers via npm and GitHub release binaries when `chatgpt.com` is unreachable.
+- Auto-add `~/.local/bin` to shell PATH when installing Codex via GitHub binary fallback.
+
 ## 1.4.3
 
 - Bundle OpenAI Codex CLI installation into `install.sh` and `install.ps1`.

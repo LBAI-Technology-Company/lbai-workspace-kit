@@ -2,6 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
+INSTALLER_VERSION="1.4.4"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -20,6 +21,114 @@ fail() {
 have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
+
+detect_script_dir() {
+  if [ -f "$0" ]; then
+    CDPATH= cd -- "$(dirname -- "$0")" && pwd
+    return 0
+  fi
+  return 1
+}
+
+fetch_latest_release_tag_soft() {
+  if [ -n "${LBAI_VERSION:-}" ]; then
+    printf '%s\n' "$LBAI_VERSION"
+    return 0
+  fi
+
+  tag=""
+  if command -v gh >/dev/null 2>&1; then
+    tag="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null | tr -d '[:space:]')"
+  fi
+
+  if [ -z "$tag" ]; then
+    for api_url in \
+      "https://ghproxy.net/https://api.github.com/repos/$REPO/releases/latest" \
+      "https://api.github.com/repos/$REPO/releases/latest"
+    do
+      response="$(curl -fsSL --connect-timeout 15 --max-time 30 "$api_url" 2>/dev/null || true)"
+      tag="$(printf '%s\n' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
+      if [ -n "$tag" ]; then
+        break
+      fi
+    done
+  fi
+
+  if [ -z "$tag" ]; then
+    location="$(curl -fsSI --connect-timeout 15 --max-time 30 "https://github.com/$REPO/releases/latest" 2>/dev/null \
+      | awk 'tolower($1) == "location:" { print $2 }' | tr -d '\r' | tail -n 1)"
+    if [ -n "$location" ]; then
+      tag="${location##*/}"
+    fi
+  fi
+
+  if [ -z "$tag" ]; then
+    return 1
+  fi
+
+  printf '%s\n' "$tag"
+}
+
+resolve_latest_release_tag() {
+  tag="$(fetch_latest_release_tag_soft || true)"
+  if [ -z "$tag" ]; then
+    fail "could not resolve latest release for $REPO"
+  fi
+  printf '%s\n' "$tag"
+}
+
+bootstrap_latest_installer() {
+  if [ "${LBAI_INSTALL_BOOTSTRAP:-}" = "1" ]; then
+    return 0
+  fi
+
+  script_dir="$(detect_script_dir || true)"
+  if [ -n "$script_dir" ] && [ -f "$script_dir/lbai_core/lbai/cli.py" ] && [ -d "$script_dir/workspace_template" ]; then
+    return 0
+  fi
+
+  if [ -f "$0" ] && grep -q 'ensure_codex_plugin' "$0" 2>/dev/null; then
+    return 0
+  fi
+
+  if ! have_cmd curl; then
+    info "WARNING: 无法从 GitHub 拉取最新 install.sh（缺少 curl），继续使用当前安装脚本。"
+    return 0
+  fi
+
+  tag="$(fetch_latest_release_tag_soft || true)"
+  if [ -z "$tag" ]; then
+    info "WARNING: 无法解析最新 release tag，跳过 install.sh 自动升级。"
+    return 0
+  fi
+  tmp="$(mktemp -d)"
+  fetched=0
+  for url in \
+    "https://ghproxy.net/https://raw.githubusercontent.com/$REPO/$tag/install.sh" \
+    "https://raw.githubusercontent.com/$REPO/$tag/install.sh"
+  do
+    if curl -fsSL --connect-timeout 20 --max-time 120 "$url" -o "$tmp/install.sh" 2>/dev/null \
+      && grep -q 'ensure_codex_plugin' "$tmp/install.sh" 2>/dev/null
+    then
+      fetched=1
+      break
+    fi
+    rm -f "$tmp/install.sh"
+  done
+
+  if [ "$fetched" -ne 1 ]; then
+    rm -rf "$tmp"
+    info "WARNING: 无法从 GitHub 拉取最新 install.sh，继续使用当前安装脚本。"
+    return 0
+  fi
+
+  chmod +x "$tmp/install.sh"
+  export LBAI_INSTALL_BOOTSTRAP=1
+  export LBAI_VERSION="$tag"
+  exec /bin/sh "$tmp/install.sh" "$@"
+}
+
+bootstrap_latest_installer
 
 resolve_python_bin() {
   if have_cmd python3 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
@@ -144,6 +253,92 @@ refresh_codex_path() {
   fi
 }
 
+ensure_codex_local_bin_path() {
+  bin_dir="$HOME/.local/bin"
+  profile=""
+  case "$(uname -s 2>/dev/null || true):${SHELL:-}" in
+    Darwin:*/zsh) profile="$HOME/.zprofile" ;;
+    Darwin:*/bash) profile="$HOME/.bash_profile" ;;
+    Linux:*/zsh) profile="$HOME/.zshrc" ;;
+    Linux:*/bash) profile="$HOME/.bashrc" ;;
+    *) profile="$HOME/.profile" ;;
+  esac
+
+  [ -n "$profile" ] || return 0
+  path_line="export PATH=\"$bin_dir:\$PATH\""
+  touch "$profile"
+  if grep -qF "$bin_dir" "$profile" 2>/dev/null; then
+    return 0
+  fi
+  {
+    printf '\n# Added by LBAI installer for Codex CLI\n'
+    printf '%s\n' "$path_line"
+  } >> "$profile"
+  info "Added Codex CLI to PATH in $profile"
+}
+
+codex_cli_available() {
+  refresh_codex_path
+  codex_cli_bin >/dev/null 2>&1 && codex --version >/dev/null 2>&1
+}
+
+install_codex_via_official_script() {
+  CODEX_NON_INTERACTIVE=1 curl -fsSL --connect-timeout 20 --max-time 300 "$CODEX_CLI_INSTALL_URL" | sh
+}
+
+install_codex_via_npm() {
+  if ! have_cmd npm; then
+    return 1
+  fi
+  info "  尝试 npm 全局安装 @openai/codex ..."
+  npm install -g @openai/codex
+}
+
+resolve_codex_github_asset() {
+  os="$(uname -s 2>/dev/null || true)"
+  arch="$(uname -m 2>/dev/null || true)"
+  case "$os:$arch" in
+    Darwin:arm64|Darwin:aarch64) printf '%s\n' "codex-aarch64-apple-darwin.tar.gz" ;;
+    Darwin:x86_64) printf '%s\n' "codex-x86_64-apple-darwin.tar.gz" ;;
+    Linux:x86_64) printf '%s\n' "codex-x86_64-unknown-linux-musl.tar.gz" ;;
+    Linux:aarch64|Linux:arm64) printf '%s\n' "codex-aarch64-unknown-linux-musl.tar.gz" ;;
+    *) return 1 ;;
+  esac
+}
+
+install_codex_via_github_binary() {
+  asset="$(resolve_codex_github_asset || true)"
+  if [ -z "$asset" ]; then
+    return 1
+  fi
+
+  info "  尝试 GitHub release 二进制 ($asset) ..."
+  tmp="$(mktemp -d)"
+  mkdir -p "$HOME/.local/bin"
+  for url in \
+    "https://ghproxy.net/https://github.com/openai/codex/releases/latest/download/$asset" \
+    "https://github.com/openai/codex/releases/latest/download/$asset"
+  do
+    if curl -fsSL --connect-timeout 20 --max-time 300 "$url" -o "$tmp/codex.tgz" 2>/dev/null \
+      && tar -tzf "$tmp/codex.tgz" >/dev/null 2>&1
+    then
+      rm -rf "$tmp/extract"
+      mkdir -p "$tmp/extract"
+      tar -xzf "$tmp/codex.tgz" -C "$tmp/extract" 2>/dev/null || true
+      codex_bin="$(find "$tmp/extract" -type f -name codex 2>/dev/null | head -n 1)"
+      if [ -n "$codex_bin" ] && cp "$codex_bin" "$HOME/.local/bin/codex" 2>/dev/null; then
+        chmod +x "$HOME/.local/bin/codex"
+        ensure_codex_local_bin_path
+        rm -rf "$tmp"
+        return 0
+      fi
+    fi
+    rm -f "$tmp/codex.tgz"
+  done
+  rm -rf "$tmp"
+  return 1
+}
+
 ensure_codex_cli() {
   if [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
     info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
@@ -159,27 +354,33 @@ ensure_codex_cli() {
       ;;
   esac
 
-  refresh_codex_path
-  if codex_cli_bin >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+  if codex_cli_available; then
     info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
     return 0
   fi
 
   if ! have_cmd curl; then
     info "WARNING: 未检测到 curl，跳过 Codex CLI 自动安装。"
-    info "  可稍后手动运行：curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
     return 0
   fi
 
-  info "未检测到 Codex CLI，正在通过 OpenAI 官方安装脚本安装..."
-  if ! CODEX_NON_INTERACTIVE=1 curl -fsSL --connect-timeout 20 --max-time 300 "$CODEX_CLI_INSTALL_URL" | sh; then
+  info "未检测到 Codex CLI，正在尝试多种安装方式..."
+  if install_codex_via_official_script && codex_cli_available; then
+    :
+  elif install_codex_via_npm && codex_cli_available; then
+    :
+  elif install_codex_via_github_binary && codex_cli_available; then
+    :
+  else
     info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
     info "  curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
+    info "  npm install -g @openai/codex"
+    info "  或从 https://github.com/openai/codex/releases 下载对应平台二进制到 ~/.local/bin"
     return 0
   fi
 
   refresh_codex_path
-  if codex_cli_bin >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+  if codex_cli_available; then
     info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
     return 0
   fi
@@ -331,53 +532,6 @@ create_python_runtime() {
   fi
 
   printf '%s\n' "$venv_python"
-}
-
-detect_script_dir() {
-  if [ -f "$0" ]; then
-    CDPATH= cd -- "$(dirname -- "$0")" && pwd
-    return 0
-  fi
-  return 1
-}
-
-resolve_latest_release_tag() {
-  if [ -n "${LBAI_VERSION:-}" ]; then
-    printf '%s\n' "$LBAI_VERSION"
-    return 0
-  fi
-
-  tag=""
-  if command -v gh >/dev/null 2>&1; then
-    tag="$(gh api "repos/$REPO/releases/latest" --jq '.tag_name' 2>/dev/null | tr -d '[:space:]')"
-  fi
-
-  if [ -z "$tag" ]; then
-    for api_url in \
-      "https://ghproxy.net/https://api.github.com/repos/$REPO/releases/latest" \
-      "https://api.github.com/repos/$REPO/releases/latest"
-    do
-      response="$(curl -fsSL --connect-timeout 15 --max-time 30 "$api_url" 2>/dev/null || true)"
-      tag="$(printf '%s\n' "$response" | sed -n 's/.*"tag_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)"
-      if [ -n "$tag" ]; then
-        break
-      fi
-    done
-  fi
-
-  if [ -z "$tag" ]; then
-    location="$(curl -fsSI --connect-timeout 15 --max-time 30 "https://github.com/$REPO/releases/latest" 2>/dev/null \
-      | awk 'tolower($1) == "location:" { print $2 }' | tr -d '\r' | tail -n 1)"
-    if [ -n "$location" ]; then
-      tag="${location##*/}"
-    fi
-  fi
-
-  if [ -z "$tag" ]; then
-    fail "could not resolve latest release for $REPO"
-  fi
-
-  printf '%s\n' "$tag"
 }
 
 install_from_dir() {

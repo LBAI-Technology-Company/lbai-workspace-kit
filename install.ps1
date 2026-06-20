@@ -1,6 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
+$InstallerVersion = "1.4.4"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -74,17 +75,72 @@ function Ensure-Prerequisites {
     Write-Info "环境检查通过：$(& $pythonExe @pythonArgs --version)"
 }
 
-function Get-LatestReleaseTag {
+function Get-LatestReleaseTagSoft {
     if ($env:LBAI_VERSION) {
         return $env:LBAI_VERSION
     }
-    try {
-        $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest" -TimeoutSec 30
-        return $release.tag_name
-    } catch {
+    foreach ($apiUrl in @(
+        "https://ghproxy.net/https://api.github.com/repos/$Repo/releases/latest",
+        "https://api.github.com/repos/$Repo/releases/latest"
+    )) {
+        try {
+            $release = Invoke-RestMethod -Uri $apiUrl -TimeoutSec 30
+            if ($release.tag_name) {
+                return $release.tag_name
+            }
+        } catch {
+            continue
+        }
+    }
+    return $null
+}
+
+function Get-LatestReleaseTag {
+    $tag = Get-LatestReleaseTagSoft
+    if (-not $tag) {
         Fail "无法获取最新 Release，请检查网络后重试。"
     }
+    return $tag
 }
+
+function Bootstrap-LatestInstaller {
+    if ($env:LBAI_INSTALL_BOOTSTRAP -eq "1") {
+        return
+    }
+    if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "lbai_core/lbai/cli.py"))) {
+        return
+    }
+    if ($MyInvocation.MyCommand.Path -and (Select-String -Path $MyInvocation.MyCommand.Path -Pattern 'Ensure-CodexPlugin' -Quiet)) {
+        return
+    }
+
+    $tag = Get-LatestReleaseTagSoft
+    if (-not $tag) {
+        Write-Info "WARNING: 无法解析最新 release tag，跳过 install.ps1 自动升级。"
+        return
+    }
+
+    Write-Info "检测到旧版或缓存安装脚本，正在从 GitHub 拉取最新 install.ps1 ($tag)..."
+    foreach ($url in @(
+        "https://ghproxy.net/https://raw.githubusercontent.com/$Repo/$tag/install.ps1",
+        "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
+    )) {
+        try {
+            $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
+            if ($script -match 'Ensure-CodexPlugin') {
+                $env:LBAI_INSTALL_BOOTSTRAP = "1"
+                $env:LBAI_VERSION = $tag
+                Invoke-Expression $script
+                exit $LASTEXITCODE
+            }
+        } catch {
+            continue
+        }
+    }
+    Write-Info "WARNING: 无法从 GitHub 拉取最新 install.ps1，继续使用当前安装脚本。"
+}
+
+Bootstrap-LatestInstaller
 
 function Test-PythonVersion([string[]]$Command) {
     try {
@@ -199,44 +255,83 @@ set "PYTHONPATH=$InstallDir\lbai_core;%PYTHONPATH%"
 "@ | Set-Content -Path $launcher -Encoding ASCII
 }
 
+function Install-CodexViaOfficialScript {
+    $env:CODEX_NON_INTERACTIVE = "1"
+    if (Test-Command curl) {
+        curl.exe -fsSL --connect-timeout 20 --max-time 300 https://chatgpt.com/codex/install.ps1 | powershell -NoProfile -Command -
+        return ($LASTEXITCODE -eq 0)
+    }
+    $script = (Invoke-WebRequest -UseBasicParsing -Uri "https://chatgpt.com/codex/install.ps1" -TimeoutSec 300).Content
+    Invoke-Expression $script
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Install-CodexViaNpm {
+    if (-not (Test-Command npm)) {
+        return $false
+    }
+    Write-Info "  尝试 npm 全局安装 @openai/codex ..."
+    npm install -g @openai/codex | Out-Null
+    return ($LASTEXITCODE -eq 0)
+}
+
+function Install-CodexViaGithubBinary {
+    $asset = if ([Environment]::Is64BitOperatingSystem) { "codex-x86_64-pc-windows-msvc.zip" } else { $null }
+    if (-not $asset) {
+        return $false
+    }
+    Write-Info "  尝试 GitHub release 二进制 ($asset) ..."
+    $localBin = Join-Path $env:USERPROFILE ".local\bin"
+    New-Item -ItemType Directory -Path $localBin -Force | Out-Null
+    $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("codex-install-" + [guid]::NewGuid().ToString())
+    New-Item -ItemType Directory -Path $tmp -Force | Out-Null
+    foreach ($url in @(
+        "https://ghproxy.net/https://github.com/openai/codex/releases/latest/download/$asset",
+        "https://github.com/openai/codex/releases/latest/download/$asset"
+    )) {
+        try {
+            $archive = Join-Path $tmp $asset
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $archive -TimeoutSec 300
+            Expand-Archive -Path $archive -DestinationPath $tmp -Force
+            $candidate = Get-ChildItem -Path $tmp -Recurse -Filter "codex.exe" | Select-Object -First 1
+            if ($candidate) {
+                Copy-Item -Path $candidate.FullName -Destination (Join-Path $localBin "codex.exe") -Force
+                return $true
+            }
+        } catch {
+            continue
+        }
+    }
+    return $false
+}
+
 function Ensure-CodexCli {
     if ($env:LBAI_SKIP_CODEX_CLI -eq "1") {
         Write-Info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
         return
     }
 
+    $codexBin = Join-Path $env:USERPROFILE ".local\bin\codex.exe"
     if (Test-Command codex) {
         Write-Info "环境检查通过：$(codex --version)"
         return
     }
-
-    $codexBin = Join-Path $env:USERPROFILE ".local\bin\codex.exe"
     if (Test-Path $codexBin) {
         Write-Info "Codex CLI 已安装到 $codexBin。"
         Write-Info "若当前 PowerShell 仍找不到 codex，请关闭并重新打开终端。"
         return
     }
 
-    if (-not (Test-Command curl) -and -not (Get-Command Invoke-WebRequest -ErrorAction SilentlyContinue)) {
-        Write-Info "WARNING: 无法下载 Codex CLI 安装脚本，已跳过。"
-        Write-Info "  可稍后手动运行：irm https://chatgpt.com/codex/install.ps1 | iex"
-        return
-    }
-
-    Write-Info "未检测到 Codex CLI，正在通过 OpenAI 官方安装脚本安装..."
+    Write-Info "未检测到 Codex CLI，正在尝试多种安装方式..."
+    $installed = $false
     try {
-        $env:CODEX_NON_INTERACTIVE = "1"
-        if (Test-Command curl) {
-            curl.exe -fsSL --connect-timeout 20 --max-time 300 https://chatgpt.com/codex/install.ps1 | powershell -NoProfile -Command -
-        } else {
-            $script = (Invoke-WebRequest -UseBasicParsing -Uri "https://chatgpt.com/codex/install.ps1").Content
-            Invoke-Expression $script
-        }
+        Write-Info "  尝试 OpenAI 官方安装脚本..."
+        if (Install-CodexViaOfficialScript) { $installed = $true }
     } catch {
-        Write-Info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
-        Write-Info "  irm https://chatgpt.com/codex/install.ps1 | iex"
-        return
+        $installed = $false
     }
+    if (-not $installed -and (Install-CodexViaNpm)) { $installed = $true }
+    if (-not $installed -and (Install-CodexViaGithubBinary)) { $installed = $true }
 
     $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -252,8 +347,9 @@ function Ensure-CodexCli {
         return
     }
 
-    Write-Info "WARNING: Codex CLI 安装脚本已执行，但未检测到 codex 命令。"
-    Write-Info "  请关闭并重新打开 PowerShell 后再试。"
+    Write-Info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
+    Write-Info "  irm https://chatgpt.com/codex/install.ps1 | iex"
+    Write-Info "  npm install -g @openai/codex"
 }
 
 function Invoke-Codex {

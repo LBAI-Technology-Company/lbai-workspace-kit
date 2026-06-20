@@ -131,6 +131,10 @@ class TestPromptSchemaInventory:
 
         assert 'ensure_codex_cli' in install_sh
         assert 'ensure_codex_plugin' in install_sh
+        assert 'bootstrap_latest_installer' in install_sh
+        assert 'INSTALLER_VERSION' in install_sh
+        assert 'install_codex_via_github_binary' in install_sh
+        assert 'install_codex_via_npm' in install_sh
         assert 'https://chatgpt.com/codex/install.sh' in install_sh
         assert 'plugin marketplace add' in install_sh
         assert 'lbai-workspace@$CODEX_PLUGIN_MARKETPLACE' in install_sh
@@ -145,6 +149,10 @@ class TestPromptSchemaInventory:
 
         assert 'Ensure-CodexCli' in install_ps1
         assert 'Ensure-CodexPlugin' in install_ps1
+        assert 'Bootstrap-LatestInstaller' in install_ps1
+        assert 'InstallerVersion' in install_ps1
+        assert 'Install-CodexViaGithubBinary' in install_ps1
+        assert 'Install-CodexViaNpm' in install_ps1
         assert 'https://chatgpt.com/codex/install.ps1' in install_ps1
         assert 'plugin marketplace add' in install_ps1
         assert 'lbai-workspace@$CodexPluginMarketplace' in install_ps1
