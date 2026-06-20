@@ -25,7 +25,7 @@ lbai workspace show
 lbai workspace set --path /path/to/lbai-workspace-xxx
 ```
 
-管理员发布固定 Git tag 后，在 Codex 中安装 Marketplace 和插件：
+管理员发布固定 Git tag 后，员工只需运行 `install.sh` / `install.ps1`；安装器会自动配置 Codex marketplace 并安装 `lbai-workspace` 插件。如需手动安装或排查，可使用：
 
 ```text
 codex plugin marketplace add LBAI-Technology-Company/lbai-workspace-kit --ref <release-tag>
@@ -54,7 +54,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.2，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.3，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 

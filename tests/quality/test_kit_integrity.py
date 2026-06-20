@@ -129,11 +129,27 @@ class TestPromptSchemaInventory:
         assert 'Warning: could not install jsonschema' not in install_sh
         assert 'fail "could not install Python dependencies' in install_sh
 
+        assert 'ensure_codex_cli' in install_sh
+        assert 'ensure_codex_plugin' in install_sh
+        assert 'https://chatgpt.com/codex/install.sh' in install_sh
+        assert 'plugin marketplace add' in install_sh
+        assert 'lbai-workspace@$CODEX_PLUGIN_MARKETPLACE' in install_sh
+        assert 'LBAI_SKIP_CODEX_CLI' in install_sh
+        assert 'LBAI_SKIP_CODEX_PLUGIN' in install_sh
+
         assert '$VenvDir = Join-Path $LbaiHome "venv"' in install_ps1
         assert 'set "LBAI_HOME=$LbaiHome"' in install_ps1
         assert '"$RuntimePython" -m lbai.cli %*' in install_ps1
         assert 'Warning: could not install jsonschema' not in install_ps1
         assert 'Fail "could not install Python dependencies' in install_ps1
+
+        assert 'Ensure-CodexCli' in install_ps1
+        assert 'Ensure-CodexPlugin' in install_ps1
+        assert 'https://chatgpt.com/codex/install.ps1' in install_ps1
+        assert 'plugin marketplace add' in install_ps1
+        assert 'lbai-workspace@$CodexPluginMarketplace' in install_ps1
+        assert 'LBAI_SKIP_CODEX_CLI' in install_ps1
+        assert 'LBAI_SKIP_CODEX_PLUGIN' in install_ps1
 
     def test_update_kit_prefers_nested_workspace_template(self, tmp_path):
         tools_dir = template_root() / 'lbai_system' / 'tools'

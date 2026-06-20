@@ -26,7 +26,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing.
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. On macOS and Linux it also attempts to install the OpenAI Codex CLI and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip).
 
 ## Authentication
 

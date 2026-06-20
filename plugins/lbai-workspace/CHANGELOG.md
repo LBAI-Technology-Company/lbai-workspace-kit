@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3
+
+- Bundle OpenAI Codex CLI installation into `install.sh` and `install.ps1`.
+- Auto-configure the `lbai-internal` Codex marketplace and install `lbai-workspace` from the same release tag.
+- Add `LBAI_SKIP_CODEX_CLI` and `LBAI_SKIP_CODEX_PLUGIN` opt-out flags for installer automation.
+
 ## 1.4.2
 
 - Route plugin and CLI workflows to the registered global active workspace in `~/.lbai/config.json`.

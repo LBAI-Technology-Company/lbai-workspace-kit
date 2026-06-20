@@ -120,6 +120,150 @@ ensure_prerequisites() {
   info "环境检查通过：$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
 }
 
+CODEX_CLI_INSTALL_URL="https://chatgpt.com/codex/install.sh"
+CODEX_PLUGIN_MARKETPLACE="lbai-internal"
+
+codex_cli_bin() {
+  if have_cmd codex; then
+    command -v codex
+    return 0
+  fi
+  if [ -x "$HOME/.local/bin/codex" ]; then
+    printf '%s\n' "$HOME/.local/bin/codex"
+    return 0
+  fi
+  return 1
+}
+
+refresh_codex_path() {
+  if [ -d "$HOME/.local/bin" ]; then
+    case ":$PATH:" in
+      *":$HOME/.local/bin:"*) ;;
+      *) PATH="$HOME/.local/bin:$PATH"; export PATH ;;
+    esac
+  fi
+}
+
+ensure_codex_cli() {
+  if [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
+    info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
+    return 0
+  fi
+
+  os="$(uname -s 2>/dev/null || true)"
+  case "$os" in
+    Darwin|Linux) ;;
+    *)
+      info "当前系统跳过 Codex CLI 自动安装。"
+      return 0
+      ;;
+  esac
+
+  refresh_codex_path
+  if codex_cli_bin >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+    info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
+    return 0
+  fi
+
+  if ! have_cmd curl; then
+    info "WARNING: 未检测到 curl，跳过 Codex CLI 自动安装。"
+    info "  可稍后手动运行：curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
+    return 0
+  fi
+
+  info "未检测到 Codex CLI，正在通过 OpenAI 官方安装脚本安装..."
+  if ! CODEX_NON_INTERACTIVE=1 curl -fsSL --connect-timeout 20 --max-time 300 "$CODEX_CLI_INSTALL_URL" | sh; then
+    info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
+    info "  curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
+    return 0
+  fi
+
+  refresh_codex_path
+  if codex_cli_bin >/dev/null 2>&1 && codex --version >/dev/null 2>&1; then
+    info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
+    return 0
+  fi
+
+  if [ -x "$HOME/.local/bin/codex" ]; then
+    info "Codex CLI 已安装到 $HOME/.local/bin/codex。"
+    info "若当前终端仍找不到 codex，请运行 source ~/.zprofile 或 source ~/.zshrc 后重试。"
+    return 0
+  fi
+
+  info "WARNING: Codex CLI 安装脚本已执行，但未检测到 codex 命令。"
+  info "  请新开终端，或运行 source ~/.zprofile / source ~/.zshrc 后再试。"
+  return 0
+}
+
+run_codex() {
+  refresh_codex_path
+  if have_cmd codex; then
+    codex "$@"
+    return $?
+  fi
+  if [ -x "$HOME/.local/bin/codex" ]; then
+    "$HOME/.local/bin/codex" "$@"
+    return $?
+  fi
+  return 127
+}
+
+codex_cli_ready() {
+  run_codex --version >/dev/null 2>&1
+}
+
+ensure_codex_plugin() {
+  plugin_tag="${LBAI_PLUGIN_REF:-${RELEASE_TAG:-}}"
+
+  if [ "${LBAI_SKIP_CODEX_PLUGIN:-}" = "1" ] || [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
+    info "跳过 Codex 插件安装（LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1）。"
+    return 0
+  fi
+
+  if ! codex_cli_ready; then
+    info "WARNING: codex 不可用，跳过 lbai-workspace 插件安装。"
+    info "  请先 source ~/.zprofile 或 ~/.zshrc，然后重新运行 install.sh。"
+    return 0
+  fi
+
+  if [ -z "$plugin_tag" ] || [ "$plugin_tag" = "local" ]; then
+    info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
+    return 0
+  fi
+
+  info "正在配置 LBAI Codex 插件 marketplace ($plugin_tag)..."
+  marketplace_ok=0
+  if run_codex plugin marketplace upgrade "$CODEX_PLUGIN_MARKETPLACE" >/dev/null 2>&1; then
+    marketplace_ok=1
+    info "已升级 Codex marketplace: $CODEX_PLUGIN_MARKETPLACE"
+  else
+    run_codex plugin marketplace remove "$CODEX_PLUGIN_MARKETPLACE" >/dev/null 2>&1 || true
+    if run_codex plugin marketplace add "$REPO" --ref "$plugin_tag"; then
+      marketplace_ok=1
+      info "已添加 Codex marketplace: $CODEX_PLUGIN_MARKETPLACE"
+    fi
+  fi
+
+  if [ "$marketplace_ok" -eq 0 ]; then
+    info "WARNING: Codex marketplace 配置失败。请确认已登录 Codex 后手动运行："
+    info "  codex plugin marketplace add $REPO --ref $plugin_tag"
+    info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+    return 0
+  fi
+
+  info "正在安装 lbai-workspace 插件..."
+  run_codex plugin remove lbai-workspace >/dev/null 2>&1 || true
+  if run_codex plugin add "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"; then
+    info "已安装 Codex 插件: lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+    info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
+    return 0
+  fi
+
+  info "WARNING: Codex 插件安装失败。请手动运行："
+  info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+  return 0
+}
+
 PATH_MARKER="# LBAI Workspace Kit CLI"
 
 detect_shell_rc() {
@@ -340,6 +484,8 @@ exec "$RUNTIME_PYTHON" -m lbai.cli "\$@"
 EOF
 chmod +x "$BIN_DIR/lbai"
 ensure_shell_path
+ensure_codex_cli
+ensure_codex_plugin
 
 info "Installed Python runtime and dependencies (jsonschema)."
 
@@ -359,10 +505,17 @@ info "Next steps:"
 if [ -n "$shell_rc" ]; then
   info "  source $shell_rc"
 fi
+if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -f "$HOME/.zprofile" ]; then
+  info "  source ~/.zprofile   # Codex CLI PATH（macOS 常见）"
+fi
 info "  lbai auth login"
 info "  lbai auth doctor"
 info "  lbai auth backend-login"
 info "  lbai init-workspace"
+if ! codex_cli_ready && { codex_cli_bin >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; }; then
+  info "  source ~/.zprofile   # 然后 codex --version"
+  info "  重新运行 install.sh 以自动安装 lbai-workspace 插件"
+fi
 info
 info "To repair or upgrade the installed CLI, rerun install.sh."
 info "To remove the installed CLI later:"
