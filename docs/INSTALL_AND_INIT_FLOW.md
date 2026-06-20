@@ -2,36 +2,34 @@
 
 ## Public Install Command
 
-Employee install commands (auto-check Git and Python 3.10+):
+Employee install commands download the latest `install.sh` / `install.ps1` directly from GitHub release assets (`releases/latest/download`). This is not a pinned version tag; it always follows the current GitHub latest release.
 
 macOS / Linux:
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zprofile
 source ~/.zshrc
 lbai auth login
 lbai init-workspace
 ```
 
-If the output does **not** end with `========== 安装结果汇总 ==========`, jsDelivr may still be serving a stale installer. Use the GitHub latest-release installer instead (not a pinned version tag):
+If GitHub is slow or unreachable from your network, use the ghproxy mirror:
 
 ```bash
-curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
+curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 ```
-
-Piped `@latest` installers auto-fetch the newest `install.sh` from GitHub release assets when the cached CDN copy is stale. Each GitHub release also purges jsDelivr `@latest` / `@main` cache automatically.
 
 Windows (PowerShell):
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
-If install output lacks **安装结果汇总**, use:
+ghproxy mirror:
 
 ```powershell
-irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
+irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
 Close and reopen PowerShell after install, then run:
@@ -41,7 +39,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped `@latest` install scripts auto-fetch the newest installer from GitHub release tags before proceeding. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped installers auto-fetch the newest script from GitHub release assets when the local copy is stale. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
 
 ## Authentication
 
@@ -160,12 +158,15 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 
 1. 安装（选你的系统）：
    macOS/Linux:
-   curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+   curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
    source ~/.zshrc
 
    Windows PowerShell:
-   irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+   irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
    （安装后请关闭并重新打开 PowerShell）
+
+   国内网络 GitHub 较慢时，可在 URL 前加 ghproxy：
+   curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 
 2. 登录 GitHub：
    lbai auth login

@@ -8,12 +8,12 @@
 
 1. **安装 CLI**（macOS / Linux）：
    ```bash
-   curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+   curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
    source ~/.zshrc
    ```
    Windows PowerShell：
    ```powershell
-   irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+   irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
    ```
 2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
 3. **确认认证**：`lbai auth doctor`（应显示 `auth_status: READY`）。
@@ -92,14 +92,14 @@ lbai-core + init-workspace installer
 Mac（终端）：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
 安装的是**最新 Release 版本**（`@latest` 始终指向最新 Release，不是 main 开发分支）。安装脚本会在运行时再次解析并下载最新 Release 包。完成后会显示：
@@ -340,14 +340,14 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 Mac：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
 ### 升级工作区模板

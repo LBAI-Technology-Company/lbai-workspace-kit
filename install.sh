@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.8"
+INSTALLER_VERSION="1.4.9"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -279,7 +279,7 @@ ensure_prerequisites() {
       ensure_prerequisites_linux
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      fail "Windows 请改用 PowerShell 安装命令：irm https://cdn.jsdelivr.net/gh/$REPO@latest/install.ps1 | iex"
+      fail "Windows 请改用 PowerShell 安装命令：irm https://github.com/$REPO/releases/latest/download/install.ps1 | iex"
       ;;
     *)
       fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3.10+。"

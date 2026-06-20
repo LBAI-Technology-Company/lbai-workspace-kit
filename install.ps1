@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.8"
+$InstallerVersion = "1.4.9"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {

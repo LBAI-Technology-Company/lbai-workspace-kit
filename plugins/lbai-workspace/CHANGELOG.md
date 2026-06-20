@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.9
+
+- Switch employee install commands from jsDelivr CDN to GitHub `releases/latest/download` installer assets.
+- Remove jsDelivr cache purge workflow; keep ghproxy as optional GitHub mirror in docs.
+
 ## 1.4.8
 
 - Auto-purge jsDelivr `@latest` / `@main` cache on every GitHub release so piped `@latest` installers stay current.

@@ -168,14 +168,14 @@ lbai-workspace-zhangsan
 Mac：
 
 ```bash
-curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
+curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zshrc
 ```
 
 Windows（PowerShell）：
 
 ```powershell
-irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
 Windows 安装完成后请**关闭并重新打开 PowerShell**，再执行 `lbai auth login` 和 `lbai init-workspace`。
