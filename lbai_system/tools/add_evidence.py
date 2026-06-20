@@ -238,6 +238,11 @@ def main() -> int:
     redacted_content, findings = redact_sensitive(content)
     source_type = str(enrichment['source_type']).strip()
     source_visibility = str(enrichment.get('source_visibility') or 'private').strip()
+    effective_visibility = (
+        source_visibility
+        if source_visibility in {'private', 'team', 'company'}
+        else 'private'
+    )
     now = datetime.now(timezone.utc).isoformat(timespec='seconds')
     content_hash_full = hashlib.sha256(redacted_content.encode('utf-8')).hexdigest()
     content_hash = f'sha256:{content_hash_full}'
@@ -270,7 +275,7 @@ def main() -> int:
         f'tags: {yaml_value(tags)}\nresource: {yaml_value("")}\n'
         f'timestamp: {yaml_value(now)}\nowner: {yaml_value(employee_user_id or "unknown")}\n'
         f'department: {yaml_value(identity.get("department") or "")}\n'
-        f'visibility: {yaml_value(source_visibility if source_visibility in {"private", "team", "company"} else "private")}\n'
+        f'visibility: {yaml_value(effective_visibility)}\n'
         f'status: {concept_status}\n'
         f'effective_from: {yaml_value(effective_from)}\n'
         f'aliases: {yaml_value(enrichment.get("related_objects") or [])}\n'
@@ -288,13 +293,6 @@ def main() -> int:
     )
     index_path, log_path = ensure_okf_index(root, concept_rel, title, description)
 
-    if args.no_sync:
-        if prompt_lab_isolated_mode():
-            next_step = 'Prompt Lab 本地 mock OKF Concept 已写入隔离 workspace，未同步 GitHub 或后端知识服务。'
-        else:
-            next_step = 'OKF Concept 已本地写入 workspace，未同步 GitHub 或后端知识服务。'
-    else:
-        next_step = '资料已保存到 GitHub workspace；后端将异步入库。可稍后使用 /lbai-search-artifacts 搜索。'
     sync_status = 'NOT_SYNCED'
 
     sync_detail = 'Sync skipped by --no-sync.' if args.no_sync else ''
@@ -307,8 +305,22 @@ def main() -> int:
         else:
             sync_status, sync_detail = sync_paths(root, concept_rel, f'docs(lbai): add OKF concept {concept_uid}')
     backend_ingestion_status = (
-        'PENDING_BACKEND_SYNC' if sync_status == 'PUSHED' else 'NOT_SYNCED'
+        'PENDING_BACKEND_SYNC'
+        if sync_status == 'PUSHED'
+        else ('ALREADY_SYNCED' if sync_status == 'NO_CHANGES' else 'NOT_SYNCED')
     )
+    if args.no_sync:
+        next_step = (
+            'Prompt Lab 本地 mock OKF Concept 已写入隔离 workspace，未同步 GitHub 或后端知识服务。'
+            if prompt_lab_isolated_mode()
+            else 'OKF Concept 已本地写入 workspace，未同步 GitHub 或后端知识服务。'
+        )
+    elif sync_status == 'PUSHED':
+        next_step = '资料已推送到 GitHub；后端将异步入库。可稍后使用 /lbai-search-artifacts 搜索。'
+    elif sync_status == 'NO_CHANGES':
+        next_step = 'GitHub 中已有相同 OKF Concept，无需重复提交。'
+    else:
+        next_step = f'同步未完成：{sync_detail}。处理后重新运行 /lbai-add-evidence。'
 
     print(f'OKF_CONCEPT {concept_rel}')
     print(f'concept_uid: {concept_uid}')
@@ -319,7 +331,7 @@ def main() -> int:
     print(f'employee_user_name: {employee_user_name or "None"}')
     print(f'employee_position: {employee_position or "None"}')
     print(f'source_type: {source_type}')
-    print(f'source_visibility: {source_visibility}')
+    print(f'source_visibility: {effective_visibility}')
     print(f'backend_ingestion_status: {backend_ingestion_status}')
     print(f'sensitive_capture_status: {"REDACTED" if findings else "NONE"}')
     print(f'sync_status: {sync_status}')
@@ -328,6 +340,10 @@ def main() -> int:
         print('hygiene_check:')
         print(hygiene_output.strip())
     print(f'next_step: {next_step}')
+    if sync_status == 'PUSH_FAILED':
+        return 3
+    if sync_status == 'BLOCKED':
+        return 1
     return 0
 
 

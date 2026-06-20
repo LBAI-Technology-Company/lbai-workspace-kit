@@ -36,10 +36,8 @@ def write_query_plan(write_fixture, name: str = 'backend_query_plan.json'):
     query_plan = {
         'schema_version': 'backend_search_query_plan_v1',
         'query': 'feedback taxonomy',
-        'keywords': ['feedback', 'taxonomy'],
-        'concepts': [],
-        'entity_types': ['evidence'],
-        'prefer_status': ['confirmed'],
+        'types': ['Reference'],
+        'statuses': ['active'],
         'limit': 5,
     }
     return write_fixture(name, query_plan)

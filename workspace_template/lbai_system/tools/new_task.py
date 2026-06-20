@@ -241,9 +241,9 @@ def backend_search_query_plan(data: dict) -> dict:
     return {
         'schema_version': 'backend_search_query_plan_v1',
         'query': query,
-        'keywords': [keyword for keyword in ('公司', '工作方法', '工作流程', '流程', '方法') if keyword in query],
-        'concepts': ['company_workflow', 'work_method', 'process'],
-        'prefer_status': ['CAPTURED', 'NEEDS_REVIEW'],
+        'types': ['Policy', 'Process', 'Playbook'],
+        'statuses': ['active'],
+        'include_related': True,
         'limit': 5,
     }
 

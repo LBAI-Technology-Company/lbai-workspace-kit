@@ -50,8 +50,8 @@ class TestFullPipeline:
         query_plan = {
             'schema_version': 'backend_search_query_plan_v1',
             'query': '用户反馈',
-            'keywords': ['用户反馈'],
-            'entity_types': ['evidence'],
+            'types': ['Reference'],
+            'statuses': ['active'],
             'limit': 5,
         }
         search_path = write_fixture('pipeline_search.json', query_plan)

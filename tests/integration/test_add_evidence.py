@@ -199,7 +199,7 @@ class TestAddEvidence:
         assert '- 客户名单确认' in (task / 'missing_inputs.md').read_text(encoding='utf-8')
         assert not (task / 'gap_record.md').exists()
 
-    def test_unrelated_changes_do_not_block_no_sync_capture(self, isolated_workspace, fixtures):
+    def test_unrelated_changes_do_not_hide_push_failure(self, isolated_workspace, fixtures):
         unrelated = isolated_workspace / 'tasks' / 'unrelated' / 'task_output.md'
         unrelated.parent.mkdir(parents=True, exist_ok=True)
         unrelated.write_text('unrelated draft', encoding='utf-8')
@@ -214,7 +214,9 @@ class TestAddEvidence:
             'new evidence with unrelated task draft in workspace',
         )
 
-        assert result.returncode == 0, result.output
+        assert result.returncode == 3
+        assert 'sync_status: PUSH_FAILED' in result.stdout
+        assert 'tasks/unrelated/task_output.md' in result.stdout
         assert 'evidence_status: CAPTURED' in result.stdout
         assert 'sync_status: BLOCKED' not in result.stdout
         assert '仅提示，不阻断' in result.stdout

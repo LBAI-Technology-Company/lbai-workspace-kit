@@ -212,7 +212,7 @@ lbai_system/tools/search_artifacts.py
 
 Behavior:
 
-1. If input is empty, ask the employee for backend search keywords.
+1. If input is empty, ask the employee for the knowledge question or search intent.
 2. Produce `backend_search_query_plan_v1` JSON and call `search_artifacts.py --enrichment <json_path>`.
 3. Code calls the configured backend `POST /v1/knowledge/search` endpoint and renders `knowledge_search_response_v1` directly.
 4. If the backend is disabled, missing, unavailable, times out, returns no matches, or returns invalid JSON/schema, render the search result or error as display-only output. Backend search status must not automatically block, mutate, advance, or finish any task flow.

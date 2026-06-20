@@ -6,22 +6,6 @@
   "properties": {
     "schema_version": { "const": "backend_search_query_plan_v1" },
     "query": { "type": "string", "minLength": 1 },
-    "keywords": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "concepts": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "entity_types": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
-    "prefer_status": {
-      "type": "array",
-      "items": { "type": "string" }
-    },
     "limit": {
       "type": "integer",
       "minimum": 1,
@@ -43,5 +27,5 @@
       "type": "boolean"
     }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

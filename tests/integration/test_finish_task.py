@@ -47,7 +47,7 @@ class TestFinishTask:
 
     def test_non_task_changes_warn_but_do_not_block_commit_readiness(self, isolated_workspace, fixtures):
         task_rel = _create_ready_task(isolated_workspace, fixtures)
-        extra = isolated_workspace / 'role_workspace' / 'knowledge' / 'evidence' / 'manual_test' / 'raw.md'
+        extra = isolated_workspace / 'role_workspace' / 'knowledge' / 'references' / 'manual_test.md'
         extra.parent.mkdir(parents=True, exist_ok=True)
         extra.write_text('manual evidence that should be synced separately', encoding='utf-8')
 
@@ -56,7 +56,7 @@ class TestFinishTask:
 
         assert result.returncode != 0
         assert 'commit_readiness: READY' in result.stdout
-        assert 'manual_test/raw.md' in result.stdout
+        assert 'manual_test.md' in result.stdout
         assert '仅提示，不阻断' in result.stdout
 
     def test_invalid_task_folder(self, isolated_workspace, fixtures):

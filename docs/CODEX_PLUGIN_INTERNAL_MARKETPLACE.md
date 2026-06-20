@@ -54,7 +54,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.5，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.6，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.6
+
+- Tighten `backend_search_query_plan_v1` to `types` / `statuses` / `include_related` and reject unknown fields.
+- Improve `/lbai-add-evidence` sync messaging for `PUSHED`, `NO_CHANGES`, and `PUSH_FAILED`; return non-zero exit on push failure.
+- Align default task backend search plan with OKF concept types.
+
 ## 1.4.5
 
 - Always bootstrap piped `@latest` installers from GitHub latest release before install proceeds.
