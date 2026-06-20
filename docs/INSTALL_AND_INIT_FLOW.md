@@ -14,12 +14,24 @@ lbai auth login
 lbai init-workspace
 ```
 
-Piped `@latest` installers auto-fetch the newest `install.sh` from GitHub release tags before proceeding, so employees should always use `@latest` rather than pinning a version tag.
+If the output does **not** end with `========== 安装结果汇总 ==========`, jsDelivr may still be serving a stale installer. Use the GitHub latest-release installer instead (not a pinned version tag):
+
+```bash
+curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
+```
+
+Piped `@latest` installers auto-fetch the newest `install.sh` from GitHub release assets when the cached CDN copy is stale. Each GitHub release also purges jsDelivr `@latest` / `@main` cache automatically.
 
 Windows (PowerShell):
 
 ```powershell
 irm https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.ps1 | iex
+```
+
+If install output lacks **安装结果汇总**, use:
+
+```powershell
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
 ```
 
 Close and reopen PowerShell after install, then run:

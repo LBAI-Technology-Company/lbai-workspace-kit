@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.7"
+$InstallerVersion = "1.4.8"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -163,12 +163,13 @@ function Bootstrap-LatestInstaller {
 
     foreach ($url in @(
         "https://github.com/$Repo/releases/latest/download/install.ps1",
+        "https://ghproxy.net/https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://raw.githubusercontent.com/$Repo/$tag/install.ps1",
         "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
     )) {
         try {
             $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
-            if ($script -notmatch 'Bootstrap-LatestInstaller') {
+            if ($script -notmatch 'Write-InstallSummary') {
                 continue
             }
             if ($script -match 'InstallerVersion = "([^"]+)"' -and $Matches[1] -eq $InstallerVersion) {

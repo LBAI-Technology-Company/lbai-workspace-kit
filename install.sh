@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.7"
+INSTALLER_VERSION="1.4.8"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -165,11 +165,12 @@ bootstrap_latest_installer() {
   fetched=0
   for url in \
     "https://github.com/$REPO/releases/latest/download/install.sh" \
+    "https://ghproxy.net/https://github.com/$REPO/releases/latest/download/install.sh" \
     "https://ghproxy.net/https://raw.githubusercontent.com/$REPO/$tag/install.sh" \
     "https://raw.githubusercontent.com/$REPO/$tag/install.sh"
   do
     if curl -fsSL --connect-timeout 20 --max-time 120 "$url" -o "$tmp/install.sh" 2>/dev/null \
-      && grep -q 'bootstrap_latest_installer' "$tmp/install.sh" 2>/dev/null
+      && grep -q 'print_install_summary' "$tmp/install.sh" 2>/dev/null
     then
       fetched=1
       break

@@ -1,0 +1,20 @@
+name: Release CDN Purge
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  purge-jsdelivr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Purge jsDelivr @latest and @main installer cache
+        run: |
+          repo="LBAI-Technology-Company/lbai-workspace-kit"
+          for ref in latest main; do
+            for file in install.sh install.ps1 VERSION; do
+              echo "Purging @${ref}/${file} ..."
+              curl -fsS "https://purge.jsdelivr.net/gh/${repo}@${ref}/${file}" || true
+            done
+          done

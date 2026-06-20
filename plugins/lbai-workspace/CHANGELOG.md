@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.8
+
+- Auto-purge jsDelivr `@latest` / `@main` cache on every GitHub release so piped `@latest` installers stay current.
+- Bootstrap stale piped installers using GitHub `releases/latest/download` with ghproxy fallback.
+- Document fallback install URL when output lacks **安装结果汇总**.
+
 ## 1.4.7
 
 - Print an install summary table at the end of `install.sh` / `install.ps1` showing OK / failed / skipped / warning for Git, Python, LBAI CLI, Codex CLI, Codex plugin, and other components.
