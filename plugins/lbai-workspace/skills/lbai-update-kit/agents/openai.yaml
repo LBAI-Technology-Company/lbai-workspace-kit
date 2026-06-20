@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Update Kit"
+  short_description: "Update company-maintained workflow files safely"
+  default_prompt: "Use $lbai-update-kit to update this workspace workflow kit."

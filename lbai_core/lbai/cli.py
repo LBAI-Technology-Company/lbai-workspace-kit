@@ -3,6 +3,7 @@ import argparse
 import getpass
 import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -32,6 +33,30 @@ EMPLOYEE_DEFAULT_PATHS = [
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
+PLUGIN_MIN_WORKSPACE_VERSION = '1.4.0'
+
+DOCTOR_REQUIRED_FILES = [
+    'AGENTS.md',
+    'lbai_system/runner_contracts/lbai_command_contract_v1.md',
+    'lbai_system/prompts/init_enrichment_prompt_v1.md',
+    'lbai_system/prompts/evidence_enrichment_prompt_v1.md',
+    'lbai_system/prompts/backend_search_query_plan_prompt_v1.md',
+    'lbai_system/prompts/task_intake_enrichment_prompt_v1.md',
+    'lbai_system/prompts/execute_task_plan_prompt_v1.md',
+    'lbai_system/prompts/finish_review_enrichment_prompt_v1.md',
+    'lbai_system/schemas/init_enrichment_schema_v1.json',
+    'lbai_system/schemas/evidence_enrichment_schema_v1.json',
+    'lbai_system/schemas/backend_search_query_plan_schema_v1.json',
+    'lbai_system/schemas/task_intake_enrichment_schema_v1.json',
+    'lbai_system/schemas/finish_review_enrichment_schema_v1.json',
+    'lbai_system/tools/init_lbai.py',
+    'lbai_system/tools/add_evidence.py',
+    'lbai_system/tools/search_artifacts.py',
+    'lbai_system/tools/new_task.py',
+    'lbai_system/tools/prepare_execute_task.py',
+    'lbai_system/tools/finish_task.py',
+    'lbai_system/prompt_lab/prompt_lab.py',
+]
 
 COMMAND_TO_TOOL = {
     'init': 'init_lbai.py',
@@ -495,6 +520,35 @@ def read_version() -> str:
     return '0.1.0'
 
 
+def workspace_kit_version(root: Path) -> str:
+    metadata_path = root / '.lbai' / 'workspace.json'
+    if metadata_path.exists():
+        try:
+            data = json.loads(metadata_path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        value = str(data.get('workspaceKitVersion') or '').strip() if isinstance(data, dict) else ''
+        if value:
+            return value.lstrip('v')
+    legacy = root / 'lbai_system' / 'VERSION'
+    if legacy.exists():
+        return legacy.read_text(encoding='utf-8').strip().lstrip('v')
+    return 'unknown'
+
+
+def semver_tuple(value: str) -> tuple[int, int, int] | None:
+    match = re.fullmatch(r'v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?', value.strip())
+    if not match:
+        return None
+    return tuple(int(part) for part in match.groups())
+
+
+def version_at_least(current: str, minimum: str) -> bool:
+    current_parts = semver_tuple(current)
+    minimum_parts = semver_tuple(minimum)
+    return bool(current_parts and minimum_parts and current_parts >= minimum_parts)
+
+
 def lbai_bin_path() -> Path:
     return lbai_home() / 'bin' / 'lbai'
 
@@ -859,33 +913,162 @@ def current_branch(cwd: Path) -> str:
     return result.stdout.strip() or 'main'
 
 
-def doctor(args: argparse.Namespace) -> int:
-    root = Path(args.path).expanduser().resolve() if args.path else find_workspace()
-    print('# LBAI doctor')
-    print(f'workspace_root: {root}')
-    if not is_workspace(root):
-        print('workspace_status: BLOCKED')
-        print('reason: missing AGENTS.md, lbai_system, role_workspace, or tasks')
-        return 2
+def workspace_metadata(root: Path) -> dict:
+    path = root / '.lbai' / 'workspace.json'
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def git_preflight(root: Path) -> dict:
+    remote = capture(['git', 'remote', 'get-url', 'origin'], cwd=root)
+    upstream = capture(
+        ['git', 'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{upstream}'],
+        cwd=root,
+    )
+    status = capture(['git', 'status', '--porcelain'], cwd=root)
+    return {
+        'repository': (root / '.git').exists(),
+        'origin_configured': remote.returncode == 0 and bool(remote.stdout.strip()),
+        'upstream_configured': upstream.returncode == 0 and bool(upstream.stdout.strip()),
+        'working_tree_dirty': bool(status.stdout.strip()),
+    }
+
+
+def doctor_report(args: argparse.Namespace) -> dict:
+    requested_path = getattr(args, 'path', None)
+    if requested_path:
+        root = Path(requested_path).expanduser().resolve()
+    else:
+        current = Path.cwd().resolve()
+        root = next((path for path in [current, *current.parents] if is_workspace(path)), current)
+
+    valid_workspace = is_workspace(root)
+    minimum = getattr(args, 'min_workspace_version', None) or PLUGIN_MIN_WORKSPACE_VERSION
+    plugin_version = getattr(args, 'plugin_version', None)
+    report = {
+        'schema_version': 'lbai_doctor_v1',
+        'cli_version': read_version(),
+        'workspace_root': str(root),
+        'workspace_valid': valid_workspace,
+        'workspace_kit_version': workspace_kit_version(root) if valid_workspace else 'unknown',
+        'required_workspace_version': minimum,
+        'plugin_version': plugin_version or None,
+        'required_files': {'status': 'BLOCKED', 'missing': DOCTOR_REQUIRED_FILES},
+        'git': {
+            'repository': False,
+            'origin_configured': False,
+            'upstream_configured': False,
+            'working_tree_dirty': False,
+        },
+        'authentication': {
+            'github_available': bool(read_token() or gh_authenticated()),
+            'knowledge_service_available': bool(read_knowledge_service_auth().get('api_key')),
+        },
+        'knowledge_service': {
+            'enabled': False,
+            'status': 'DISABLED',
+        },
+        'compatibility': {
+            'status': 'BLOCKED',
+            'reason': 'workspace_not_initialized',
+        },
+        'checks': {},
+        'doctor_status': 'BLOCKED',
+        'next_steps': [],
+    }
+    if not valid_workspace:
+        report['next_steps'].append('Run lbai init-workspace, then open the initialized workspace in Codex.')
+        return report
+
+    missing = [rel for rel in DOCTOR_REQUIRED_FILES if not (root / rel).is_file()]
+    report['required_files'] = {
+        'status': 'READY' if not missing else 'BLOCKED',
+        'missing': missing,
+    }
+    report['git'] = git_preflight(root)
+
+    metadata = workspace_metadata(root)
+    knowledge = metadata.get('knowledge_service') if isinstance(metadata.get('knowledge_service'), dict) else {}
+    enabled = bool(knowledge.get('enabled'))
+    backend_authenticated = report['authentication']['knowledge_service_available']
+    report['knowledge_service'] = {
+        'enabled': enabled,
+        'status': 'READY' if enabled and backend_authenticated else ('NEEDS_AUTH' if enabled else 'DISABLED'),
+    }
+
+    current_version = report['workspace_kit_version']
+    compatible = version_at_least(current_version, minimum)
+    report['compatibility'] = {
+        'status': 'READY' if compatible else 'BLOCKED',
+        'reason': 'compatible' if compatible else 'workspace_update_required',
+    }
+    if not compatible:
+        report['next_steps'].append(f'Run lbai update-kit; workspace {current_version} must be at least {minimum}.')
 
     checks = [
         ('bootstrap', [*python_cmd(), 'lbai_system/tools/bootstrap_check.py']),
         ('codex_adapter', [*python_cmd(), 'lbai_system/tools/check_codex_adapter.py']),
         ('cursor_commands', [*python_cmd(), 'lbai_system/tools/check_cursor_commands.py']),
     ]
-    ok = True
+    checks_ok = True
     for name, cmd in checks:
-        print(f'## {name}')
         result = capture(cmd, cwd=root)
-        if result.stdout:
-            print(result.stdout, end='')
-        if result.stderr:
-            print(result.stderr, end='', file=sys.stderr)
-        if result.returncode != 0:
-            if not (getattr(args, 'allow_missing_upstream', False) and 'MISSING_GIT_UPSTREAM' in result.stdout):
-                ok = False
-    print(f'doctor_status: {"READY" if ok else "BLOCKED"}')
-    return 0 if ok else 2
+        passed = result.returncode == 0
+        if getattr(args, 'allow_missing_upstream', False) and 'MISSING_GIT_UPSTREAM' in result.stdout:
+            passed = True
+        report['checks'][name] = {
+            'status': 'READY' if passed else 'BLOCKED',
+            'returncode': result.returncode,
+        }
+        checks_ok = checks_ok and passed
+
+    require_backend = bool(getattr(args, 'require_backend', False))
+    backend_ok = not require_backend or report['knowledge_service']['status'] == 'READY'
+    git_ok = report['git']['repository'] and report['git']['origin_configured']
+    upstream_ok = report['git']['upstream_configured'] or bool(getattr(args, 'allow_missing_upstream', False))
+    ready = not missing and compatible and checks_ok and backend_ok and git_ok and upstream_ok
+
+    if not report['authentication']['github_available']:
+        report['next_steps'].append('Run lbai auth login before a workflow that pushes to GitHub.')
+    if require_backend and not backend_ok:
+        report['next_steps'].append('Run lbai auth backend-login before using knowledge search.')
+    if not report['git']['origin_configured']:
+        report['next_steps'].append('Configure the workspace Git origin.')
+    if not report['git']['upstream_configured'] and not getattr(args, 'allow_missing_upstream', False):
+        report['next_steps'].append('Configure an upstream branch before sync workflows.')
+
+    report['doctor_status'] = 'READY' if ready else 'BLOCKED'
+    return report
+
+
+def doctor(args: argparse.Namespace) -> int:
+    report = doctor_report(args)
+    if getattr(args, 'json', False):
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0 if report['doctor_status'] == 'READY' else 2
+
+    root = Path(report['workspace_root'])
+    print('# LBAI doctor')
+    print(f'workspace_root: {root}')
+    if not report['workspace_valid']:
+        print('workspace_status: BLOCKED')
+        print('reason: missing AGENTS.md, lbai_system, role_workspace, or tasks')
+        return 2
+
+    for name, item in report['checks'].items():
+        print(f'## {name}')
+        print(f'STATUS {item["status"]}')
+    print(f'workspace_kit_version: {report["workspace_kit_version"]}')
+    print(f'compatibility_status: {report["compatibility"]["status"]}')
+    print(f'doctor_status: {report["doctor_status"]}')
+    for step in report['next_steps']:
+        print(f'next_step: {step}')
+    return 0 if report['doctor_status'] == 'READY' else 2
 
 
 def remove_managed_paths(workspace: Path) -> list[str]:
@@ -1137,6 +1320,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     doc = sub.add_parser('doctor')
     doc.add_argument('--path')
+    doc.add_argument('--json', action='store_true')
+    doc.add_argument('--plugin-version')
+    doc.add_argument('--min-workspace-version', default=PLUGIN_MIN_WORKSPACE_VERSION)
+    doc.add_argument('--require-backend', action='store_true')
 
     update = sub.add_parser('update-kit')
     update.add_argument('--no-commit', action='store_true')

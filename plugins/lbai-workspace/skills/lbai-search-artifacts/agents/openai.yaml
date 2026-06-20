@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Search Artifacts"
+  short_description: "Search approved company knowledge evidence"
+  default_prompt: "Use $lbai-search-artifacts to find relevant company evidence."

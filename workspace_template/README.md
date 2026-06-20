@@ -12,6 +12,7 @@
 
 - Cursor：使用 `.cursor/commands/` 里的 `/lbai-*` 命令入口。
 - Codex：打开本项目后，可以直接输入或提到 `/lbai-*` 命令，由项目内 Codex 适配说明触发同一套工作流。
+- 企业 Codex Marketplace：安装 `lbai-workspace` 后，可使用 `$lbai-workspace:lbai-*` 命名空间 Skills 或自然语言触发同一套工作流；项目本地 `$lbai-*` 与 `/lbai-*` 兼容入口继续保留。
 
 最快使用路径：
 

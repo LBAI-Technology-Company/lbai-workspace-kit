@@ -1,0 +1,45 @@
+{
+  "name": "lbai-workspace",
+  "version": "1.0.0",
+  "description": "Enterprise role-workspace workflows for evidence-aware, auditable office work in Codex.",
+  "author": {
+    "name": "LBAI Technology Company",
+    "url": "https://github.com/LBAI-Technology-Company"
+  },
+  "homepage": "https://github.com/LBAI-Technology-Company/lbai-workspace-kit",
+  "repository": "https://github.com/LBAI-Technology-Company/lbai-workspace-kit",
+  "license": "Proprietary",
+  "keywords": [
+    "enterprise",
+    "productivity",
+    "evidence",
+    "workflow",
+    "role-memory"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LBAI Workspace",
+    "shortDescription": "Evidence-aware enterprise work in Codex",
+    "longDescription": "Run LBAI role setup, evidence capture, knowledge search, formal task execution, safe task completion, workflow updates, and Prompt Lab experiments from Codex while the LBAI CLI manages authentication, workspace initialization, versioning, and Git synchronization.",
+    "developerName": "LBAI Technology Company",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/LBAI-Technology-Company/lbai-workspace-kit",
+    "defaultPrompt": [
+      "Initialize my LBAI role workspace.",
+      "Create a formal LBAI task from this request.",
+      "Review, finish, and safely sync my current task."
+    ],
+    "brandColor": "#155EEF",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png",
+    "screenshots": [
+      "./assets/screenshot-workflow.png",
+      "./assets/screenshot-evidence.png",
+      "./assets/screenshot-doctor.png"
+    ]
+  }
+}

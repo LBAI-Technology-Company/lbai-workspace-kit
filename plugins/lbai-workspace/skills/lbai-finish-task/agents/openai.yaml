@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Finish Task"
+  short_description: "Review finish and safely sync task artifacts"
+  default_prompt: "Use $lbai-finish-task to finish and sync the current task."

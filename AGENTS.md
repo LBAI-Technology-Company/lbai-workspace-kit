@@ -66,6 +66,8 @@ When this repository is opened in Codex, the same employee-facing commands are s
 
 This Codex adapter is project-local. Thin project-local command adapter files may live under `.agents/skills/`, but current Codex usage should still rely on `/lbai-*` commands and the `lbai_system/codex/skills/lbai-workflow/SKILL.md` project adapter. The `.agents/skills/` files must point back to `lbai_system/runner_contracts/lbai_command_contract_v1.md` and must not duplicate command logic. Do not install, copy, or write these skills to `~/.codex/skills/`, and do not make them affect other Codex projects. The shared command contract is the source of truth for command behavior; Cursor and Codex adapters should stay thin.
 
+The optional enterprise Codex plugin `lbai-workspace` exposes the same workflows as namespaced plugin Skills, for example `$lbai-workspace:lbai-init`. Project-local `$lbai-*` or `/lbai-*` compatibility entry points remain available. In every case, read the workspace copy of the shared command contract and use the installed `lbai` CLI for preflight and command execution. The plugin must not contain employee role memory, task artifacts, workspace credentials, or a duplicate workspace template.
+
 For first-time setup or later role changes, employees may use:
 
 ```text

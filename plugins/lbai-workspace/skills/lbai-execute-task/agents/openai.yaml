@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Execute Task"
+  short_description: "Execute the current formal task contract"
+  default_prompt: "Use $lbai-execute-task to execute the current LBAI task."

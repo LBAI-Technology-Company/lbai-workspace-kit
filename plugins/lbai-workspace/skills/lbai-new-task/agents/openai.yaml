@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI New Task"
+  short_description: "Create a formal evidence-aware work task"
+  default_prompt: "Use $lbai-new-task to create a formal task from this request."

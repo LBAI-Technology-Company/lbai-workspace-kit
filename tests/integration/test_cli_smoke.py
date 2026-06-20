@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -39,6 +40,71 @@ def test_cli_doctor_on_isolated_workspace(tmp_path):
     result = run_cli('doctor', '--path', str(workspace))
     assert result.returncode == 0
     assert 'doctor_status: READY' in result.stdout
+
+
+def test_cli_doctor_json_contract(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    result = run_cli(
+        'doctor',
+        '--json',
+        '--path',
+        str(workspace),
+        '--plugin-version',
+        '1.0.0',
+        '--min-workspace-version',
+        '1.4.0',
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report['schema_version'] == 'lbai_doctor_v1'
+    assert report['cli_version'] == '1.4.0'
+    assert report['workspace_kit_version'] == '1.4.0'
+    assert report['workspace_valid'] is True
+    assert report['required_files']['status'] == 'READY'
+    assert report['git']['origin_configured'] is True
+    assert report['git']['upstream_configured'] is True
+    assert report['plugin_version'] == '1.0.0'
+    assert report['compatibility']['status'] == 'READY'
+    assert report['doctor_status'] == 'READY'
+
+
+def test_cli_doctor_json_reports_workspace_update(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    metadata_path = workspace / '.lbai' / 'workspace.json'
+    metadata = json.loads(metadata_path.read_text(encoding='utf-8'))
+    metadata['workspaceKitVersion'] = '1.3.0'
+    metadata_path.write_text(json.dumps(metadata), encoding='utf-8')
+
+    result = run_cli(
+        'doctor',
+        '--json',
+        '--path',
+        str(workspace),
+        '--min-workspace-version',
+        '1.4.0',
+    )
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report['compatibility']['reason'] == 'workspace_update_required'
+    assert any('lbai update-kit' in step for step in report['next_steps'])
+
+
+def test_cli_doctor_json_requires_backend_only_when_requested(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    home = tmp_path / 'empty_lbai_home'
+    result = run_cli(
+        'doctor',
+        '--json',
+        '--path',
+        str(workspace),
+        '--require-backend',
+        env_extra={'LBAI_HOME': str(home)},
+    )
+    assert result.returncode == 2
+    report = json.loads(result.stdout)
+    assert report['knowledge_service']['status'] == 'NEEDS_AUTH'
+    assert report['authentication']['knowledge_service_available'] is False
+    assert any('backend-login' in step for step in report['next_steps'])
 
 
 def test_cli_new_task_without_enrichment_shows_friendly_hint(tmp_path, monkeypatch):

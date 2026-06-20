@@ -21,6 +21,7 @@ COMMANDS = [
 ]
 
 MANIFEST = template_root() / 'lbai_system' / 'adapters' / 'commands_manifest.json'
+PLUGIN_SKILLS = Path(__file__).resolve().parents[2] / 'plugins' / 'lbai-workspace' / 'skills'
 
 
 def command_pairs():
@@ -68,3 +69,18 @@ def test_commands_manifest_has_routing_metadata():
     assert search['mutates'] is False
     assert search['prompt'] == 'backend_search_query_plan_prompt_v1.md'
     assert search['schema'] == 'backend_search_query_plan_schema_v1.json'
+
+
+def test_codex_plugin_skills_cover_command_surface():
+    plugin_skills = {path.parent.name for path in PLUGIN_SKILLS.glob('*/SKILL.md')}
+    expected = {name.removesuffix('.md') for name in COMMANDS}
+    assert plugin_skills == expected
+
+
+def test_codex_plugin_skills_delegate_to_workspace_contract_and_cli():
+    for skill_path in PLUGIN_SKILLS.glob('*/SKILL.md'):
+        text = skill_path.read_text(encoding='utf-8')
+        assert 'lbai_system/runner_contracts/lbai_command_contract_v1.md' in text
+        assert 'lbai ' in text
+        assert 'lbai doctor --json' in text
+        assert '[TODO:' not in text

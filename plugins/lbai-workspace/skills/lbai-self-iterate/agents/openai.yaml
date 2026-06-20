@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Prompt Lab"
+  short_description: "Run isolated prompt improvement experiments"
+  default_prompt: "Use $lbai-self-iterate to start an LBAI Prompt Lab experiment."

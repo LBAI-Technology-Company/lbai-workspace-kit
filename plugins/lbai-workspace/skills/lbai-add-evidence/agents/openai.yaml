@@ -1,0 +1,4 @@
+interface:
+  display_name: "LBAI Add Evidence"
+  short_description: "Archive source material as reusable evidence"
+  default_prompt: "Use $lbai-add-evidence to archive this source material."

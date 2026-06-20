@@ -1,0 +1,20 @@
+{
+  "name": "lbai-internal",
+  "interface": {
+    "displayName": "LBAI Internal"
+  },
+  "plugins": [
+    {
+      "name": "lbai-workspace",
+      "source": {
+        "source": "local",
+        "path": "./plugins/lbai-workspace"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
