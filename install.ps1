@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.9"
+$InstallerVersion = "1.4.10"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -53,9 +53,10 @@ function Write-InstallSummary {
     Write-SummaryLine "Codex CLI" "CodexCli"
     Write-SummaryLine "Codex marketplace" "CodexMarketplace"
     Write-SummaryLine "Codex 插件 (lbai-workspace)" "CodexPlugin"
+    Write-SummaryLine "公用工作区 (active_workspace)" "Workspace"
     Write-SummaryLine "后端登录 (可选)" "Backend"
     Write-Info "=================================="
-    Write-Info "说明：一键安装包含 LBAI CLI、Codex CLI 和 lbai-workspace 插件。"
+    Write-Info "说明：一键安装包含 LBAI CLI、Codex CLI、lbai-workspace 插件，以及 ~/.lbai/workspace 公用工作区。"
 }
 
 function Fail($Message) {
@@ -491,6 +492,27 @@ function Ensure-CodexPlugin {
     Set-InstallStatus "CodexPlugin" "FAILED" "插件安装失败，见上方手动命令"
 }
 
+function Ensure-SharedWorkspace {
+    if ($env:LBAI_SKIP_WORKSPACE_INIT -eq "1") {
+        Write-Info "跳过公用工作区初始化（LBAI_SKIP_WORKSPACE_INIT=1）。"
+        Set-InstallStatus "Workspace" "SKIPPED" "LBAI_SKIP_WORKSPACE_INIT=1"
+        return
+    }
+
+    Write-Info "正在创建/更新公用 LBAI 工作区（~/.lbai/workspace）..."
+    $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure 2>&1 | Out-String
+    Write-Info $output.TrimEnd()
+    if ($output -match 'workspace_ensure_status: READY') {
+        if ($output -match '(?m)^active_workspace: (.+)$') {
+            Set-InstallStatus "Workspace" "OK" $Matches[1].Trim()
+        } else {
+            Set-InstallStatus "Workspace" "OK" "~/.lbai/workspace"
+        }
+        return
+    }
+    Set-InstallStatus "Workspace" "FAILED" "公用工作区初始化失败"
+}
+
 Ensure-Prerequisites
 $pythonCommand = Resolve-PythonCommand
 $releaseTag = Get-LatestReleaseTag
@@ -501,6 +523,7 @@ Write-LbaiLauncher -RuntimePython $runtimePython
 Ensure-UserPath
 Ensure-CodexCli
 Ensure-CodexPlugin -ReleaseTag $releaseTag
+Ensure-SharedWorkspace
 Set-InstallStatus "PyDeps" "OK" "jsonschema 等 ($VenvDir)"
 Write-Info "Installed Python runtime and dependencies (jsonschema)."
 
@@ -532,7 +555,7 @@ Write-Info "  关闭并重新打开 PowerShell"
 Write-Info "  lbai auth login"
 Write-Info "  lbai auth doctor"
 Write-Info "  lbai auth backend-login"
-Write-Info "  lbai init-workspace"
+Write-Info "  在任意 Codex 项目中运行 /lbai-init"
 if (-not (Test-CodexReady) -and ((Test-Command codex) -or (Test-Path (Join-Path $env:USERPROFILE ".local\bin\codex.exe")))) {
     Write-Info "  关闭并重新打开 PowerShell，然后重新运行 install.ps1 以自动安装 lbai-workspace 插件"
 }

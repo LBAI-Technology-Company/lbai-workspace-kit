@@ -11,8 +11,10 @@ curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/release
 source ~/.zprofile
 source ~/.zshrc
 lbai auth login
-lbai init-workspace
+lbai auth backend-login
 ```
+
+Install also creates and registers a shared workspace at `~/.lbai/workspace`. After that, open **any** Codex project and run `/lbai-init`.
 
 If GitHub is slow or unreachable from your network, use the ghproxy mirror:
 
@@ -36,10 +38,12 @@ Close and reopen PowerShell after install, then run:
 
 ```powershell
 lbai auth login
-lbai init-workspace
+lbai auth backend-login
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped installers auto-fetch the newest script from GitHub release assets when the local copy is stale. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
+Install also creates and registers a shared workspace at `%USERPROFILE%\.lbai\workspace`. After that, open **any** Codex project and run `/lbai-init`.
+
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped installers auto-fetch the newest script from GitHub release assets when the local copy is stale. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback), register the `lbai-workspace` Codex plugin, and create the shared workspace at `~/.lbai/workspace` (set `LBAI_SKIP_CODEX_CLI=1`, `LBAI_SKIP_CODEX_PLUGIN=1`, or `LBAI_SKIP_WORKSPACE_INIT=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
 
 ## Authentication
 
@@ -58,7 +62,7 @@ lbai auth login
 - Replace token: paste the new token when prompted
 - Already authenticated through `gh auth login` with no saved token: press Enter to configure Git to use `gh`
 
-After login, run `lbai auth doctor` and confirm `auth_status: READY` before `lbai init-workspace`.
+After login, run `lbai auth doctor` and confirm `auth_status: READY`. The shared workspace is already registered during install; use `lbai workspace show` to verify `active_workspace`.
 
 Authentication source priority:
 
@@ -172,17 +176,16 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
    lbai auth login
    （向管理员索取 GitHub Token，需有 private repo 读写权限；粘贴后会自动同步 Git 凭据）
    lbai auth doctor
-   （确认 auth_status: READY 后再继续）
+   lbai auth backend-login
 
-3. 初始化工作区：
-   lbai init-workspace
-   仓库地址：<你的 private repo URL，例如 https://github.com/LBAI-Technology-Company/lbai-workspace-zhangsan.git>
-   本地目录：按提示选择，或 --path 指定
+3. 公用工作区（安装时已自动创建）：
+   lbai workspace show
+   （默认路径 ~/.lbai/workspace，任意 Codex 项目均可使用 /lbai-*）
 
-4. 打开 Cursor 或 Codex：
-   打开 init 成功输出里的 cursor_open 路径（不要打开外层父目录）
+4. 可选 — 绑定 private GitHub 仓库同步：
+   lbai init-workspace --repo-url <你的 private repo URL> --path ~/.lbai/workspace
 
-5. 第一条命令：
+5. 打开任意 Codex 项目，运行：
    /lbai-init
 
 常见问题见 docs/EMPLOYEE_FAQ.zh-CN.md

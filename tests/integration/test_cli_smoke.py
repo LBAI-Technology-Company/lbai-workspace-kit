@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.9',
+        '1.4.10',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.9'
-    assert report['workspace_kit_version'] == '1.4.9'
+    assert report['cli_version'] == '1.4.10'
+    assert report['workspace_kit_version'] == '1.4.10'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.9'
+    assert report['plugin_version'] == '1.4.10'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -289,6 +289,20 @@ def test_cli_workspace_show_reports_active_workspace(tmp_path):
     payload = json.loads(result.stdout)
     assert payload['active_workspace'] == str(workspace.resolve())
     assert payload['configured_active_workspace_valid'] is True
+
+
+def test_cli_workspace_ensure_creates_shared_workspace(tmp_path):
+    home = tmp_path / 'lbai-home'
+    result = run_cli('workspace', 'ensure', env_extra={'LBAI_HOME': str(home)})
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'workspace_ensure_status: READY' in result.stdout
+
+    workspace = home / 'workspace'
+    assert (workspace / 'AGENTS.md').is_file()
+    assert (workspace / 'tasks').is_dir()
+
+    config = json.loads((home / 'config.json').read_text(encoding='utf-8'))
+    assert config['active_workspace'] == str(workspace.resolve())
 
 
 def test_cli_self_iterate_starts_prompt_lab(tmp_path):

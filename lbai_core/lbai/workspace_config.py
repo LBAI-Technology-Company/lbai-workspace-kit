@@ -14,6 +14,13 @@ def lbai_home() -> Path:
     return Path(os.environ.get('LBAI_HOME', '~/.lbai')).expanduser()
 
 
+def default_shared_workspace_path() -> Path:
+    override = os.environ.get('LBAI_SHARED_WORKSPACE', '').strip()
+    if override:
+        return Path(override).expanduser()
+    return lbai_home() / 'workspace'
+
+
 def config_path() -> Path:
     return lbai_home() / 'config.json'
 

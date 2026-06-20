@@ -8,15 +8,20 @@
 
 ## 安装
 
-先安装 LBAI CLI，完成认证和工作区初始化：
+先安装 LBAI CLI，完成认证：
 
 ```text
 lbai auth login
 lbai auth backend-login
-lbai init-workspace
 ```
 
-`init-workspace` 会自动把该工作区注册为本机默认 active workspace（写入 `~/.lbai/config.json`）。之后你在 Codex 里打开任意项目，都可以调用 `$lbai-workspace:*` 或 `/lbai-*`；任务、证据和台账都会写入这个统一工作区。
+安装器会自动创建并注册公用工作区（默认 `~/.lbai/workspace`，写入 `~/.lbai/config.json`）。之后你在 Codex 里打开任意项目，都可以调用 `$lbai-workspace:*` 或 `/lbai-*`；任务、证据和台账都会写入这个统一工作区。
+
+如需绑定 private GitHub 仓库做 Git 同步：
+
+```text
+lbai init-workspace --repo-url <private-repo> --path ~/.lbai/workspace
+```
 
 如需手动切换或补注册：
 
@@ -54,7 +59,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.9，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.10，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 

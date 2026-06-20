@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.9"
+INSTALLER_VERSION="1.4.10"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -19,6 +19,7 @@ ST_CODEX_CLI=""
 ST_CODEX_MP=""
 ST_CODEX_PLUGIN=""
 ST_BACKEND=""
+ST_WORKSPACE=""
 
 info() {
   printf '%s\n' "$*"
@@ -36,6 +37,7 @@ set_st() {
     CODEX_MP) ST_CODEX_MP="${2}|${3}" ;;
     CODEX_PLUGIN) ST_CODEX_PLUGIN="${2}|${3}" ;;
     BACKEND) ST_BACKEND="${2}|${3}" ;;
+    WORKSPACE) ST_WORKSPACE="${2}|${3}" ;;
   esac
 }
 
@@ -73,9 +75,10 @@ print_install_summary() {
   summary_line "Codex CLI" "$ST_CODEX_CLI"
   summary_line "Codex marketplace" "$ST_CODEX_MP"
   summary_line "Codex 插件 (lbai-workspace)" "$ST_CODEX_PLUGIN"
+  summary_line "公用工作区 (active_workspace)" "$ST_WORKSPACE"
   summary_line "后端登录 (可选)" "$ST_BACKEND"
   info "=================================="
-  info "说明：一键安装包含 LBAI CLI、Codex CLI（macOS/Linux）和 lbai-workspace 插件。"
+  info "说明：一键安装包含 LBAI CLI、Codex CLI、lbai-workspace 插件，以及 ~/.lbai/workspace 公用工作区。"
 }
 
 fail() {
@@ -559,6 +562,30 @@ ensure_codex_plugin() {
   return 0
 }
 
+ensure_shared_workspace() {
+  if [ "${LBAI_SKIP_WORKSPACE_INIT:-}" = "1" ]; then
+    info "跳过公用工作区初始化（LBAI_SKIP_WORKSPACE_INIT=1）。"
+    set_st WORKSPACE SKIPPED "LBAI_SKIP_WORKSPACE_INIT=1"
+    return 0
+  fi
+
+  info "正在创建/更新公用 LBAI 工作区（~/.lbai/workspace）..."
+  workspace_output="$("$BIN_DIR/lbai" workspace ensure 2>&1)" || true
+  printf '%s\n' "$workspace_output"
+  if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: READY'; then
+    ws_path="$(printf '%s\n' "$workspace_output" | sed -n 's/^active_workspace: //p' | head -n 1)"
+    if [ -n "$ws_path" ]; then
+      set_st WORKSPACE OK "$ws_path"
+    else
+      set_st WORKSPACE OK "~/.lbai/workspace"
+    fi
+    return 0
+  fi
+
+  set_st WORKSPACE FAILED "公用工作区初始化失败"
+  return 0
+}
+
 PATH_MARKER="# LBAI Workspace Kit CLI"
 
 detect_shell_rc() {
@@ -737,6 +764,7 @@ chmod +x "$BIN_DIR/lbai"
 ensure_shell_path
 ensure_codex_cli
 ensure_codex_plugin
+ensure_shared_workspace
 
 set_st PYDEPS OK "jsonschema 等 ($VENV_DIR)"
 info "Installed Python runtime and dependencies (jsonschema)."
@@ -770,7 +798,7 @@ fi
 info "  lbai auth login"
 info "  lbai auth doctor"
 info "  lbai auth backend-login"
-info "  lbai init-workspace"
+info "  在任意 Codex 项目中运行 /lbai-init"
 if ! codex_cli_ready && { codex_cli_bin >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; }; then
   info "  source ~/.zprofile   # 然后 codex --version"
   info "  重新运行 install.sh 以自动安装 lbai-workspace 插件"

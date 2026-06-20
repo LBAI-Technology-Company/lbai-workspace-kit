@@ -17,6 +17,7 @@ from pathlib import Path
 from lbai.workspace_config import (
     clear_active_workspace,
     configured_active_workspace_path,
+    default_shared_workspace_path,
     get_active_workspace,
     invocation_cwd,
     is_workspace,
@@ -1373,6 +1374,87 @@ def workspace_clear(_args: argparse.Namespace) -> int:
     return 0
 
 
+def workspace_ensure(args: argparse.Namespace) -> int:
+    if args.path:
+        local_path = Path(args.path).expanduser().resolve()
+    else:
+        active = get_active_workspace()
+        local_path = active if active else default_shared_workspace_path().expanduser().resolve()
+
+    repo_url = (args.repo_url or os.environ.get('LBAI_WORKSPACE_REPO_URL', '')).strip() or None
+    print(f'shared_workspace_path: {local_path}')
+
+    if local_path.exists() and any(local_path.iterdir()) and not is_workspace(local_path):
+        print('workspace_ensure_status: BLOCKED')
+        print(f'reason: path exists but is not an LBAI workspace: {local_path}')
+        return 2
+
+    env, tmp = git_env_with_token()
+    try:
+        if repo_url:
+            if local_path.exists() and any(local_path.iterdir()) and (local_path / '.git').exists():
+                run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=local_path)
+            else:
+                local_path.parent.mkdir(parents=True, exist_ok=True)
+                if local_path.exists():
+                    shutil.rmtree(local_path)
+                result = run(['git', 'clone', repo_url, str(local_path)], env=env)
+                if result.returncode != 0:
+                    print('workspace_ensure_status: BLOCKED')
+                    print('reason: git clone failed')
+                    print('next_step: check repo URL, token permissions, or run lbai auth login')
+                    return result.returncode or 2
+
+        local_path.parent.mkdir(parents=True, exist_ok=True)
+        if not local_path.exists():
+            local_path.mkdir(parents=True, exist_ok=True)
+
+        changed = copy_template_into_workspace(local_path, overwrite_managed=True)
+
+        if not args.no_git and not (local_path / '.git').exists():
+            run(['git', 'init', '-b', 'main'], cwd=local_path)
+
+        if repo_url and (local_path / '.git').exists() and not args.no_commit:
+            run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=local_path)
+            stage_paths = [
+                p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json']
+                if (local_path / p).exists()
+            ]
+            run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
+            status = capture(['git', 'status', '--porcelain'], cwd=local_path)
+            if status.stdout.strip():
+                run(['git', 'commit', '-m', 'chore(lbai): initialize shared workspace'], cwd=local_path)
+                if not args.no_push:
+                    push = run(
+                        ['git', 'push', '-u', 'origin', current_branch(local_path)],
+                        cwd=local_path,
+                        env=env,
+                    )
+                    print(f'git_status: {"PUSHED" if push.returncode == 0 else "PUSH_FAILED"}')
+            else:
+                print('git_status: NO_CHANGES')
+
+        registered = set_active_workspace(local_path)
+        print('workspace_ensure_status: READY')
+        print(f'active_workspace: {registered}')
+        print(f'workspace_path: {local_path}')
+        print('codex_note: 在任意 Codex 项目中使用 /lbai-* 或 $lbai-workspace:*；任务与证据写入 active_workspace')
+        if not repo_url:
+            print(
+                'github_sync_note: 可选。登录后运行 '
+                'lbai init-workspace --repo-url <private-repo> --path '
+                f'"{local_path}" 绑定 GitHub 同步'
+            )
+        if changed:
+            print('changed:')
+            for item in changed:
+                print(f'- {item}')
+        return 0
+    finally:
+        if tmp:
+            tmp.cleanup()
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog='lbai')
     parser.add_argument('--version', action='version', version=f'lbai {read_version()}')
@@ -1413,6 +1495,15 @@ def build_parser() -> argparse.ArgumentParser:
     workspace_set_parser = workspace_sub.add_parser('set', help='Register the global active LBAI workspace path.')
     workspace_set_parser.add_argument('--path', required=True)
     workspace_sub.add_parser('clear', help='Clear the registered global active workspace path.')
+    workspace_ensure_parser = workspace_sub.add_parser(
+        'ensure',
+        help='Create or refresh the default shared LBAI workspace and register it globally.',
+    )
+    workspace_ensure_parser.add_argument('--path')
+    workspace_ensure_parser.add_argument('--repo-url')
+    workspace_ensure_parser.add_argument('--no-git', action='store_true')
+    workspace_ensure_parser.add_argument('--no-commit', action='store_true')
+    workspace_ensure_parser.add_argument('--no-push', action='store_true')
 
     update = sub.add_parser('update-kit')
     update.add_argument('--no-commit', action='store_true')
@@ -1481,7 +1572,9 @@ def main(argv: list[str] | None = None) -> int:
             return workspace_set(known)
         if known.workspace_command == 'clear':
             return workspace_clear(known)
-        parser.error('workspace requires show, set, or clear')
+        if known.workspace_command == 'ensure':
+            return workspace_ensure(known)
+        parser.error('workspace requires show, set, ensure, or clear')
     if known.command == 'update-kit':
         return update_kit(known)
     if known.command == 'remove-kit':

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.10
+
+- Auto-create and register shared workspace at `~/.lbai/workspace` during install via `lbai workspace ensure`.
+- Remove `lbai init-workspace` from default install steps; use it only for optional GitHub private repo binding.
+
 ## 1.4.9
 
 - Switch employee install commands from jsDelivr CDN to GitHub `releases/latest/download` installer assets.
