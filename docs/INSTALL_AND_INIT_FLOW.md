@@ -14,7 +14,7 @@ lbai github auth token
 lbai auth backend-login
 ```
 
-Install also creates and registers a shared workspace at `~/.lbai/workspace`. After that, open **any** Codex project and run `/lbai-init`.
+Install also creates and registers a shared workspace at `~/.lbai/workspace`. After that, open **any** Codex project and run **LBAI Role Setup** (or `/lbai-init` inside a workspace project).
 
 If GitHub is slow or unreachable from your network, use the ghproxy mirror:
 
@@ -41,7 +41,7 @@ lbai github auth token
 lbai auth backend-login
 ```
 
-Install also creates and registers a shared workspace at `%USERPROFILE%\.lbai\workspace`. After that, open **any** Codex project and run `/lbai-init`.
+Install also creates and registers a shared workspace at `%USERPROFILE%\.lbai\workspace`. After that, open **any** Codex project and run **LBAI Role Setup** (or `/lbai-init` inside a workspace project).
 
 The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped installers auto-fetch the newest script from GitHub release assets when the local copy is stale. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback), register the `lbai-workspace` Codex plugin, and create the shared workspace at `~/.lbai/workspace` (set `LBAI_SKIP_CODEX_CLI=1`, `LBAI_SKIP_CODEX_PLUGIN=1`, or `LBAI_SKIP_WORKSPACE_INIT=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
 
@@ -180,13 +180,14 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
 
 3. 公用工作区（安装时已自动创建）：
    lbai workspace show
-   （默认路径 ~/.lbai/workspace，任意 Codex 项目均可使用 /lbai-*）
+   （默认路径 ~/.lbai/workspace；Codex 任意项目可用 **LBAI …** 插件命令或 `$lbai-*`）
 
 4. 可选 — 绑定 private GitHub 仓库同步：
    lbai init-workspace --repo-url <你的 private repo URL> --path ~/.lbai/workspace
 
 5. 打开任意 Codex 项目，运行：
-   /lbai-init
+   LBAI Role Setup
+   （Cursor 工作区则运行 /lbai-init）
 
 常见问题见 docs/EMPLOYEE_FAQ.zh-CN.md
 ```

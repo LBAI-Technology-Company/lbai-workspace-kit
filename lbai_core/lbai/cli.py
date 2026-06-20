@@ -1439,7 +1439,7 @@ def workspace_ensure(args: argparse.Namespace) -> int:
         print('workspace_ensure_status: READY')
         print(f'active_workspace: {registered}')
         print(f'workspace_path: {local_path}')
-        print('codex_note: 在任意 Codex 项目中使用 /lbai-* 或 $lbai-workspace:*；任务与证据写入 active_workspace')
+        print('codex_note: 在任意 Codex 项目中使用 LBAI 插件命令（如 LBAI Role Setup）或 $lbai-*；任务与证据写入 active_workspace')
         if not repo_url:
             print(
                 'github_sync_note: 可选。登录后运行 '

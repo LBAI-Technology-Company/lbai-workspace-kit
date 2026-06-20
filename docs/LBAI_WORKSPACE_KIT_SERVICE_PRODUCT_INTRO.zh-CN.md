@@ -32,7 +32,9 @@ Workspace Kit 主要解决三件事：
 
 ## 核心对象
 
-- 员工命令：`/lbai-init`、`/lbai-add-evidence`、`/lbai-search-artifacts`、`/lbai-new-task`、`/lbai-execute-task`、`/lbai-finish-task`、`/lbai-update-kit`、`/lbai-self-iterate`。
+- 员工命令：
+  - **Cursor**：`/lbai-init`、`/lbai-add-evidence`、`/lbai-search-artifacts`、`/lbai-new-task`、`/lbai-execute-task`、`/lbai-finish-task`、`/lbai-update-kit`、`/lbai-self-iterate`
+  - **Codex 插件**：**LBAI Role Setup**、**LBAI Add Evidence**、**LBAI Search Artifacts**、**LBAI New Task**、**LBAI Execute Task**、**LBAI Finish Task**、**LBAI Update Kit**、**LBAI Self Iterate**（对照见 [CODEX_PLUGIN_INTERNAL_MARKETPLACE.md](CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)）
 - 员工 workspace：`.lbai/workspace.json` 保存员工技术身份和后端配置；`role_workspace/knowledge/` 保存 OKF；`tasks/` 保存任务过程和结果。
 - 后端 API：`POST /v1/knowledge/search` 返回 `knowledge_search_response_v1`。
 - 知识对象：Concept、Revision、Section、Fact、Link 和 Citation。

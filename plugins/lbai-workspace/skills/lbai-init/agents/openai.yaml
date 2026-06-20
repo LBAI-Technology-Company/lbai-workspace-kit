@@ -1,4 +1,4 @@
 interface:
   display_name: "LBAI Role Setup"
   short_description: "Initialize or update employee role memory"
-  default_prompt: "Use $lbai-init to initialize my LBAI role workspace."
+  default_prompt: "Use $lbai-init to initialize or update my LBAI role memory."

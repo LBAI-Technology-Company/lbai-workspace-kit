@@ -78,6 +78,23 @@ def test_plugin_version_matches_changelog():
         assert f'--min-workspace-version {compatibility["minimum_workspace_kit_version"]}' in text
 
 
+def test_plugin_skill_display_names():
+    expected = {
+        'lbai-init': 'LBAI Role Setup',
+        'lbai-new-task': 'LBAI New Task',
+        'lbai-add-evidence': 'LBAI Add Evidence',
+        'lbai-search-artifacts': 'LBAI Search Artifacts',
+        'lbai-execute-task': 'LBAI Execute Task',
+        'lbai-finish-task': 'LBAI Finish Task',
+        'lbai-update-kit': 'LBAI Update Kit',
+        'lbai-self-iterate': 'LBAI Self Iterate',
+    }
+    for skill_id, display_name in expected.items():
+        yaml_path = PLUGIN / 'skills' / skill_id / 'agents' / 'openai.yaml'
+        text = yaml_path.read_text(encoding='utf-8')
+        assert f'display_name: "{display_name}"' in text, skill_id
+
+
 def test_plugin_preflight_uses_machine_readable_cli():
     env = os.environ.copy()
     env['PATH'] = f'{ROOT / "lbai_core" / "bin"}{os.pathsep}{env.get("PATH", "")}'
@@ -90,5 +107,5 @@ def test_plugin_preflight_uses_machine_readable_cli():
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_plugin_preflight_v1'
-    assert report['plugin_version'] == '1.4.13'
+    assert report['plugin_version'] == '1.4.14'
     assert report['preflight_status'] == 'READY'

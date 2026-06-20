@@ -1,6 +1,6 @@
 {
   "schema_version": "lbai_plugin_compatibility_v1",
-  "plugin_version": "1.4.13",
+  "plugin_version": "1.4.14",
   "minimum_cli_version": "1.4.1",
   "minimum_workspace_kit_version": "1.4.1"
 }

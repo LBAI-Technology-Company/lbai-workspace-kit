@@ -1,5 +1,24 @@
 # 员工 FAQ（LBAI）
 
+## Codex 插件命令和 Cursor 命令有什么区别？
+
+**Cursor** 使用斜杠命令：`/lbai-init`、`/lbai-new-task`、`/lbai-self-iterate` 等。
+
+**Codex（全局 `lbai-workspace` 插件）** 在命令面板显示 **LBAI …** 名称。岗位设定固定为 **LBAI Role Setup**（对应 `/lbai-init`）；其余命令与 slash 名一一对应，例如 `/lbai-self-iterate` → **LBAI Self Iterate**。
+
+| Codex 命令面板 | Cursor 等价 |
+|---|---|
+| LBAI Role Setup | `/lbai-init` |
+| LBAI New Task | `/lbai-new-task` |
+| LBAI Add Evidence | `/lbai-add-evidence` |
+| LBAI Search Artifacts | `/lbai-search-artifacts` |
+| LBAI Execute Task | `/lbai-execute-task` |
+| LBAI Finish Task | `/lbai-finish-task` |
+| LBAI Update Kit | `/lbai-update-kit` |
+| LBAI Self Iterate | `/lbai-self-iterate` |
+
+在 Codex 对话里也可以写 `$lbai-init`、`$lbai-new-task` 等 skill 引用。完整说明见 [CODEX_PLUGIN_INTERNAL_MARKETPLACE.md](CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)。
+
 ## `/lbai-*` 命令在 Cursor 里找不到
 
 1. 确认打开的是 **`lbai init-workspace` 输出的工作区根目录**（含 `AGENTS.md`、`.cursor/commands/`），不是外层父文件夹。
@@ -10,7 +29,9 @@
 
 这是预期行为。`new-task`、`add-evidence`、`search-artifacts`、`finish-task`、`init` 都需要 AI 先生成 enrichment JSON。
 
-**正确做法**：在 Cursor 或 Codex 桌面 App 中输入 `/lbai-new-task`（或其他对应 `/lbai-*` 命令）。
+**正确做法**：
+- **Cursor**：输入 `/lbai-new-task`（或其他 `/lbai-*` 命令）。
+- **Codex**：在命令面板选择 **LBAI New Task**（或其他 **LBAI …** 命令），或写 `$lbai-new-task`。
 
 ## Git push 失败 / 401 认证失败
 

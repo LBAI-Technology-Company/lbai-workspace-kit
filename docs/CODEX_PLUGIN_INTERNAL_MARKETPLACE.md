@@ -15,7 +15,7 @@ lbai github auth token
 lbai auth backend-login
 ```
 
-安装器会自动创建并注册公用工作区（默认 `~/.lbai/workspace`，写入 `~/.lbai/config.json`）。之后你在 Codex 里打开任意项目，都可以调用 `$lbai-workspace:*` 或 `/lbai-*`；任务、证据和台账都会写入这个统一工作区。
+安装器会自动创建并注册公用工作区（默认 `~/.lbai/workspace`，写入 `~/.lbai/config.json`）。之后你在 Codex 里打开任意项目，都可以从命令面板选择 LBAI 插件命令，或在对话里使用 `$lbai-*` skill 引用；任务、证据和台账都会写入这个统一工作区。
 
 如需绑定 private GitHub 仓库做 Git 同步：
 
@@ -41,9 +41,28 @@ codex plugin add lbai-workspace@lbai-internal
 
 ## 日常入口
 
-安装插件后，Codex 会以插件命名空间展示 Skills，例如 `$lbai-workspace:lbai-init`、`$lbai-workspace:lbai-new-task` 和 `$lbai-workspace:lbai-finish-task`，也可用自然语言触发。项目内原有 `$lbai-*` 或 `/lbai-*` 兼容入口继续保留。
+**命名约定**
 
-Cursor 原有 `/lbai-*` 命令保持不变。
+- **Cursor**：使用 `/lbai-*` 斜杠命令（例如 `/lbai-self-iterate`）。
+- **Codex 命令面板**：使用 **LBAI …** 显示名。除岗位设定外，显示名与 slash 命令一一对应：`/lbai-new-task` → **LBAI New Task**，`/lbai-self-iterate` → **LBAI Self Iterate**。岗位设定固定显示为 **LBAI Role Setup**（合同命令仍为 `/lbai-init`）。
+- **Codex 对话**：也可写 `$lbai-init`、`$lbai-new-task`、`$lbai-self-iterate` 等 skill 引用。
+
+安装 `lbai-workspace` 插件后，Codex 命令面板会展示 8 个 LBAI 命令。选中后会注入对应 skill；也可用自然语言描述同一动作。
+
+| Codex 命令面板 | Skill ID | Cursor 命令 |
+|---|---|---|
+| **LBAI Role Setup** | `lbai-init` | `/lbai-init` |
+| **LBAI New Task** | `lbai-new-task` | `/lbai-new-task` |
+| **LBAI Add Evidence** | `lbai-add-evidence` | `/lbai-add-evidence` |
+| **LBAI Search Artifacts** | `lbai-search-artifacts` | `/lbai-search-artifacts` |
+| **LBAI Execute Task** | `lbai-execute-task` | `/lbai-execute-task` |
+| **LBAI Finish Task** | `lbai-finish-task` | `/lbai-finish-task` |
+| **LBAI Update Kit** | `lbai-update-kit` | `/lbai-update-kit` |
+| **LBAI Self Iterate** | `lbai-self-iterate` | `/lbai-self-iterate` |
+
+Cursor 继续使用 `.cursor/commands/` 里的 `/lbai-*` 斜杠命令，行为与上表 Cursor 列一致。
+
+如果你在某个 LBAI 工作区项目里打开了 Codex，项目本地的 `$lbai-*` 或 `/lbai-*` 兼容入口仍然可用；全局插件命令会把读写路由到 registered active workspace（`~/.lbai/config.json`）。
 
 ## 升级和卸载
 
@@ -59,7 +78,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.13，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.14，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 

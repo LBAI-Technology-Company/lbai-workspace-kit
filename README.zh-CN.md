@@ -20,12 +20,14 @@
 4. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
 5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。初始化成功后会自动注册为本机默认 active workspace（`~/.lbai/config.json`）。
 6. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不是外层父目录）；也可在任意项目里通过全局插件调用 LBAI，数据仍写入 registered active workspace。
-7. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
-8. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验和本地自迭代用 `/lbai-self-iterate`。
+7. **在 Cursor 里运行** `/lbai-init` **完成岗位问答**；在 **Codex 里选择 `LBAI Role Setup`**（或输入 `$lbai-init`）。
+8. 日常任务：
+   - **Cursor**：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；Prompt Lab 用 `/lbai-self-iterate`。
+   - **Codex 插件**：`LBAI New Task` → `LBAI Execute Task` → `LBAI Finish Task`；资料用 `LBAI Add Evidence`，查找用 `LBAI Search Artifacts`；自迭代用 `LBAI Self Iterate`（Cursor 为 `/lbai-self-iterate`）。完整对照见 [Codex 插件文档](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md#日常入口)。
 
-> 业务命令必须在 Cursor/Codex 里输入 `/lbai-*`。不要在终端裸跑 `lbai new-task` 等命令。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
+> 业务命令必须在 Cursor/Codex 桌面 App 里触发，不要在终端裸跑 `lbai new-task` 等命令。Cursor 用 `/lbai-*`；Codex 全局插件用命令面板里的 **LBAI …** 命令或 `$lbai-*` skill 引用。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
-目标很简单：让员工安装一个 `lbai` 命令，绑定已有的 private GitHub 仓库，选择本地目录，然后继续在 Codex 或 Cursor 里使用同一套 `/lbai-*` 工作流。
+目标很简单：让员工安装一个 `lbai` 命令，绑定已有的 private GitHub 仓库，选择本地目录，然后继续在 Cursor（`/lbai-*`）或 Codex（**LBAI …** 插件命令 / `$lbai-*`）里使用同一套工作流。
 
 ## 产品决策
 

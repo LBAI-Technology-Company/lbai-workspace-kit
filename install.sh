@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.13"
+INSTALLER_VERSION="1.4.14"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -876,7 +876,7 @@ fi
 info "  lbai github auth token"
 info "  lbai auth doctor"
 info "  lbai auth backend-login"
-info "  在任意 Codex 项目中运行 /lbai-init"
+info "  在任意 Codex 项目中运行 LBAI Role Setup（Cursor 工作区则运行 /lbai-init）"
 if ! codex_cli_ready && { codex_cli_bin >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; }; then
   info "  source ~/.zprofile   # 然后 codex --version"
   info "  重新运行 install.sh 以自动安装 lbai-workspace 插件"

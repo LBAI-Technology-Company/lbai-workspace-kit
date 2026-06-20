@@ -10,18 +10,24 @@
 
 当前工作区支持两种入口：
 
-- Cursor：使用 `.cursor/commands/` 里的 `/lbai-*` 命令入口。
-- Codex：打开本项目后，可以直接输入或提到 `/lbai-*` 命令，由项目内 Codex 适配说明触发同一套工作流。
-- 企业 Codex Marketplace：安装 `lbai-workspace` 后，可使用 `$lbai-workspace:lbai-*` 命名空间 Skills 或自然语言触发同一套工作流；项目本地 `$lbai-*` 与 `/lbai-*` 兼容入口继续保留。
+- **Cursor**：使用 `.cursor/commands/` 里的 `/lbai-*` 斜杠命令。
+- **Codex（全局插件）**：安装 `lbai-workspace` 后，在命令面板选择 **LBAI Role Setup**、**LBAI New Task** 等 8 个命令；也可在对话里写 `$lbai-init`、`$lbai-new-task` 等 skill 引用。命令对照见 [`docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md`](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md#日常入口)。
+- **Codex（项目内）**：打开 LBAI 工作区项目后，仍可直接输入或提到 `/lbai-*`，由项目内适配说明触发同一套工作流。
 
 企业插件的安装、升级、数据边界和故障排查见 [`docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md`](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)。
 
 最快使用路径：
 
 ```text
-拿到 private 仓库 -> 用 Cursor 或 Codex 打开 -> /lbai-init -> /lbai-add-evidence 或 /lbai-search-artifacts 或 /lbai-new-task -> /lbai-execute-task -> /lbai-finish-task
+Cursor:
+  拿到 private 仓库 -> 打开工作区 -> /lbai-init -> /lbai-new-task -> /lbai-execute-task -> /lbai-finish-task
 
-Prompt 实验和本地自迭代使用 `/lbai-self-iterate`。它默认优先使用你的真实任务上下文；如果当前工作区没有任务上下文，就自动使用 mock 数据。实验记录保存在 `prompt_lab/`，不会自动修改公司正式 prompt；每轮会在 `prompt_lab/admin_feedback/outbox/` 生成给管理员看的问题、优化方案和优化后效果摘要。只有 `handoff_status=READY` 时才发送；如果显示 `BLOCKED_REDACTION_REQUIRED`，先脱敏并重新评估。
+Codex（全局插件）:
+  安装 lbai-workspace -> 任意项目 -> LBAI Role Setup -> LBAI New Task -> LBAI Execute Task -> LBAI Finish Task
+
+资料归档: /lbai-add-evidence（Cursor）或 LBAI Add Evidence（Codex）
+历史搜索: /lbai-search-artifacts（Cursor）或 LBAI Search Artifacts（Codex）
+Prompt 自迭代: /lbai-self-iterate（Cursor）或 LBAI Self Iterate（Codex）
 ```
 
 ---

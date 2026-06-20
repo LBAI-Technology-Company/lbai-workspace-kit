@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.13"
+$InstallerVersion = "1.4.14"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -602,7 +602,7 @@ Write-Info "  关闭并重新打开 PowerShell"
 Write-Info "  lbai github auth token"
 Write-Info "  lbai auth doctor"
 Write-Info "  lbai auth backend-login"
-Write-Info "  在任意 Codex 项目中运行 /lbai-init"
+Write-Info "  在任意 Codex 项目中运行 LBAI Role Setup（Cursor 工作区则运行 /lbai-init）"
 if (-not (Test-CodexReady) -and ((Test-Command codex) -or (Test-Path (Join-Path $env:USERPROFILE ".local\bin\codex.exe")))) {
     Write-Info "  关闭并重新打开 PowerShell，然后重新运行 install.ps1 以自动安装 lbai-workspace 插件"
 }

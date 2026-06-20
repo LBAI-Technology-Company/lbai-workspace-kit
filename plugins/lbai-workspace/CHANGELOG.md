@@ -1,8 +1,13 @@
 # Changelog
 
+## 1.4.14
+
+- Unify Codex plugin command names with Cursor `/lbai-*` commands: **LBAI Role Setup** for init and **LBAI Self Iterate** for self-iterate; update employee docs and install next-step hints.
+
 ## 1.4.13
 
 - Fix `install.sh` capturing `info` and `pip` stdout into the generated `lbai` launcher, which broke `lbai workspace ensure` with `File name too long`.
+- Document Codex plugin command palette names (`LBAI Role Setup`, `LBAI Self Iterate`, etc.) and align `lbai-init` / `lbai-self-iterate` display names.
 
 ## 1.4.12
 
