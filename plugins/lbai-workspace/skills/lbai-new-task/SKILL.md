@@ -5,7 +5,7 @@ description: Create a formal evidence-aware LBAI task. Use when the user explici
 
 # LBAI New Task
 
-1. Run `lbai doctor --json --plugin-version 1.0.0 --min-workspace-version 1.4.0`. Stop on an invalid or incompatible workspace.
+1. Run `lbai doctor --json --plugin-version 1.4.1 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
 2. Read the workspace `AGENTS.md` and `lbai_system/runner_contracts/lbai_command_contract_v1.md`.
 3. Read role context plus `lbai_system/prompts/task_intake_enrichment_prompt_v1.md` and `lbai_system/schemas/task_intake_enrichment_schema_v1.json`.
 4. Use one clear task from the conversation. If intent is ambiguous, ask for one concise task description.

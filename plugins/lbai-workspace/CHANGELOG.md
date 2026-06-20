@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1
+
+- Align plugin, LBAI CLI, and Workspace Kit version numbers.
+- Require LBAI CLI and Workspace Kit 1.4.1 or later.
+
 ## 1.0.0
 
 - Package eight LBAI workflows as Codex plugin skills.

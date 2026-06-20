@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.0.0',
+        '1.4.1',
         '--min-workspace-version',
-        '1.4.0',
+        '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.0'
-    assert report['workspace_kit_version'] == '1.4.0'
+    assert report['cli_version'] == '1.4.1'
+    assert report['workspace_kit_version'] == '1.4.1'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.0.0'
+    assert report['plugin_version'] == '1.4.1'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -81,7 +81,7 @@ def test_cli_doctor_json_reports_workspace_update(tmp_path):
         '--path',
         str(workspace),
         '--min-workspace-version',
-        '1.4.0',
+        '1.4.1',
     )
     assert result.returncode == 2
     report = json.loads(result.stdout)

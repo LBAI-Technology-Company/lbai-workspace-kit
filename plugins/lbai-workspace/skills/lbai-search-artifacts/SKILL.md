@@ -5,7 +5,7 @@ description: Search the configured LBAI backend knowledge service for approved c
 
 # LBAI Search Artifacts
 
-1. Run `lbai doctor --json --plugin-version 1.0.0 --min-workspace-version 1.4.0 --require-backend`. If backend authentication is missing, stop and direct the user to `lbai auth backend-login`.
+1. Run `lbai doctor --json --plugin-version 1.4.1 --min-workspace-version 1.4.1 --require-backend`. If backend authentication is missing, stop and direct the user to `lbai auth backend-login`.
 2. Read the workspace `AGENTS.md` and `lbai_system/runner_contracts/lbai_command_contract_v1.md`.
 3. Read `lbai_system/prompts/backend_search_query_plan_prompt_v1.md` and `lbai_system/schemas/backend_search_query_plan_schema_v1.json`.
 4. Ask for search intent only when it is not inferable from the conversation.
