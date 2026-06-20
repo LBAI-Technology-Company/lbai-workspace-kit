@@ -128,6 +128,9 @@ class TestPromptSchemaInventory:
         assert 'exec "$RUNTIME_PYTHON" -m lbai.cli "\\$@"' in install_sh
         assert 'Warning: could not install jsonschema' not in install_sh
         assert 'fail "could not install Python dependencies' in install_sh
+        assert 'RUNTIME_PYTHON="$(create_python_runtime)"' not in install_sh
+        assert 'RUNTIME_PYTHON="$VENV_DIR/bin/python"' in install_sh
+        assert 'pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null' in install_sh
 
         assert 'ensure_codex_cli' in install_sh
         assert 'ensure_codex_plugin' in install_sh

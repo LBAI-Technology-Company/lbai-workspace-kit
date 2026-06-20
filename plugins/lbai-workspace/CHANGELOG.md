@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.13
+
+- Fix `install.sh` capturing `info` and `pip` stdout into the generated `lbai` launcher, which broke `lbai workspace ensure` with `File name too long`.
+
 ## 1.4.12
 
 - Rename `lbai auth login` to `lbai github auth token` for clearer GitHub PAT configuration.

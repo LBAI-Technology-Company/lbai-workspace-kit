@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.12"
+INSTALLER_VERSION="1.4.13"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -698,23 +698,22 @@ read_kit_version() {
 }
 
 create_python_runtime() {
+  venv_python="$VENV_DIR/bin/python"
+
   info "  正在创建 Python 虚拟环境: $VENV_DIR"
   rm -rf "$VENV_DIR"
   if ! "$PYTHON_BIN" -m venv "$VENV_DIR" >/dev/null 2>&1; then
     fail "could not create Python runtime at $VENV_DIR. Install Python venv support and rerun install.sh."
   fi
 
-  venv_python="$VENV_DIR/bin/python"
   if [ ! -x "$venv_python" ]; then
     fail "Python runtime was created but $venv_python is not executable"
   fi
 
   info "  正在安装 Python 依赖 (jsonschema)..."
-  if ! "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt"; then
+  if ! "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null; then
     fail "could not install Python dependencies into $VENV_DIR. Check network or pip configuration, then rerun install.sh."
   fi
-
-  printf '%s\n' "$venv_python"
 }
 
 install_from_dir() {
@@ -826,7 +825,8 @@ else
 fi
 
 step "创建 Python 运行环境与 lbai 命令"
-RUNTIME_PYTHON="$(create_python_runtime)"
+create_python_runtime
+RUNTIME_PYTHON="$VENV_DIR/bin/python"
 info "  正在写入 $BIN_DIR/lbai ..."
 cat > "$BIN_DIR/lbai" <<EOF
 #!/usr/bin/env sh

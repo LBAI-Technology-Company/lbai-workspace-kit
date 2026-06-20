@@ -7,7 +7,7 @@ description: Execute the current formal LBAI task contract and produce its deliv
 
 Route reads and writes through the registered active workspace (`lbai workspace show`). Commands work from any Codex project once `lbai init-workspace` or `lbai workspace set` has run.
 
-1. Run `lbai doctor --json --plugin-version 1.4.12 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
+1. Run `lbai doctor --json --plugin-version 1.4.13 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
 2. Read the workspace `AGENTS.md`, `lbai_system/runner_contracts/lbai_command_contract_v1.md`, and `lbai_system/prompts/execute_task_plan_prompt_v1.md`.
 3. Resolve the current task from the conversation or run `lbai execute-task`. If multiple candidates remain, ask the user to choose a task folder.
 4. Run `lbai execute-task <task-folder>` when a folder is known. Stop if the preparation command reports blocking inputs.
