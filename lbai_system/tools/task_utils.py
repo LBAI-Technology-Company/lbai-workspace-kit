@@ -12,6 +12,7 @@ STATUS_VALUES = ['OPEN', 'BLOCKED', 'COMPLETED']
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
+KNOWLEDGE_SERVICE_IDENTITY_HEADER = 'X-LBAI-Identity-Token'
 LEADER_REVIEW_REMINDER = '对外发布或涉及官网/定价/合规/投资人/媒体/客户承诺等内容前，请负责人 review；本流程不阻断执行。'
 REVIEW_TASK_FILES = ['overclaim_check.md', 'release_boundary_check.md', 'founder_review_needed.md']
 OPTIONAL_REVIEW_TASK_FILES = ['leader_review_request.md']
@@ -52,7 +53,6 @@ def default_workspace_config() -> dict:
             'enabled': False,
             'base_url': KNOWLEDGE_SERVICE_BASE_URL,
             'api_key_header': KNOWLEDGE_SERVICE_API_KEY_HEADER,
-            'auth_mode': 'local_api_key',
             'workspace_repo_id': '',
             'search_timeout_seconds': 20,
         },
@@ -119,12 +119,11 @@ def knowledge_service_credentials(root: Path | None = None) -> dict:
     if not api_key:
         api_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
         api_key_header = KNOWLEDGE_SERVICE_API_KEY_HEADER
-    if not api_key:
-        api_key = str(config.get('api_key') or '').strip()
-        api_key_header = str(config.get('api_key_header') or '').strip()
     return {
         'api_key': api_key,
         'api_key_header': api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER,
+        'identity_token': str(auth.get('identity_token') or '').strip(),
+        'identity_header': str(auth.get('identity_header') or KNOWLEDGE_SERVICE_IDENTITY_HEADER).strip(),
     }
 
 
@@ -145,8 +144,70 @@ def git_root() -> Optional[Path]:
         return None
 
 
+def _lbai_core_search_paths() -> list[Path]:
+    home = lbai_home()
+    return [
+        home / 'kit' / 'lbai_core',
+        Path(__file__).resolve().parents[2] / 'lbai_core',
+    ]
+
+
+def _workspace_config_module():
+    import sys
+
+    for base in _lbai_core_search_paths():
+        if (base / 'lbai' / 'workspace_config.py').exists():
+            base_str = str(base)
+            if base_str not in sys.path:
+                sys.path.insert(0, base_str)
+            from lbai import workspace_config
+
+            return workspace_config
+    return None
+
+
+def is_workspace(path: Path) -> bool:
+    module = _workspace_config_module()
+    if module:
+        return module.is_workspace(path)
+    return (
+        (path / 'AGENTS.md').exists()
+        and (path / 'lbai_system' / 'runner_contracts' / 'lbai_command_contract_v1.md').exists()
+        and (path / 'role_workspace').exists()
+        and (path / 'tasks').exists()
+    )
+
+
 def workspace_root() -> Path:
-    return git_root() or Path.cwd()
+    module = _workspace_config_module()
+    if module:
+        root, source = module.resolve_workspace_root()
+        if module.is_workspace(root):
+            return root
+        if source in {'active_workspace', 'active_workspace_invalid'}:
+            return root
+
+    current = Path.cwd().resolve()
+    for path in [current, *current.parents]:
+        if is_workspace(path):
+            return path
+
+    git = git_root()
+    if git and is_workspace(git):
+        return git
+    return git or current
+
+
+def source_project_path(root: Path | None = None) -> str | None:
+    workspace = (root or workspace_root()).resolve()
+    module = _workspace_config_module()
+    if module:
+        return module.source_project_path(workspace)
+    try:
+        Path.cwd().resolve().relative_to(workspace)
+        return None
+    except ValueError:
+        return str(Path.cwd().resolve())
 
 
 def prompt_lab_isolated_mode() -> bool:

@@ -719,7 +719,7 @@
         <a href="#overview">总览</a>
         <a href="#role">岗位信息</a>
         <a href="#background">背景设定</a>
-        <a href="#evidence">资料记录</a>
+        <a href="#knowledge">知识目录</a>
         <a href="#tasks">任务记录</a>
         <a href="#guardrails">公司边界</a>
       </nav>
@@ -729,7 +729,7 @@
       <section class="topbar" id="overview">
         <div>
           <h2 id="workspaceName">工作区看板</h2>
-          <p id="workspaceSummary">这里会汇总岗位、evidence、任务缺口、同步状态和公司边界。</p>
+          <p id="workspaceSummary">这里会汇总岗位、OKF 知识、任务缺口、同步状态和公司边界。</p>
         </div>
         <div class="badge-row">
           <span id="workspaceBadge" class="badge warn">未加载工作区</span>
@@ -742,7 +742,7 @@
         <article class="panel full">
           <div class="panel-header">
             <h3>闭环状态</h3>
-            <span>evidence -> task -> sync</span>
+            <span>knowledge -> task -> sync</span>
           </div>
           <div class="panel-body">
             <div class="metric-row">
@@ -754,16 +754,16 @@
           </div>
         </article>
 
-        <article class="panel full" id="evidence">
+        <article class="panel full" id="knowledge">
           <div class="panel-header">
-            <h3>资料状态</h3>
-            <span>evidence / knowledge</span>
+            <h3>知识目录</h3>
+            <span>OKF concepts</span>
           </div>
           <div class="panel-body">
             <div class="metric-row">
-              <div class="metric"><strong id="metricEvidence">0</strong><span>资料记录</span></div>
-              <div class="metric"><strong id="metricEvidenceSuggested">0</strong><span>待后端入库</span></div>
-              <div class="metric"><strong id="metricEvidenceSyncBlocked">0</strong><span>资料同步阻断</span></div>
+              <div class="metric"><strong id="metricKnowledge">0</strong><span>知识条目</span></div>
+              <div class="metric"><strong id="metricReferences">0</strong><span>参考资料</span></div>
+              <div class="metric"><strong id="metricKnowledgeAreas">0</strong><span>知识分类</span></div>
             </div>
           </div>
         </article>
@@ -785,7 +785,7 @@
           </div>
           <div class="panel-body">
             <ul class="list">
-              <li><strong>Evidence first</strong><br>资料先进入 evidence，不自动创建任务</li>
+              <li><strong>Knowledge first</strong><br>资料保存为 OKF Concept，不自动创建任务</li>
               <li><strong>Human confirms task</strong><br>AI 只建议任务，正式任务由员工确认</li>
               <li><strong>Artifact drives state</strong><br>缺口、状态和同步结果必须写入 artifacts</li>
             </ul>
@@ -845,7 +845,7 @@
               <li><strong>/lbai-add-evidence</strong><br>保存资料，不自动创建任务</li>
               <li><strong>/lbai-search-artifacts</strong><br>查询历史资料和任务产出，不改状态</li>
               <li><strong>/lbai-new-task</strong><br>创建正式任务记录</li>
-              <li><strong>/lbai-execute-task</strong><br>读取 linked evidence 并生成输出</li>
+              <li><strong>/lbai-execute-task</strong><br>读取关联 OKF 知识并生成输出</li>
               <li><strong>/lbai-finish-task</strong><br>检查、落账、同步 private GitHub</li>
               <li><strong>/lbai-update-kit</strong><br>更新公司维护的工作流模板</li>
               <li><strong>/lbai-self-iterate</strong><br>运行 Prompt Lab 实验，不改正式 prompt</li>
@@ -865,11 +865,11 @@
 
         <article class="panel wide">
           <div class="panel-header">
-            <h3>最近资料</h3>
-            <span>evidence ledger</span>
+            <h3>知识条目</h3>
+            <span>knowledge index</span>
           </div>
           <div class="panel-body">
-            <div id="evidenceTable"></div>
+            <div id="knowledgeTable"></div>
           </div>
         </article>
 
@@ -904,7 +904,7 @@
       'role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
       'role_workspace/world_model/ROLE_BOUNDARY_v1.md',
       'role_workspace/ledgers/TASK_LEDGER_v1.md',
-      'role_workspace/ledgers/EVIDENCE_LEDGER_v1.md',
+      'role_workspace/knowledge/index.md',
       'role_workspace/ledgers/BLOCKED_ITEMS_v1.md',
       'lbai_system/templates/role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
       'lbai_system/company_guardrails/LBAI_WORK_RUNTIME_RULES_V2.md',
@@ -1089,13 +1089,13 @@
       const world = textFiles.get('role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
       const boundary = textFiles.get('role_workspace/world_model/ROLE_BOUNDARY_v1.md') || '';
       const ledger = textFiles.get('role_workspace/ledgers/TASK_LEDGER_v1.md') || '';
-      const evidenceLedger = textFiles.get('role_workspace/ledgers/EVIDENCE_LEDGER_v1.md') || '';
+      const knowledgeIndex = textFiles.get('role_workspace/knowledge/index.md') || '';
       const blocked = textFiles.get('role_workspace/ledgers/BLOCKED_ITEMS_v1.md') || '';
       const version = parseWorkspaceKitVersion(textFiles.get('.lbai/workspace.json') || '');
       const roleTemplate = textFiles.get('lbai_system/templates/role_workspace/world_model/ROLE_WORLD_MODEL_v1.md') || '';
 
       $('workspaceName').textContent = firstHeading(readme) || 'LBAI 工作区看板';
-      $('workspaceSummary').textContent = 'Artifact-first 本地看板：跟踪 evidence、任务缺口、review 风险和 GitHub 同步状态。';
+      $('workspaceSummary').textContent = 'Artifact-first 本地看板：跟踪 OKF 知识、任务缺口、review 风险和 GitHub 同步状态。';
       $('kitVersion').textContent = version ? `Kit ${version}` : '版本未读取';
       $('kitVersion').className = version ? 'badge ok' : 'badge warn';
       $('roleName').textContent = cleanValue(section(world, 'Role Name')) || '未设置，请运行 /lbai-init';
@@ -1105,12 +1105,12 @@
       $('roleTemplateStatus').textContent = roleTemplate ? '已读取公司默认岗位模板；不会覆盖员工岗位记忆' : '未读取公司默认岗位模板';
 
       const tasks = collectTasks(ledger);
-      const evidence = collectEvidence(evidenceLedger);
+      const knowledge = collectKnowledge(knowledgeIndex);
       renderMetrics(tasks);
-      renderEvidenceMetrics(evidence);
-      renderWorkflowAlerts(tasks, evidence);
+      renderKnowledgeMetrics(knowledge);
+      renderWorkflowAlerts(tasks);
       renderTasks(tasks);
-      renderEvidence(evidence);
+      renderKnowledge(knowledge);
       renderBlocked(blocked);
       renderGuardrails();
 
@@ -1194,7 +1194,7 @@
       row.review = row.review || cleanValue(section(taskLedger, 'review_needed')) || cleanValue(section(scope, 'review_needed'));
       row.reviewReminder = row.reviewReminder || cleanValue(section(taskLedger, 'leader_review_reminder')) || cleanValue(section(scope, 'leader_review_reminder')) || cleanValue(section(gapRecord, 'leader_review_reminder'));
       row.git = row.git || cleanValue(section(taskLedger, 'git_status'));
-      row.source = row.source || compactListSection(section(taskLedger, 'source_artifacts')) || compactListSection(section(scope, 'evidence_artifacts'));
+      row.source = row.source || compactListSection(section(taskLedger, 'source_artifacts'));
       row.remaining = compactListSection(section(taskLedger, 'remaining_gaps'))
         || compactListSection(section(scope, 'remaining_gaps'))
         || compactListSection(section(gapRecord, 'remaining_gaps'))
@@ -1211,36 +1211,33 @@
       $('metricTaskSyncBlocked').textContent = tasks.filter((task) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(task.git))).length;
     }
 
-    function collectEvidence(markdown) {
-      return parseMarkdownTable(markdown).map((row) => ({
-        date: row.Date || '',
-        id: stripTicks(row['Evidence ID'] || ''),
-        kind: row['Source Type'] || row['Source Kind'] || '',
-        visibility: row['Source Visibility'] || '',
-        backend: row['Backend Ingestion Status'] || '',
-        status: row.Status || '',
-        sync: row['Sync Status'] || '',
-        next: row['Next Step'] || ''
-      }))
-        .filter((row) => row.id)
-        .sort((a, b) => String(b.date || b.id).localeCompare(String(a.date || a.id)))
-        .slice(0, 12);
+    function collectKnowledge(markdown) {
+      const items = [];
+      for (const line of markdown.split(/\r?\n/)) {
+        const match = line.match(/^\s*[-*]\s+\[([^\]]+)\]\(([^)]+)\)(?:\s*-\s*(.*))?$/);
+        if (!match) continue;
+        const path = match[2].replace(/^\/+/, '');
+        items.push({
+          title: match[1],
+          path,
+          area: path.includes('/') ? path.split('/')[0] : 'root',
+          description: match[3] || ''
+        });
+      }
+      return items.slice(0, 50);
     }
 
-    function renderEvidenceMetrics(evidence) {
-      $('metricEvidence').textContent = evidence.length;
-      $('metricEvidenceSuggested').textContent = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC').length;
-      $('metricEvidenceSyncBlocked').textContent = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync))).length;
+    function renderKnowledgeMetrics(knowledge) {
+      $('metricKnowledge').textContent = knowledge.length;
+      $('metricReferences').textContent = knowledge.filter((item) => item.area === 'references').length;
+      $('metricKnowledgeAreas').textContent = new Set(knowledge.map((item) => item.area)).size;
     }
 
-    function renderWorkflowAlerts(tasks, evidence) {
+    function renderWorkflowAlerts(tasks) {
       const alerts = [];
       const readyTasks = tasks.filter((task) => taskIsExecutable(task));
       const blockedTasks = tasks.filter((task) => upper(task.status) === 'BLOCKED');
       const reviewTasks = tasks.filter((task) => taskNeedsReview(task));
-      const suggestedEvidence = evidence.filter((item) => upper(item.backend) === 'PENDING_GITHUB_SYNC');
-      const reviewEvidence = evidence.filter((item) => upper(item.status) === 'NEEDS_REVIEW');
-      const syncBlockedEvidence = evidence.filter((item) => ['BLOCKED', 'PUSH_FAILED'].includes(upper(item.sync)));
 
       for (const task of readyTasks.slice(0, 3)) {
         alerts.push({
@@ -1249,32 +1246,11 @@
           tone: 'ready'
         });
       }
-      for (const item of suggestedEvidence.slice(0, 3)) {
-        alerts.push({
-          title: `资料可转任务：${item.id}`,
-          body: item.next || '确认后用 /lbai-new-task 创建正式任务',
-          tone: 'suggested'
-        });
-      }
-      for (const item of syncBlockedEvidence.slice(0, 3)) {
-        alerts.push({
-          title: `资料同步未完成：${item.id}`,
-          body: item.next || '检查 Git remote/upstream 或 hygiene 阻断',
-          tone: 'blocked'
-        });
-      }
       for (const task of blockedTasks.slice(0, 3)) {
         alerts.push({
           title: `任务阻断：${task.goal || task.id}`,
           body: task.remaining ? `剩余缺口：${task.remaining}` : task.next || '补齐缺口后再执行',
           tone: 'blocked'
-        });
-      }
-      for (const item of reviewEvidence.slice(0, 3)) {
-        alerts.push({
-          title: `资料需 review：${item.id}`,
-          body: '对外发布前请负责人 review；本流程不阻断执行',
-          tone: 'review'
         });
       }
       for (const task of reviewTasks.slice(0, 3)) {
@@ -1344,35 +1320,27 @@
       `;
     }
 
-    function renderEvidence(evidence) {
-      if (!evidence.length) {
-        $('evidenceTable').innerHTML = '<p class="empty">暂无资料记录。运行 /lbai-add-evidence 保存资料后，这里会显示最近 evidence。</p>';
+    function renderKnowledge(knowledge) {
+      if (!knowledge.length) {
+        $('knowledgeTable').innerHTML = '<p class="empty">暂无 OKF 知识。运行 /lbai-add-evidence 保存资料后，这里会显示知识目录。</p>';
         return;
       }
-      const rows = evidence.map((item) => `
+      const rows = knowledge.map((item) => `
         <tr>
-          <td>${escapeHtml(item.date || '-')}</td>
-          <td>${escapeHtml(item.id || '-')}</td>
-          <td>${escapeHtml(item.kind || '-')}</td>
-          <td>${escapeHtml(item.visibility || '-')}</td>
-          <td>${escapeHtml(item.backend || '-')}</td>
-          <td>${pill(item.status || '-')}</td>
-          <td>${pill(item.sync || 'NOT_SYNCED')}</td>
-          <td>${escapeHtml(item.next || '-')}</td>
+          <td>${escapeHtml(item.title || '-')}</td>
+          <td>${escapeHtml(item.area || '-')}</td>
+          <td>${escapeHtml(item.path || '-')}</td>
+          <td>${escapeHtml(item.description || '-')}</td>
         </tr>
       `).join('');
-      $('evidenceTable').innerHTML = `
+      $('knowledgeTable').innerHTML = `
         <table>
           <thead>
             <tr>
-              <th>日期</th>
-              <th>资料</th>
-              <th>类型</th>
-              <th>可见范围</th>
-              <th>后端入库</th>
-              <th>状态</th>
-              <th>同步</th>
-              <th>下一步</th>
+              <th>标题</th>
+              <th>分类</th>
+              <th>Concept ID</th>
+              <th>说明</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>

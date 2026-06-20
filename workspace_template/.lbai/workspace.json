@@ -1,5 +1,5 @@
 {
-  "workspaceKitVersion": "1.4.1",
+  "workspaceKitVersion": "1.4.2",
   "coreVersionRequired": ">=0.1.0",
   "templateSource": "LBAI-Technology-Company/lbai-workspace-kit",
   "managedPaths": [
@@ -21,7 +21,6 @@
     "enabled": true,
     "base_url": "https://workflow-kit.lbai.ai",
     "api_key_header": "X-LBAI-API-Key",
-    "auth_mode": "local_api_key",
     "workspace_repo_id": "lbai-workspace",
     "search_timeout_seconds": 20
   }

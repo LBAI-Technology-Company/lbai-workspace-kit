@@ -1,0 +1,12 @@
+{
+  "schema_version": "evidence_enrichment_v1",
+  "title": "独立用户反馈样本",
+  "source_type": "customer_feedback",
+  "source_origin": "用户反馈整理",
+  "source_occurred_at": "2026-06-09",
+  "source_visibility": "team",
+  "related_objects": ["user_feedback"],
+  "language": "zh-CN",
+  "admissibility_status": "CAPTURED",
+  "review_reasons": []
+}

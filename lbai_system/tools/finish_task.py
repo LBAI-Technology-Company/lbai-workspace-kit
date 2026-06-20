@@ -3,7 +3,7 @@ import argparse
 import json
 import subprocess
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -47,38 +47,6 @@ def write_finish_review_artifact(task_dir: Path, data: dict):
         f'## next_step\n{data.get("next_step", "None")}\n',
         encoding='utf-8',
     )
-
-
-def write_role_memory_feedback(root: Path, task_dir: Path, data: dict) -> list[str]:
-    candidates = data.get('role_memory_feedback_candidates') or []
-    if not candidates:
-        return []
-    task_rel = str(task_dir.relative_to(root))
-    feedback_id = f'fb_{datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")}_{task_dir.name}'
-    payload = {
-        'schema_version': 'role_memory_feedback_v1',
-        'feedback_id': feedback_id,
-        'source_task': task_rel,
-        'confirmed_by_user': True,
-        'created_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-        'feedback_items': candidates[:3],
-        'note': 'Feedback candidate for backend aggregation. Not a local authoritative role rule.',
-    }
-    json_path = task_dir / 'role_memory_feedback.json'
-    md_path = task_dir / 'role_memory_feedback.md'
-    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    lines = [
-        '# Role Memory Feedback',
-        '',
-        'These are feedback candidates for backend aggregation, not local authoritative role rules.',
-        '',
-        '## feedback_items',
-    ]
-    for item in candidates[:3]:
-        lines.append(f'- {item.get("title", item.get("type", "feedback"))}: {item.get("content", "")}')
-    lines.append('')
-    md_path.write_text('\n'.join(lines), encoding='utf-8')
-    return [json_path.name, md_path.name]
 
 
 def run_pre_commit_check(root: Path, task_folder: str) -> tuple[int, str]:
@@ -200,24 +168,25 @@ def list_task_artifacts(task_dir: Path) -> list[str]:
     return sorted(p.name for p in task_dir.iterdir() if p.is_file())
 
 
-def markdown_list_items(value: str) -> list[str]:
-    items = []
-    for line in value.splitlines():
-        item = line.strip().lstrip('-').strip()
-        if item and item.lower() != 'none' and item not in items:
-            items.append(item)
-    return items
-
-
 def source_artifacts_for_task(task_dir: Path) -> list[str]:
     task_scope = read_text(task_dir / 'task_scope.md')
     task_ledger = read_text(task_dir / 'task_ledger.md')
-    evidence = markdown_list_items(markdown_field(task_scope, 'evidence_artifacts'))
-    evidence.extend(item for item in markdown_list_items(markdown_field(task_ledger, 'evidence_artifacts')) if item not in evidence)
+    knowledge_refs = []
+    for text in (task_scope, task_ledger):
+        for line in text.splitlines():
+            value = line.strip().lstrip('-').strip()
+            if (
+                value.startswith('role_workspace/knowledge/')
+                and value.endswith('.md')
+                and value not in knowledge_refs
+            ):
+                knowledge_refs.append(value)
 
     artifacts = list_task_artifacts(task_dir)
-    legacy_inputs = [name for name in artifacts if name.startswith('input_')]
-    sources = evidence + [name for name in legacy_inputs if name not in evidence]
+    task_inputs = [name for name in artifacts if name.startswith('input_')]
+    sources = knowledge_refs + [
+        name for name in task_inputs if name not in knowledge_refs
+    ]
     return sources or ['task description from task_scope.md']
 
 
@@ -244,8 +213,6 @@ def update_structured_task_ledger(
             'overclaim_check.md',
             'release_boundary_check.md',
             'founder_review_needed.md',
-            'role_memory_feedback.json',
-            'role_memory_feedback.md',
         }
     ]
     if not outputs:
@@ -365,7 +332,6 @@ def main():
         return 1
 
     write_finish_review_artifact(task_dir, review_data)
-    role_memory_files = write_role_memory_feedback(root, task_dir, review_data)
     ai_finish_blocked = review_data['finish_verdict'] == 'BLOCK_FINISH'
 
     status = determine_task_status(task_dir)
@@ -482,8 +448,6 @@ def main():
     print(f'- {args.task_folder}/task_ledger.md')
     print(f'- {args.task_folder}/finish_review.md')
     print(f'- {args.task_folder}/finish_review_enrichment.json')
-    for name in role_memory_files:
-        print(f'- {args.task_folder}/{name}')
     print('- role_workspace/ledgers/TASK_LEDGER_v1.md')
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
         print('auto_git_sync: completed')

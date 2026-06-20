@@ -32,7 +32,6 @@ Rules:
    - conversation_context: stated by the employee in the current chat
    - company_knowledge: found in searched workspace artifacts
    - role_context: found in role world model files
-   - linked_evidence: found in existing evidence artifacts
    - external_source: cited external source, only when browsing or source content is available
    - assumption: a tentative assumption that must not be written as fact
 4. missing_inputs: only blocking gaps. If any item remains, status must be BLOCKED.
@@ -42,7 +41,7 @@ Rules:
 8. completion_conditions: checklist for /lbai-finish-task.
 9. Do not invent company facts or approvals.
 10. For tasks that ask to write, introduce, summarize, or explain company methods, company workflow, product, service, customer cases, official positioning, or business process:
-    - First use any searched company_knowledge, linked_evidence, external_source, or explicit employee-provided source facts.
+    - First use any searched company_knowledge, external_source, or explicit employee-provided source facts.
     - If those still do not provide enough source facts, put the missing source material or key points in missing_inputs.
     - If audience/use is unclear, put audience/use in missing_inputs, especially when the output could be internal or public-facing.
     - Do not downgrade these to recommended_inputs. A generic draft without source facts is not an acceptable initial output.

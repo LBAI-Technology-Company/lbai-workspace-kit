@@ -54,9 +54,6 @@
     "language": {
       "type": "string"
     },
-    "backend_ingestion_hint": {
-      "type": "string"
-    },
     "admissibility_status": {
       "type": "string",
       "enum": ["CAPTURED", "NEEDS_REVIEW"]

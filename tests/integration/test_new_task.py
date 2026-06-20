@@ -152,7 +152,7 @@ class TestNewTask:
         result = run_tool(isolated_workspace, 'new_task.py', '--enrichment', str(enrich))
         assert result.returncode == 0, result.output
         assert 'STATUS BLOCKED' in result.stdout
-        assert 'backend_evidence_search skipped:' not in result.stdout
+        assert 'backend_knowledge_search_used:' not in result.stdout
         assert 'backend 查询结果' not in result.stdout
         assert '请补充公司工作方法/流程的来源材料或关键要点' in result.stdout
         assert '请说明这篇短文的受众和用途' in result.stdout

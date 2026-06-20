@@ -5,8 +5,7 @@ from pathlib import Path
 
 sys.dont_write_bytecode = True
 
-from role_memory_backend import retrieve_role_memory_context
-from task_utils import is_task_dir, markdown_field, read_text, review_required, task_status, unresolved_missing_inputs, workspace_root
+from task_utils import is_task_dir, read_text, review_required, task_status, unresolved_missing_inputs, workspace_root
 
 
 def markdown_list(items: list[str]) -> str:
@@ -31,7 +30,7 @@ def existing_evidence_refs(task_dir: Path) -> list[str]:
         text = read_text(task_dir / filename)
         for line in text.splitlines():
             value = line.strip().lstrip('-').strip()
-            if value.startswith('role_workspace/knowledge/evidence/') and value not in refs:
+            if value.startswith('role_workspace/knowledge/') and value.endswith('.md') and value not in refs:
                 refs.append(value)
     return refs
 
@@ -58,10 +57,6 @@ def build_plan_template(root: Path, task_dir: Path) -> str:
         artifacts.append(f'{task_rel}/missing_inputs.md')
     if (task_dir / 'recommended_inputs.md').exists():
         artifacts.append(f'{task_rel}/recommended_inputs.md')
-    if (task_dir / 'role_memory_context.md').exists():
-        artifacts.append(f'{task_rel}/role_memory_context.md')
-    if (task_dir / 'role_memory_context.json').exists():
-        artifacts.append(f'{task_rel}/role_memory_context.json')
     artifacts.extend(existing_evidence_refs(task_dir))
     artifacts.extend(role_context_refs(root))
 
@@ -77,7 +72,7 @@ def build_plan_template(root: Path, task_dir: Path) -> str:
         f'## task_status\n{task_status(task_dir)}\n\n'
         f'## artifacts_to_read\n{markdown_list(artifacts)}\n\n'
         '## facts_from_sources\n'
-        '- TODO: 从 task_scope、task_slot、role_memory_context、linked evidence 和用户明确提供的后端搜索结果中提取可验证事实和岗位执行偏好。\n\n'
+        '- TODO: 从 task_scope、task_slot、linked OKF Concepts、岗位上下文和用户明确提供的后端搜索结果中提取可验证事实和岗位执行偏好。\n\n'
         '## assumptions\n'
         '- TODO: 只写必要假设；不能把假设写成事实。\n\n'
         '## task_output_sections\n'
@@ -93,19 +88,6 @@ def build_plan_template(root: Path, task_dir: Path) -> str:
         '- 不要绕过 task_slot.md 的范围。\n\n'
         f'## review_reminder\n- {review_reminder}\n'
     )
-
-
-def task_query_text(task_dir: Path) -> str:
-    scope = read_text(task_dir / 'task_scope.md')
-    return ' '.join(
-        item
-        for item in [
-            markdown_field(scope, 'task_name'),
-            markdown_field(scope, 'goal'),
-            markdown_field(scope, 'expected_output'),
-        ]
-        if item
-    ).strip() or task_dir.name
 
 
 def main() -> int:
@@ -135,9 +117,6 @@ def main() -> int:
         )
         return 1
 
-    query_text = task_query_text(task_dir)
-    role_memory_detail = retrieve_role_memory_context(root, task_dir, query_text)
-
     plan_path = task_dir / 'execution_plan.md'
     if plan_path.exists() and not args.force:
         detail = 'existing execution_plan.md kept'
@@ -149,8 +128,6 @@ def main() -> int:
     print(f'task_folder: {task_dir.relative_to(root)}')
     print(f'execution_plan: {plan_path.relative_to(root)}')
     print(f'detail: {detail}')
-    if role_memory_detail and 'skipped' not in role_memory_detail:
-        print(role_memory_detail)
     print(
         'next_step: 在 Cursor 或 Codex 桌面 App 中读取 execution_plan.md，'
         '按 task_output_sections 写入 task_output.md；确认 task_output.md 已生成后运行 /lbai-finish-task。'

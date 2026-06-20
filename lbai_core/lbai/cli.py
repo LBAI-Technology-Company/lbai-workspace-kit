@@ -14,6 +14,18 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from lbai.workspace_config import (
+    clear_active_workspace,
+    configured_active_workspace_path,
+    get_active_workspace,
+    invocation_cwd,
+    is_workspace,
+    resolve_workspace_root,
+    set_active_workspace,
+    source_project_path,
+    workspace_resolution_context,
+)
+
 
 MANAGED_PATHS = [
     'AGENTS.md',
@@ -256,6 +268,8 @@ def write_knowledge_service_auth(
     api_key: str,
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
+    identity_token: str = "",
+    identity_header: str = "X-LBAI-Identity-Token",
 ) -> Path:
     path = knowledge_service_auth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -264,6 +278,8 @@ def write_knowledge_service_auth(
         'api_key': api_key.strip(),
         'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
         'base_url': (base_url or KNOWLEDGE_SERVICE_BASE_URL).strip(),
+        'identity_token': identity_token.strip(),
+        'identity_header': identity_header.strip(),
         'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -276,21 +292,14 @@ def verify_knowledge_service_key(
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
     timeout: int = 10,
+    identity_token: str = "",
+    identity_header: str = "X-LBAI-Identity-Token",
 ) -> tuple[bool, str]:
-    url = base_url.rstrip('/') + '/v1/search/evidence'
+    url = base_url.rstrip('/') + '/v1/knowledge/search'
     payload = {
         'workspace_repo_id': 'auth-check',
-        'employee_user_id': 'auth-check',
-        'task_text': 'auth check',
-        'query_plan': {
-            'schema_version': 'backend_search_query_plan_v1',
-            'query': 'auth check',
-            'keywords': [],
-            'concepts': [],
-            'entity_types': [],
-            'prefer_status': [],
-            'limit': 1,
-        },
+        'query': 'auth check',
+        'statuses': ['active'],
         'limit': 1,
     }
     body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
@@ -299,6 +308,8 @@ def verify_knowledge_service_key(
         'Accept': 'application/json',
         (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(): api_key.strip(),
     }
+    if identity_token.strip():
+        headers[identity_header.strip() or "X-LBAI-Identity-Token"] = identity_token.strip()
     request = urllib.request.Request(url, data=body, headers=headers, method='POST')
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -335,22 +346,15 @@ def capture(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None 
     return subprocess.run(cmd, cwd=cwd, env=merged_env, text=True, capture_output=True)
 
 
-def is_workspace(path: Path) -> bool:
-    return (
-        (path / 'AGENTS.md').exists()
-        and (path / 'lbai_system' / 'runner_contracts' / 'lbai_command_contract_v1.md').exists()
-        and (path / 'role_workspace').exists()
-        and (path / 'tasks').exists()
-    )
-
-
 def find_workspace(start: Path | None = None) -> Path:
-    current = (start or Path.cwd()).resolve()
-    for path in [current, *current.parents]:
-        if is_workspace(path):
-            return path
-    print('ERROR: current directory is not an LBAI workspace.', file=sys.stderr)
-    print('NEXT_STEP: run this command inside a workspace or run lbai init-workspace first.', file=sys.stderr)
+    root, source = resolve_workspace_root(start=start)
+    if is_workspace(root):
+        return root
+    if source == 'active_workspace_invalid':
+        print(f'ERROR: configured active workspace is missing or invalid: {root}', file=sys.stderr)
+    else:
+        print('ERROR: no LBAI workspace is available for this directory.', file=sys.stderr)
+    print('NEXT_STEP: run lbai init-workspace, or lbai workspace set --path <lbai-workspace>', file=sys.stderr)
     raise SystemExit(2)
 
 
@@ -430,7 +434,6 @@ def default_workspace_metadata(workspace: Path) -> dict:
             'enabled': True,
             'base_url': KNOWLEDGE_SERVICE_BASE_URL,
             'api_key_header': KNOWLEDGE_SERVICE_API_KEY_HEADER,
-            'auth_mode': 'local_api_key',
             'workspace_repo_id': repo_id,
             'search_timeout_seconds': 20,
         },
@@ -460,13 +463,10 @@ def merged_workspace_metadata(workspace: Path, base_metadata: dict) -> dict:
     metadata = deep_merge(deep_merge(base_metadata, default_workspace_metadata(workspace)), existing)
     knowledge = metadata.setdefault('knowledge_service', {})
     if isinstance(knowledge, dict):
-        legacy_key = str(knowledge.pop('api_key', '') or '').strip()
-        if legacy_key and not read_knowledge_service_auth().get('api_key'):
-            write_knowledge_service_auth(legacy_key, str(knowledge.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER))
+        knowledge.pop('api_key', None)
         knowledge['enabled'] = True
         knowledge['base_url'] = KNOWLEDGE_SERVICE_BASE_URL
         knowledge['api_key_header'] = KNOWLEDGE_SERVICE_API_KEY_HEADER
-        knowledge['auth_mode'] = 'local_api_key'
         env_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
         if env_key and not read_knowledge_service_auth().get('api_key'):
             write_knowledge_service_auth(env_key, KNOWLEDGE_SERVICE_API_KEY_HEADER)
@@ -530,9 +530,6 @@ def workspace_kit_version(root: Path) -> str:
         value = str(data.get('workspaceKitVersion') or '').strip() if isinstance(data, dict) else ''
         if value:
             return value.lstrip('v')
-    legacy = root / 'lbai_system' / 'VERSION'
-    if legacy.exists():
-        return legacy.read_text(encoding='utf-8').strip().lstrip('v')
     return 'unknown'
 
 
@@ -665,6 +662,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         prompt = 'Paste LBAI backend API key: '
 
     api_key = (args.api_key or '').strip()
+    identity_token = (args.identity_token or '').strip()
     if not api_key:
         api_key = getpass.getpass(prompt).strip()
     if not api_key:
@@ -679,6 +677,13 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         print('backend_auth_status: BLOCKED')
         print('reason: empty API key')
         return 2
+    if not identity_token:
+        identity_token = str(existing.get('identity_token') or '').strip()
+    if not identity_token:
+        print('backend_auth_status: BLOCKED')
+        print('reason: empty identity token')
+        print('next_step: 向管理员索取绑定员工身份的知识服务 identity token。')
+        return 2
 
     if not args.no_verify:
         ok, message = verify_knowledge_service_key(
@@ -686,6 +691,8 @@ def auth_backend_login(args: argparse.Namespace) -> int:
             args.api_key_header,
             args.base_url,
             args.verify_timeout,
+            identity_token,
+            args.identity_header,
         )
         print(message)
         if not ok:
@@ -695,7 +702,9 @@ def auth_backend_login(args: argparse.Namespace) -> int:
     else:
         print('backend_key_check: SKIPPED (--no-verify)')
 
-    path = write_knowledge_service_auth(api_key, args.api_key_header, args.base_url)
+    path = write_knowledge_service_auth(
+        api_key, args.api_key_header, args.base_url, identity_token, args.identity_header
+    )
     print('backend_auth_status: SAVED')
     print(f'backend_auth_store: {path}')
     print('next_step: lbai init-workspace')
@@ -716,6 +725,10 @@ def auth_doctor(_args: argparse.Namespace) -> int:
     print(f'- git_credential_sync: {sync_status}')
     print(f'- git_credential_note: {sync_detail}')
     print(f'- backend_api_key_available: {"yes" if backend_auth.get("api_key") else "no"}')
+    print(
+        f'- backend_identity_token_available: '
+        f'{"yes" if backend_auth.get("identity_token") else "no"}'
+    )
     if source:
         print(f'- auth_source: {source}')
     if backend_auth.get('api_key'):
@@ -887,6 +900,9 @@ def init_workspace(args: argparse.Namespace) -> int:
         else:
             print('git_status: COMMIT_SKIPPED')
 
+        registered = set_active_workspace(local_path)
+        print(f'active_workspace: {registered}')
+
         doctor_code = doctor(argparse.Namespace(path=str(local_path), allow_missing_upstream=args.no_commit or args.no_push))
         print('init_status: READY' if doctor_code == 0 else 'init_status: NEEDS_REVIEW')
         print(f'workspace_path: {local_path}')
@@ -941,20 +957,22 @@ def git_preflight(root: Path) -> dict:
 
 def doctor_report(args: argparse.Namespace) -> dict:
     requested_path = getattr(args, 'path', None)
-    if requested_path:
-        root = Path(requested_path).expanduser().resolve()
-    else:
-        current = Path.cwd().resolve()
-        root = next((path for path in [current, *current.parents] if is_workspace(path)), current)
+    root, resolution_source = resolve_workspace_root(explicit_path=requested_path)
+    resolution = workspace_resolution_context(explicit_path=requested_path)
 
     valid_workspace = is_workspace(root)
     minimum = getattr(args, 'min_workspace_version', None) or PLUGIN_MIN_WORKSPACE_VERSION
     plugin_version = getattr(args, 'plugin_version', None)
+    backend_auth = read_knowledge_service_auth()
     report = {
         'schema_version': 'lbai_doctor_v1',
         'cli_version': read_version(),
         'workspace_root': str(root),
         'workspace_valid': valid_workspace,
+        'resolution_source': resolution_source,
+        'active_workspace': resolution.get('active_workspace'),
+        'invocation_cwd': resolution.get('invocation_cwd'),
+        'source_project_path': resolution.get('source_project_path'),
         'workspace_kit_version': workspace_kit_version(root) if valid_workspace else 'unknown',
         'required_workspace_version': minimum,
         'plugin_version': plugin_version or None,
@@ -967,7 +985,9 @@ def doctor_report(args: argparse.Namespace) -> dict:
         },
         'authentication': {
             'github_available': bool(read_token() or gh_authenticated()),
-            'knowledge_service_available': bool(read_knowledge_service_auth().get('api_key')),
+            'knowledge_service_available': bool(
+                backend_auth.get('api_key') and backend_auth.get('identity_token')
+            ),
         },
         'knowledge_service': {
             'enabled': False,
@@ -982,7 +1002,16 @@ def doctor_report(args: argparse.Namespace) -> dict:
         'next_steps': [],
     }
     if not valid_workspace:
-        report['next_steps'].append('Run lbai init-workspace, then open the initialized workspace in Codex.')
+        if resolution_source == 'active_workspace_invalid':
+            report['compatibility'] = {
+                'status': 'BLOCKED',
+                'reason': 'active_workspace_invalid',
+            }
+            report['next_steps'].append(
+                f'Run lbai init-workspace or lbai workspace set --path <lbai-workspace>; invalid path: {root}',
+            )
+        else:
+            report['next_steps'].append('Run lbai init-workspace, then open the initialized workspace in Codex.')
         return report
 
     missing = [rel for rel in DOCTOR_REQUIRED_FILES if not (root / rel).is_file()]
@@ -1295,6 +1324,55 @@ def self_iterate(args: argparse.Namespace) -> int:
     return run([*python_cmd(), 'lbai_system/prompt_lab/prompt_lab.py', 'next-step', '--run', run_id], cwd=root).returncode
 
 
+def workspace_show(args: argparse.Namespace) -> int:
+    active = get_active_workspace()
+    configured = configured_active_workspace_path()
+    context = workspace_resolution_context()
+    payload = {
+        'schema_version': 'lbai_workspace_config_v1',
+        'active_workspace': str(active) if active else None,
+        'configured_active_workspace': str(configured) if configured else None,
+        'configured_active_workspace_valid': bool(active),
+        'resolved_workspace': context['workspace_root'],
+        'resolution_source': context['resolution_source'],
+        'invocation_cwd': context['invocation_cwd'],
+        'source_project_path': context['source_project_path'],
+    }
+    if getattr(args, 'json', False):
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print('# LBAI workspace')
+    print(f"active_workspace: {payload['active_workspace'] or 'unset'}")
+    if configured and not active:
+        print(f"configured_active_workspace_invalid: {configured}")
+    print(f"resolved_workspace: {payload['resolved_workspace']}")
+    print(f"resolution_source: {payload['resolution_source']}")
+    print(f"invocation_cwd: {payload['invocation_cwd']}")
+    if payload['source_project_path']:
+        print(f"source_project_path: {payload['source_project_path']}")
+    return 0
+
+
+def workspace_set(args: argparse.Namespace) -> int:
+    target = Path(args.path).expanduser().resolve()
+    try:
+        registered = set_active_workspace(target)
+    except ValueError:
+        print('workspace_set_status: BLOCKED', file=sys.stderr)
+        print(f'reason: not an LBAI workspace: {target}', file=sys.stderr)
+        print('next_step: run lbai init-workspace or point --path at an initialized LBAI workspace', file=sys.stderr)
+        return 2
+    print('workspace_set_status: READY')
+    print(f'active_workspace: {registered}')
+    return 0
+
+
+def workspace_clear(_args: argparse.Namespace) -> int:
+    cleared = clear_active_workspace()
+    print('workspace_clear_status: READY' if cleared else 'workspace_clear_status: NOOP')
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog='lbai')
     parser.add_argument('--version', action='version', version=f'lbai {read_version()}')
@@ -1307,6 +1385,8 @@ def build_parser() -> argparse.ArgumentParser:
     backend_login.add_argument('--api-key')
     backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
     backend_login.add_argument('--base-url', default=KNOWLEDGE_SERVICE_BASE_URL)
+    backend_login.add_argument('--identity-token')
+    backend_login.add_argument('--identity-header', default='X-LBAI-Identity-Token')
     backend_login.add_argument('--verify-timeout', type=int, default=10)
     backend_login.add_argument('--no-verify', action='store_true')
     backend_login.add_argument('--optional', action='store_true')
@@ -1324,6 +1404,15 @@ def build_parser() -> argparse.ArgumentParser:
     doc.add_argument('--plugin-version')
     doc.add_argument('--min-workspace-version', default=PLUGIN_MIN_WORKSPACE_VERSION)
     doc.add_argument('--require-backend', action='store_true')
+    doc.add_argument('--allow-missing-upstream', action='store_true')
+
+    workspace = sub.add_parser('workspace', help='Show or update the registered global LBAI workspace.')
+    workspace_sub = workspace.add_subparsers(dest='workspace_command')
+    workspace_show_parser = workspace_sub.add_parser('show', help='Show the active workspace and current resolution.')
+    workspace_show_parser.add_argument('--json', action='store_true')
+    workspace_set_parser = workspace_sub.add_parser('set', help='Register the global active LBAI workspace path.')
+    workspace_set_parser.add_argument('--path', required=True)
+    workspace_sub.add_parser('clear', help='Clear the registered global active workspace path.')
 
     update = sub.add_parser('update-kit')
     update.add_argument('--no-commit', action='store_true')
@@ -1385,6 +1474,14 @@ def main(argv: list[str] | None = None) -> int:
         return init_workspace(known)
     if known.command == 'doctor':
         return doctor(known)
+    if known.command == 'workspace':
+        if known.workspace_command == 'show':
+            return workspace_show(known)
+        if known.workspace_command == 'set':
+            return workspace_set(known)
+        if known.workspace_command == 'clear':
+            return workspace_clear(known)
+        parser.error('workspace requires show, set, or clear')
     if known.command == 'update-kit':
         return update_kit(known)
     if known.command == 'remove-kit':

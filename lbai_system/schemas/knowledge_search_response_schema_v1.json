@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LBAI Knowledge Search Response v1",
+  "type": "object",
+  "required": ["schema_version", "status", "results", "trace", "diagnostics"],
+  "properties": {
+    "schema_version": { "const": "knowledge_search_response_v1" },
+    "status": { "enum": ["FOUND", "NO_MATCH", "ERROR"] },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["concept_uid", "concept_id", "type", "title", "source", "reason", "score"],
+        "properties": {
+          "concept_uid": { "type": "string" },
+          "concept_id": { "type": "string" },
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "facts": { "type": "array" },
+          "source": { "type": "object" },
+          "reason": { "type": "string" },
+          "score": { "type": "number" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "trace": { "type": "object" },
+    "diagnostics": { "type": "array" },
+    "error": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}

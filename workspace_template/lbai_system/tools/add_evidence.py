@@ -14,7 +14,6 @@ sys.dont_write_bytecode = True
 from enrichment_utils import load_json_file, validate_with_schema
 from task_utils import (
     employee_identity,
-    load_workspace_config,
     prompt_lab_isolated_mode,
     read_text,
     redact_sensitive,
@@ -27,19 +26,6 @@ ENRICHMENT_BLOCKED_MESSAGE = (
     'AI enrichment required (--enrichment). Use Cursor or Codex desktop app; '
     'see lbai_system/prompts/evidence_enrichment_prompt_v1.md. No rule-based fallback.'
 )
-
-LEDGER_COLUMNS = [
-    'Date',
-    'Evidence ID',
-    'Employee User ID',
-    'Employee User Name',
-    'Employee Position',
-    'Source Type',
-    'Source Visibility',
-    'Backend Ingestion Status',
-    'Sync Status',
-    'Next Step',
-]
 
 def run_git(root: Path, args: list[str]) -> subprocess.CompletedProcess:
     return subprocess.run(['git', *args], cwd=root, capture_output=True, text=True)
@@ -100,14 +86,42 @@ def load_role_profile(root: Path) -> dict[str, str]:
     }
 
 
-def next_available(path: Path) -> Path:
-    if not path.exists():
-        return path
-    for idx in range(2, 100):
-        candidate = path.with_name(f'{path.name}_{idx}')
-        if not candidate.exists():
-            return candidate
-    raise RuntimeError(f'No available evidence folder for {path}')
+def existing_concept_path(knowledge_root: Path, uid: str) -> Path | None:
+    uid_pattern = re.compile(rf'^uid:\s*["\']?{re.escape(uid)}["\']?\s*$', re.MULTILINE)
+    for path in knowledge_root.rglob('*.md'):
+        if path.name in {'index.md', 'log.md'}:
+            continue
+        if uid_pattern.search(read_text(path)):
+            return path
+    return None
+
+
+def yaml_value(value: object) -> str:
+    return json.dumps(value, ensure_ascii=False)
+
+
+def ensure_okf_index(root: Path, concept_rel: str, title: str, description: str) -> tuple[Path, Path]:
+    knowledge_root = root / 'role_workspace' / 'knowledge'
+    index_path = knowledge_root / 'index.md'
+    log_path = knowledge_root / 'log.md'
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    entry = f'* [{title}]({concept_rel.removeprefix("role_workspace/knowledge/")}) - {description}'
+    existing = read_text(index_path)
+    if not existing.strip():
+        existing = '# Company Knowledge\n'
+    if '# References' not in existing:
+        existing = existing.rstrip() + '\n\n# References\n'
+    if entry not in existing:
+        index_path.write_text(existing.rstrip() + '\n\n' + entry + '\n', encoding='utf-8')
+    today = datetime.now(timezone.utc).date().isoformat()
+    log_entry = f'* **Creation**: Added [{title}](/' + concept_rel.removeprefix('role_workspace/knowledge/') + ').'
+    log_text = read_text(log_path)
+    if f'## {today}' not in log_text:
+        log_text = f'# Knowledge Update Log\n\n## {today}\n{log_entry}\n\n' + log_text.replace('# Knowledge Update Log', '').lstrip()
+    elif log_entry not in log_text:
+        log_text = log_text.replace(f'## {today}\n', f'## {today}\n{log_entry}\n', 1)
+    log_path.write_text(log_text, encoding='utf-8')
+    return index_path, log_path
 
 
 def load_enrichment(root: Path, path: Path) -> tuple[dict | None, str]:
@@ -150,102 +164,9 @@ def normalize_meeting_enrichment(enrichment: dict, content: str) -> dict:
     return normalized
 
 
-def split_table_line(line: str) -> list[str]:
-    return [cell.strip().strip('`') for cell in line.strip().strip('|').split('|')]
-
-
-def parse_markdown_table(markdown: str) -> list[dict[str, str]]:
-    lines = [line.strip() for line in markdown.splitlines() if line.strip().startswith('|')]
-    if len(lines) < 2:
-        return []
-    header = split_table_line(lines[0])
-    rows = []
-    for line in lines[2:]:
-        cells = split_table_line(line)
-        if not cells or all(set(cell) <= {'-'} for cell in cells):
-            continue
-        rows.append({name: cells[idx] if idx < len(cells) else '' for idx, name in enumerate(header)})
-    return rows
-
-
-def ledger_cell(value: object) -> str:
-    text = str(value or '').replace('\n', ' ').strip()
-    if not text or text.lower() == 'none':
-        return 'None'
-    return text.replace('|', '/')
-
-
-def migrate_ledger_rows(rows: list[dict[str, str]]) -> list[str]:
-    migrated = []
-    for row in rows:
-        evidence_id = ledger_cell(row.get('Evidence ID'))
-        if evidence_id == 'None':
-            continue
-        values = {
-            'Date': ledger_cell(row.get('Date')),
-            'Evidence ID': evidence_id,
-            'Employee User ID': ledger_cell(row.get('Employee User ID')),
-            'Employee User Name': ledger_cell(row.get('Employee User Name')),
-            'Employee Position': ledger_cell(row.get('Employee Position')),
-            'Source Type': ledger_cell(row.get('Source Type') or row.get('Source Kind')),
-            'Source Visibility': ledger_cell(row.get('Source Visibility')),
-            'Backend Ingestion Status': ledger_cell(row.get('Backend Ingestion Status') or 'LEGACY_IMPORTED'),
-            'Sync Status': ledger_cell(row.get('Sync Status')),
-            'Next Step': ledger_cell(row.get('Next Step')),
-        }
-        migrated.append('| ' + ' | '.join(values[column] for column in LEDGER_COLUMNS) + ' |')
-    return migrated
-
-
-def ensure_ledger(root: Path) -> Path:
-    path = root / 'role_workspace' / 'ledgers' / 'EVIDENCE_LEDGER_v1.md'
-    path.parent.mkdir(parents=True, exist_ok=True)
-    text = read_text(path)
-    header = f'| {" | ".join(LEDGER_COLUMNS)} |'
-    separator = f'| {" | ".join("---" for _ in LEDGER_COLUMNS)} |'
-    if not text.strip():
-        path.write_text(f'# EVIDENCE_LEDGER_v1\n\n{header}\n{separator}\n', encoding='utf-8')
-    elif header not in text:
-        rows = migrate_ledger_rows(parse_markdown_table(text))
-        path.write_text(
-            '# EVIDENCE_LEDGER_v1\n\n'
-            + header
-            + '\n'
-            + separator
-            + ('\n' + '\n'.join(rows) if rows else '')
-            + '\n',
-            encoding='utf-8',
-        )
-    return path
-
-
-def update_ledger(
-    root: Path,
-    *,
-    evidence_id: str,
-    employee_user_id: str,
-    employee_user_name: str,
-    employee_position: str,
-    source_type: str,
-    source_visibility: str,
-    backend_ingestion_status: str,
-    sync_status: str,
-    next_step: str,
-):
-    path = ensure_ledger(root)
-    line = (
-        f'| {datetime.now(timezone.utc).date().isoformat()} | {evidence_id} | {employee_user_id or "None"} | '
-        f'{employee_user_name or "None"} | {employee_position or "None"} | {source_type} | {source_visibility} | '
-        f'{backend_ingestion_status} | {sync_status} | {next_step} |'
-    )
-    lines = [existing for existing in read_text(path).splitlines() if f'| {evidence_id} |' not in existing]
-    lines.append(line)
-    path.write_text('\n'.join(lines).rstrip() + '\n', encoding='utf-8')
-
-
-def run_hygiene(root: Path, evidence_rel: str) -> tuple[str, str]:
-    script = Path(__file__).resolve().with_name('evidence_hygiene_check.py')
-    result = subprocess.run([sys.executable, str(script), evidence_rel], cwd=root, capture_output=True, text=True)
+def run_hygiene(root: Path, concept_rel: str) -> tuple[str, str]:
+    script = Path(__file__).resolve().with_name('knowledge_hygiene_check.py')
+    result = subprocess.run([sys.executable, str(script), concept_rel], cwd=root, capture_output=True, text=True)
     output = result.stdout + result.stderr
     readiness = 'BLOCKED'
     for line in output.splitlines():
@@ -255,12 +176,12 @@ def run_hygiene(root: Path, evidence_rel: str) -> tuple[str, str]:
     return readiness, output
 
 
-def sync_paths(root: Path, evidence_rel: str, message: str) -> tuple[str, str]:
+def sync_paths(root: Path, concept_rel: str, message: str) -> tuple[str, str]:
     if not git_remote_available(root):
         return 'BLOCKED', 'MISSING_GITHUB_REMOTE: no Git remote configured'
     if not git_upstream_available(root):
         return 'BLOCKED', 'MISSING_GIT_UPSTREAM: current branch has no upstream'
-    paths = [evidence_rel, 'role_workspace/ledgers/EVIDENCE_LEDGER_v1.md']
+    paths = [concept_rel, 'role_workspace/knowledge/index.md', 'role_workspace/knowledge/log.md']
     add_result = run_git(root, ['add', '-A', '--', *paths])
     if add_result.returncode != 0:
         return 'BLOCKED', f'git add failed: {(add_result.stdout + add_result.stderr).strip()}'
@@ -308,7 +229,6 @@ def main() -> int:
 
     enrichment = normalize_meeting_enrichment(enrichment, content)
 
-    workspace_config = load_workspace_config(root)
     identity = employee_identity(root)
     role_profile = load_role_profile(root)
     employee_user_id = str(identity.get('employee_user_id') or '').strip()
@@ -318,107 +238,82 @@ def main() -> int:
     redacted_content, findings = redact_sensitive(content)
     source_type = str(enrichment['source_type']).strip()
     source_visibility = str(enrichment.get('source_visibility') or 'private').strip()
-    backend_ingestion_status = 'PENDING_GITHUB_SYNC'
-    sensitive_scan_status = 'redacted' if findings else 'passed'
     now = datetime.now(timezone.utc).isoformat(timespec='seconds')
     content_hash_full = hashlib.sha256(redacted_content.encode('utf-8')).hexdigest()
     content_hash = f'sha256:{content_hash_full}'
-    evidence_id_seed = f'{source_type}_{content_hash_full[:10]}'
-    evidence_dir = next_available(
-        root / 'role_workspace' / 'knowledge' / 'evidence' / f'{datetime.now(timezone.utc).strftime("%Y_%m_%d")}_{slugify(evidence_id_seed)[:64]}'
+    concept_slug_seed = f'{source_type}_{content_hash_full[:10]}'
+    concept_uid = f'kn_{content_hash_full[:20]}'
+    knowledge_root = root / 'role_workspace' / 'knowledge'
+    concept_path = existing_concept_path(knowledge_root, concept_uid) or (
+        knowledge_root / 'references'
+        / f'{datetime.now(timezone.utc).strftime("%Y_%m_%d")}_{slugify(concept_slug_seed)[:64]}.md'
     )
-    evidence_dir.mkdir(parents=True, exist_ok=True)
-    (root / 'role_workspace' / 'knowledge' / 'references').mkdir(parents=True, exist_ok=True)
-    evidence_rel = str(evidence_dir.relative_to(root))
-    evidence_id = evidence_dir.name
-
-    raw_path = evidence_dir / 'raw.md'
-    raw_path.write_text(
-        '# Evidence Raw Input\n\n'
-        f'## content\n{redacted_content.strip()}\n',
+    concept_path.parent.mkdir(parents=True, exist_ok=True)
+    concept_rel = str(concept_path.relative_to(root))
+    title = str(enrichment['title']).strip()
+    description = f'{source_type} from {enrichment.get("source_origin") or "unknown source"}'
+    tags = [source_type, *(enrichment.get('related_objects') or [])][:20]
+    evidence_status = enrichment.get('admissibility_status') or 'CAPTURED'
+    concept_status = 'draft' if evidence_status == 'NEEDS_REVIEW' else 'active'
+    occurred_at = str(enrichment.get('source_occurred_at') or '').strip()
+    effective_from = occurred_at if re.fullmatch(r'\d{4}-\d{2}-\d{2}', occurred_at) else ''
+    source_origin = str(enrichment.get('source_origin') or 'Employee-provided source').strip()
+    citation = (
+        f'[Source]({source_origin})'
+        if re.match(r'^https?://', source_origin)
+        else f'Source: {source_origin}'
+    )
+    concept_path.write_text(
+        '---\n'
+        f'type: Reference\nuid: {yaml_value(concept_uid)}\n'
+        f'title: {yaml_value(title)}\ndescription: {yaml_value(description)}\n'
+        f'tags: {yaml_value(tags)}\nresource: {yaml_value("")}\n'
+        f'timestamp: {yaml_value(now)}\nowner: {yaml_value(employee_user_id or "unknown")}\n'
+        f'department: {yaml_value(identity.get("department") or "")}\n'
+        f'visibility: {yaml_value(source_visibility if source_visibility in {"private", "team", "company"} else "private")}\n'
+        f'status: {concept_status}\n'
+        f'effective_from: {yaml_value(effective_from)}\n'
+        f'aliases: {yaml_value(enrichment.get("related_objects") or [])}\n'
+        f'source_type: {yaml_value(source_type)}\nsource_origin: {yaml_value(source_origin)}\n'
+        f'source_occurred_at: {yaml_value(occurred_at)}\n'
+        f'language: {yaml_value(enrichment.get("language") or "")}\n'
+        f'admissibility_status: {yaml_value(evidence_status)}\n'
+        f'review_reasons: {yaml_value(enrichment.get("review_reasons") or [])}\n'
+        f'content_hash: {yaml_value(content_hash)}\nredacted: {yaml_value(bool(findings))}\n'
+        '---\n\n# Summary\n\n'
+        f'{title}\n\n# Details\n\n{redacted_content.strip()}\n\n'
+        '# Citations\n\n'
+        f'{citation}\n',
         encoding='utf-8',
     )
-    metadata = {
-        'schema_version': 'employee_evidence_metadata_v1',
-        'evidence_id': evidence_id,
-        'title': enrichment['title'],
-        'source_type': source_type,
-        'source_origin': enrichment.get('source_origin') or 'unknown',
-        'source_occurred_at': enrichment.get('source_occurred_at') or 'unknown',
-        'submitted_at': now,
-        'submitted_by': employee_user_id,
-        'submitted_by_display_name': identity.get('display_name') or employee_user_name,
-        'submitted_by_email': identity.get('email') or '',
-        'department': identity.get('department') or '',
-        'employee_user_name': employee_user_name,
-        'employee_position': employee_position,
-        'source_visibility': source_visibility,
-        'related_objects': enrichment.get('related_objects') or [],
-        'language': enrichment.get('language') or 'zh-CN',
-        'content_files': ['raw.md'],
-        'attachment_files': [],
-        'content_hash': content_hash,
-        'sensitive_scan_status': sensitive_scan_status,
-        'redacted': bool(findings),
-        'redaction_note': 'sensitive values replaced locally before commit' if findings else 'none',
-        'backend_ingestion_status': backend_ingestion_status,
-        'backend_ingestion_hint': enrichment.get('backend_ingestion_hint') or 'source_for_company_knowledge',
-        'admissibility_status': enrichment.get('admissibility_status') or 'CAPTURED',
-        'review_reasons': enrichment.get('review_reasons') or [],
-        'workspace_repo_id': (workspace_config.get('knowledge_service') or {}).get('workspace_repo_id') or root.name,
-    }
-    (evidence_dir / 'metadata.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    (evidence_dir / 'evidence_enrichment.json').write_text(json.dumps(enrichment, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    index_path, log_path = ensure_okf_index(root, concept_rel, title, description)
 
     if args.no_sync:
         if prompt_lab_isolated_mode():
-            next_step = 'Prompt Lab 本地 mock 证据已写入隔离 workspace，未同步 GitHub 或后端知识服务。'
+            next_step = 'Prompt Lab 本地 mock OKF Concept 已写入隔离 workspace，未同步 GitHub 或后端知识服务。'
         else:
-            next_step = '证据已本地写入 workspace，未同步 GitHub 或后端知识服务。'
+            next_step = 'OKF Concept 已本地写入 workspace，未同步 GitHub 或后端知识服务。'
     else:
         next_step = '资料已保存到 GitHub workspace；后端将异步入库。可稍后使用 /lbai-search-artifacts 搜索。'
-    evidence_status = metadata['admissibility_status']
     sync_status = 'NOT_SYNCED'
-    update_ledger(
-        root,
-        evidence_id=evidence_id,
-        employee_user_id=employee_user_id,
-        employee_user_name=employee_user_name,
-        employee_position=employee_position,
-        source_type=source_type,
-        source_visibility=source_visibility,
-        backend_ingestion_status=backend_ingestion_status,
-        sync_status=sync_status,
-        next_step=next_step,
-    )
 
     sync_detail = 'Sync skipped by --no-sync.' if args.no_sync else ''
     hygiene_output = ''
     if not args.no_sync:
-        readiness, hygiene_output = run_hygiene(root, evidence_rel)
+        readiness, hygiene_output = run_hygiene(root, concept_rel)
         if readiness != 'READY':
             sync_status = 'BLOCKED'
-            sync_detail = 'Evidence sync blocked by hygiene check.'
+            sync_detail = 'OKF Concept sync blocked by hygiene check.'
         else:
-            sync_status, sync_detail = sync_paths(root, evidence_rel, f'docs(lbai): add evidence {evidence_id}')
-        metadata['sync_status'] = sync_status
-        (evidence_dir / 'metadata.json').write_text(json.dumps(metadata, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-        update_ledger(
-            root,
-            evidence_id=evidence_id,
-            employee_user_id=employee_user_id,
-            employee_user_name=employee_user_name,
-            employee_position=employee_position,
-            source_type=source_type,
-            source_visibility=source_visibility,
-            backend_ingestion_status=backend_ingestion_status,
-            sync_status=sync_status,
-            next_step=next_step,
-        )
+            sync_status, sync_detail = sync_paths(root, concept_rel, f'docs(lbai): add OKF concept {concept_uid}')
+    backend_ingestion_status = (
+        'PENDING_BACKEND_SYNC' if sync_status == 'PUSHED' else 'NOT_SYNCED'
+    )
 
-    print(f'EVIDENCE_FOLDER {evidence_rel}')
-    print(f'raw: {evidence_rel}/raw.md')
-    print(f'metadata: {evidence_rel}/metadata.json')
+    print(f'OKF_CONCEPT {concept_rel}')
+    print(f'concept_uid: {concept_uid}')
+    print(f'index: {index_path.relative_to(root)}')
+    print(f'log: {log_path.relative_to(root)}')
     print(f'evidence_status: {evidence_status}')
     print(f'employee_user_id: {employee_user_id or "None"}')
     print(f'employee_user_name: {employee_user_name or "None"}')

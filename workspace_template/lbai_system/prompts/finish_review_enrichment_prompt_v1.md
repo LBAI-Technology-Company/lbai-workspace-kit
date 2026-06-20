@@ -34,8 +34,7 @@ Rules:
 5. overclaim_risks: unapproved public/pricing/legal/customer claims in output.
 6. gaps: what is still missing or weak.
 7. Do not approve empty or placeholder task_output.
-8. Optionally include role_memory_feedback_candidates with up to 3 reusable role lessons from this task. These are feedback candidates for backend aggregation, not final role rules.
-9. Output JSON only. schema_version: finish_review_enrichment_v1
+8. Output JSON only. schema_version: finish_review_enrichment_v1
 ```
 
 ## User template

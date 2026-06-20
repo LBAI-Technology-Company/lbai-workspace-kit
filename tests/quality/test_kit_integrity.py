@@ -29,7 +29,7 @@ EXPECTED_PROMPTS = {
 
 EXPECTED_SCHEMAS = [
     'evidence_enrichment_schema_v1.json',
-    'backend_evidence_search_response_schema_v1.json',
+    'knowledge_search_response_schema_v1.json',
     'backend_search_query_plan_schema_v1.json',
     'task_intake_enrichment_schema_v1.json',
     'finish_review_enrichment_schema_v1.json',

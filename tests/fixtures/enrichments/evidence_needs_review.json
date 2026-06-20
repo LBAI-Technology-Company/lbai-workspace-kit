@@ -7,7 +7,6 @@
   "source_visibility": "private",
   "related_objects": ["website_copy", "pricing"],
   "language": "zh-CN",
-  "backend_ingestion_hint": "source_for_company_knowledge",
   "admissibility_status": "NEEDS_REVIEW",
   "review_reasons": ["涉及官网文案和定价表述"]
 }

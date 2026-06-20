@@ -114,7 +114,7 @@ Behavior:
 2. If input is empty and the task is unclear, ask for one concise task description.
 3. Read role context, current conversation context, and relevant prior artifacts. Search existing artifacts first when the task may depend on company knowledge. Use results when available; no result or backend error is normal and must not itself block the task.
 4. Produce task intake enrichment JSON that separates:
-   - known information and source kind (`conversation_context`, `company_knowledge`, `role_context`, `linked_evidence`, `external_source`, or `assumption`)
+   - known information and source kind (`conversation_context`, `company_knowledge`, `role_context`, `external_source`, or `assumption`)
    - `missing_inputs`: blocking gaps only
    - `recommended_inputs`: useful non-blocking context
    - goal, expected output, review risk, and completion conditions
@@ -163,28 +163,29 @@ Behavior:
 2. Read `lbai_system/prompts/evidence_enrichment_prompt_v1.md` and produce AI enrichment JSON matching `lbai_system/schemas/evidence_enrichment_schema_v1.json`.
 3. If AI enrichment is unavailable (model unavailable, quota exhausted, invalid JSON), stop with `evidence_status: BLOCKED`. Do **not** call `add_evidence.py` without enrichment.
 4. Treat the command input as evidence content. Evidence is independent from tasks and does not record task links.
-5. Call `add_evidence.py` with `--enrichment <json_path>` and the raw evidence content. Code handles redaction, file writes, ledger updates, hygiene check, and git sync.
-6. Save evidence under `role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/`. Do not put raw evidence content into folder names.
-7. Create `raw.md`, `metadata.json`, and `evidence_enrichment.json`. Do not create new `evidence_brief.md`.
-8. Include technical identity from `.lbai/workspace.json` and role profile fields from `ROLE_PROFILE_v1.json` in `metadata.json`.
-9. Update `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`.
+5. Call `add_evidence.py` with `--enrichment <json_path>` and the raw evidence content. Code handles redaction, OKF writes, hygiene checks, and Git sync.
+6. Save one OKF concept under `role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md`.
+7. The concept must contain YAML frontmatter, stable `uid`, structured metadata, source content, and citations.
+8. Update `role_workspace/knowledge/index.md` and `role_workspace/knowledge/log.md`.
+9. Do not create `raw.md`, `metadata.json`, `evidence_enrichment.json`, or an evidence ledger entry.
 10. Do not update task `missing_inputs.md`, `task_scope.md`, `task_ledger.md`, or `gap_record.md`; task readiness remains owned by `/lbai-new-task` and `/lbai-execute-task`.
 11. If evidence appears review-sensitive, keep `admissibility_status` as `NEEDS_REVIEW`; AI provides the review judgment in enrichment JSON and code does not apply keyword overlay.
-12. Run the evidence hygiene check and safely sync only the evidence folder and `EVIDENCE_LEDGER_v1.md`. If sync is blocked after local capture succeeds, report `sync_status: BLOCKED` or `PUSH_FAILED` without treating the local capture as failed.
+12. Run the hygiene check and safely sync the concept, `index.md`, and `log.md`. If sync is blocked after local capture succeeds, report `sync_status: BLOCKED` or `PUSH_FAILED` without treating the local capture as failed.
 
 Response format:
 
 ```text
-资料归档完成：<evidence_folder>
-raw: <evidence_folder>/raw.md
-metadata: <evidence_folder>/metadata.json
+资料归档完成：<concept_path>
+concept_uid: <stable OKF uid>
+index: role_workspace/knowledge/index.md
+log: role_workspace/knowledge/log.md
 evidence_status: <CAPTURED | NEEDS_REVIEW | BLOCKED>
 employee_user_id: <employee id or None>
 employee_user_name: <employee user name or None>
 employee_position: <employee position or None>
 source_type: <meeting_note | chat_record | customer_feedback | interview | draft | data_note | policy | reference | task_material | general>
 source_visibility: <private | team | company>
-backend_ingestion_status: <PENDING_GITHUB_SYNC>
+backend_ingestion_status: <PENDING_BACKEND_SYNC | NOT_SYNCED>
 sensitive_capture_status: <NONE | REDACTED>
 sync_status: <PUSHED | PUSH_FAILED | BLOCKED | NOT_SYNCED | NO_CHANGES>
 下一步：<exact next step>
@@ -213,25 +214,23 @@ Behavior:
 
 1. If input is empty, ask the employee for backend search keywords.
 2. Produce `backend_search_query_plan_v1` JSON and call `search_artifacts.py --enrichment <json_path>`.
-3. Code calls the configured backend `POST /v1/search/evidence` endpoint and renders the backend response directly.
+3. Code calls the configured backend `POST /v1/knowledge/search` endpoint and renders `knowledge_search_response_v1` directly.
 4. If the backend is disabled, missing, unavailable, times out, returns no matches, or returns invalid JSON/schema, render the search result or error as display-only output. Backend search status must not automatically block, mutate, advance, or finish any task flow.
-5. Do not run `--print-catalog`, do not scan local evidence/tasks/references, do not use local fallback, and do not write `retrieved_context.json/md`.
+5. Do not scan local knowledge or task files, do not use local fallback, and do not write `retrieved_context.json/md`.
 
 Response format:
 
 ```text
-artifact 查询结果：<FOUND | NO_MATCH | ERROR>
-query: <query or None>
+backend 查询结果：<FOUND | NO_MATCH | ERROR>
 source: backend
-matches:
-1. <backend subject or event_id>
-   event_id: <event id>
-   entity_type: <backend entity type>
-   status: <status>
-   source: <backend source path or id>
-   value: <backend value>
-   evidence_text: <backend evidence text>
-   reason: <backend match reason>
+results:
+1. <concept title>
+   concept_uid: <OKF uid>
+   type: <OKF type>
+   source: <Git path>
+   description: <description>
+   facts: <atomic fact statements>
+   reason: <match reason>
 下一步：<exact next step>
 ```
 

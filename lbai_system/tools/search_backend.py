@@ -11,7 +11,6 @@ sys.dont_write_bytecode = True
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
 from task_utils import (
     KNOWLEDGE_SERVICE_API_KEY_HEADER,
-    employee_identity,
     knowledge_service_config,
     knowledge_service_credentials,
     workspace_root,
@@ -24,20 +23,18 @@ def backend_url(base_url: str, path: str) -> str:
 
 def build_request(root: Path, query_plan: dict) -> tuple[dict | None, str | None]:
     config = knowledge_service_config(root)
-    identity = employee_identity(root)
     if not config.get('enabled'):
         return None, 'knowledge_service.disabled'
     base_url = str(config.get('base_url') or '').strip()
     if not base_url:
         return None, 'knowledge_service.base_url missing'
-    employee_user_id = str(identity.get('employee_user_id') or '').strip()
-    if not employee_user_id:
-        return None, 'employee_identity.employee_user_id missing'
     return {
         'workspace_repo_id': config.get('workspace_repo_id') or root.name,
-        'employee_user_id': employee_user_id,
-        'task_text': query_plan.get('query', ''),
-        'query_plan': query_plan,
+        'query': query_plan.get('query', ''),
+        'types': query_plan.get('types') or [],
+        'tags': query_plan.get('tags') or [],
+        'statuses': query_plan.get('statuses') or ['active'],
+        'include_related': query_plan.get('include_related', True),
         'limit': int(query_plan.get('limit') or 10),
     }, None
 
@@ -48,6 +45,8 @@ def post_json(
     timeout: int,
     api_key: str | None = None,
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
+    identity_token: str | None = None,
+    identity_header: str = 'X-LBAI-Identity-Token',
 ) -> tuple[dict | None, str | None]:
     body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -55,6 +54,8 @@ def post_json(
     api_key_header = str(api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip()
     if api_key and api_key_header:
         headers[api_key_header] = api_key
+    if identity_token and identity_header:
+        headers[identity_header] = identity_token
     request = urllib.request.Request(
         url,
         data=body,
@@ -77,7 +78,7 @@ def post_json(
 
 
 def render_response(data: dict, source: str = 'backend') -> str:
-    status = data.get('query_status', 'ERROR')
+    status = data.get('status', 'ERROR')
     lines = [
         f'backend 查询结果：{status}',
         f'source: {source}',
@@ -86,29 +87,24 @@ def render_response(data: dict, source: str = 'backend') -> str:
         lines.append(f'backend_status: {data.get("backend_status")}')
     if data.get('backend_error'):
         lines.append(f'backend_error: {data.get("backend_error")}')
-    lines.append('evidence_pack:')
-    pack = data.get('evidence_pack') or []
-    if not pack:
+    lines.append('results:')
+    results = data.get('results') or []
+    if not results:
         lines.append('- None')
-    for idx, item in enumerate(pack, 1):
+    for idx, item in enumerate(results, 1):
         source_data = item.get('source') or {}
         source_path = source_data.get('path') or source_data.get('id') or 'unknown'
+        facts = item.get('facts') or []
         lines.extend([
-            f'{idx}. {item.get("subject") or item.get("event_id") or "unknown"}',
-            f'   entity_type: {item.get("entity_type", "unknown")}',
-            f'   status: {item.get("status", "unknown")}',
+            f'{idx}. {item.get("title") or item.get("concept_uid") or "unknown"}',
+            f'   concept_uid: {item.get("concept_uid", "")}',
+            f'   type: {item.get("type", "unknown")}',
             f'   source: {source_path}',
-            f'   value: {item.get("value", "")}',
-            f'   evidence_text: {item.get("evidence_text", "")}',
+            f'   description: {item.get("description", "")}',
+            f'   facts: {"；".join(str(fact.get("statement") or "") for fact in facts)}',
             f'   reason: {item.get("reason", "")}',
         ])
-    if data.get('open_questions'):
-        lines.append('open_questions:')
-        lines.extend(f'- {item}' for item in data.get('open_questions') or [])
-    if data.get('conflicts'):
-        lines.append('conflicts:')
-        lines.extend(f'- {item}' for item in data.get('conflicts') or [])
-    lines.append(f'下一步：{data.get("next_step", "None")}')
+    lines.append('下一步：使用命中的 OKF 概念和原子事实继续当前任务。' if results else '下一步：未找到匹配知识，可补充或调整 OKF 概念。')
     return '\n'.join(lines) + '\n'
 
 
@@ -120,18 +116,22 @@ def search_backend(root: Path, query_plan: dict) -> tuple[dict | None, str | Non
     credentials = knowledge_service_credentials(root)
     if not credentials.get('api_key'):
         return None, 'knowledge_service.api_key missing; run lbai auth backend-login'
+    if not credentials.get('identity_token'):
+        return None, 'knowledge_service.identity_token missing; run lbai auth backend-login --identity-token <token>'
     timeout = int(config.get('search_timeout_seconds') or 20)
-    url = backend_url(str(config.get('base_url')), '/v1/search/evidence')
+    url = backend_url(str(config.get('base_url')), '/v1/knowledge/search')
     data, error = post_json(
         url,
         request_data,
         timeout,
         credentials.get('api_key'),
         str(credentials.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER),
+        credentials.get('identity_token'),
+        str(credentials.get('identity_header') or 'X-LBAI-Identity-Token'),
     )
     if error:
         return None, error
-    validation_error = validate_with_schema(root, data, 'backend_evidence_search_response_schema_v1.json')
+    validation_error = validate_with_schema(root, data, 'knowledge_search_response_schema_v1.json')
     if validation_error:
         return None, validation_error
     return data, None

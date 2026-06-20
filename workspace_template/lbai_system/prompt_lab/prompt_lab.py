@@ -65,7 +65,7 @@ REAL_CONTEXT_ROLE_FILES = [
     'role_workspace/world_model/ROLE_WORLD_MODEL_v1.md',
     'role_workspace/world_model/ROLE_BOUNDARY_v1.md',
     'role_workspace/ledgers/TASK_LEDGER_v1.md',
-    'role_workspace/ledgers/EVIDENCE_LEDGER_v1.md',
+    'role_workspace/knowledge/index.md',
     'role_workspace/ledgers/DECISION_LEDGER_v1.md',
     'role_workspace/ledgers/BLOCKED_ITEMS_v1.md',
 ]
@@ -74,6 +74,27 @@ HANDOFF_STATUS_REDACTION_REQUIRED = 'BLOCKED_REDACTION_REQUIRED'
 
 
 def workspace_root() -> Path:
+    import sys
+
+    module = None
+    for base in [
+        Path(os.environ.get('LBAI_HOME', '~/.lbai')).expanduser() / 'kit' / 'lbai_core',
+        Path(__file__).resolve().parents[2] / 'lbai_core',
+    ]:
+        if (base / 'lbai' / 'workspace_config.py').exists():
+            base_str = str(base)
+            if base_str not in sys.path:
+                sys.path.insert(0, base_str)
+            from lbai import workspace_config as module  # type: ignore[no-redef]
+            break
+
+    if module:
+        root, _source = module.resolve_workspace_root()
+        if module.is_workspace(root):
+            return root
+        if _source in {'active_workspace', 'active_workspace_invalid'}:
+            return root
+
     try:
         out = subprocess.check_output(
             ['git', 'rev-parse', '--show-toplevel'],
@@ -81,10 +102,27 @@ def workspace_root() -> Path:
             stderr=subprocess.DEVNULL,
         ).strip()
         if out:
-            return Path(out)
+            candidate = Path(out)
+            if (
+                (candidate / 'AGENTS.md').exists()
+                and (candidate / 'lbai_system').exists()
+                and (candidate / 'role_workspace').exists()
+                and (candidate / 'tasks').exists()
+            ):
+                return candidate
     except Exception:
         pass
-    return Path.cwd()
+
+    current = Path.cwd().resolve()
+    for path in [current, *current.parents]:
+        if (
+            (path / 'AGENTS.md').exists()
+            and (path / 'lbai_system').exists()
+            and (path / 'role_workspace').exists()
+            and (path / 'tasks').exists()
+        ):
+            return path
+    return current
 
 
 def system_root(root: Path) -> Path:

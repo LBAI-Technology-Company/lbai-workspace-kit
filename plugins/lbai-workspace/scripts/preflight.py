@@ -40,7 +40,10 @@ def blocked(reason: str, next_step: str) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--workspace', default='.')
+    parser.add_argument(
+        '--workspace',
+        help='Optional explicit workspace path. Omit to resolve the registered active workspace.',
+    )
     parser.add_argument('--require-backend', action='store_true')
     args = parser.parse_args()
 
@@ -55,13 +58,13 @@ def main() -> int:
         lbai,
         'doctor',
         '--json',
-        '--path',
-        str(Path(args.workspace).expanduser().resolve()),
         '--plugin-version',
         PLUGIN_VERSION,
         '--min-workspace-version',
         MIN_WORKSPACE_VERSION,
     ]
+    if args.workspace:
+        command.extend(['--path', str(Path(args.workspace).expanduser().resolve())])
     if args.require_backend:
         command.append('--require-backend')
     result = subprocess.run(command, capture_output=True, text=True)

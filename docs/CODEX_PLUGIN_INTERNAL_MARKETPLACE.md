@@ -16,7 +16,16 @@ lbai auth backend-login
 lbai init-workspace
 ```
 
-管理员发布固定 Git tag 后，在 Codex 中安装企业 Marketplace 和插件：
+`init-workspace` 会自动把该工作区注册为本机默认 active workspace（写入 `~/.lbai/config.json`）。之后你在 Codex 里打开任意项目，都可以调用 `$lbai-workspace:*` 或 `/lbai-*`；任务、证据和台账都会写入这个统一工作区。
+
+如需手动切换或补注册：
+
+```text
+lbai workspace show
+lbai workspace set --path /path/to/lbai-workspace-xxx
+```
+
+管理员发布固定 Git tag 后，在 Codex 中安装 Marketplace 和插件：
 
 ```text
 codex plugin marketplace add LBAI-Technology-Company/lbai-workspace-kit --ref <release-tag>
@@ -45,7 +54,7 @@ codex plugin remove lbai-workspace
 lbai update-kit
 ```
 
-`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
+`lbai-workspace`、LBAI CLI 与 Workspace Kit 从 1.4.1 起使用同一版本号。当前版本为 1.4.2，要求三者均为 1.4.1 或更高版本，具体契约记录在插件的 `compatibility.json`。
 
 ## 数据和凭证
 
@@ -60,7 +69,7 @@ lbai update-kit
 | 状态 | 处理 |
 |---|---|
 | `lbai_cli_missing` | 安装 LBAI CLI 后重新打开终端 |
-| `workspace_not_initialized` | 运行 `lbai init-workspace` 并打开生成的内层目录 |
+| `workspace_not_initialized` | 运行 `lbai init-workspace` 或 `lbai workspace set --path <lbai-workspace>` |
 | `workspace_update_required` | 在工作区运行 `lbai update-kit` |
 | GitHub 认证不可用 | 运行 `lbai auth login` |
 | 知识服务认证不可用 | 运行 `lbai auth backend-login` |

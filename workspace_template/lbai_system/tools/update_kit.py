@@ -349,11 +349,6 @@ def workspace_kit_version(root: Path) -> str:
                 return normalize_version(version)
         except (json.JSONDecodeError, OSError):
             pass
-    legacy_path = root / 'lbai_system' / 'VERSION'
-    if legacy_path.exists():
-        value = read_text(legacy_path).strip()
-        if value:
-            return normalize_version(value)
     return 'unknown'
 
 
@@ -395,15 +390,31 @@ def knowledge_service_auth_path() -> Path:
     return lbai_home() / 'auth' / 'knowledge_service.json'
 
 
+def read_knowledge_service_auth() -> dict:
+    path = knowledge_service_auth_path()
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def write_knowledge_service_auth(api_key: str, api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER) -> None:
     path = knowledge_service_auth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    existing = read_knowledge_service_auth()
     data = {
+        **existing,
         'schema_version': 'knowledge_service_auth_v1',
         'api_key': api_key.strip(),
         'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
-        'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        'updated_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
+    data.setdefault('base_url', KNOWLEDGE_SERVICE_BASE_URL)
+    data.setdefault('identity_token', '')
+    data.setdefault('identity_header', 'X-LBAI-Identity-Token')
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
 
@@ -427,13 +438,10 @@ def write_workspace_kit_version(root: Path, version: str) -> None:
     )
     knowledge = data.setdefault('knowledge_service', {})
     if isinstance(knowledge, dict):
-        legacy_key = str(knowledge.pop('api_key', '') or '').strip()
-        if legacy_key:
-            write_knowledge_service_auth(legacy_key, str(knowledge.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER))
+        knowledge.pop('api_key', None)
         knowledge['enabled'] = True
         knowledge['base_url'] = KNOWLEDGE_SERVICE_BASE_URL
         knowledge['api_key_header'] = KNOWLEDGE_SERVICE_API_KEY_HEADER
-        knowledge['auth_mode'] = 'local_api_key'
         env_key = os.environ.get(KNOWLEDGE_SERVICE_API_KEY_ENV, '').strip()
         if env_key:
             write_knowledge_service_auth(env_key, KNOWLEDGE_SERVICE_API_KEY_HEADER)

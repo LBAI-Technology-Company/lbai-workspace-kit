@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.1',
+        '1.4.2',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.1'
-    assert report['workspace_kit_version'] == '1.4.1'
+    assert report['cli_version'] == '1.4.2'
+    assert report['workspace_kit_version'] == '1.4.2'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.1'
+    assert report['plugin_version'] == '1.4.2'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -127,13 +127,16 @@ def test_cli_backend_login_verifies_and_stores_key_outside_workspace(tmp_path):
             'test_backend_api_key',
             '--base-url',
             base_url,
+            '--identity-token',
+            'test.identity.signature',
             env_extra={'LBAI_HOME': str(home)},
         )
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'backend_key_check: OK' in result.stdout
-    assert requests and requests[0]['path'] == '/v1/search/evidence'
+    assert requests and requests[0]['path'] == '/v1/knowledge/search'
     headers = {key.lower(): value for key, value in requests[0]['headers'].items()}
     assert headers.get('x-lbai-api-key') == 'test_backend_api_key'
+    assert headers.get('x-lbai-identity-token') == 'test.identity.signature'
     auth_file = home / 'auth' / 'knowledge_service.json'
     assert auth_file.exists()
     text = auth_file.read_text(encoding='utf-8')
@@ -150,6 +153,8 @@ def test_cli_backend_login_rejects_invalid_key(tmp_path):
             'bad_backend_api_key',
             '--base-url',
             base_url,
+            '--identity-token',
+            'test.identity.signature',
             env_extra={'LBAI_HOME': str(home)},
         )
     assert result.returncode == 2
@@ -165,6 +170,8 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
         'backend-login',
         '--api-key',
         'offline_backend_api_key',
+        '--identity-token',
+        'test.identity.signature',
         '--no-verify',
         env_extra={'LBAI_HOME': str(home)},
     )
@@ -239,6 +246,49 @@ def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'git_credential_sync: ok' in result.stdout
     assert 'auth_status: READY' in result.stdout
+
+
+def test_cli_doctor_resolves_active_workspace_from_external_project(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    home = tmp_path / 'lbai_home'
+    external = tmp_path / 'other_project'
+    external.mkdir()
+
+    set_result = run_cli(
+        'workspace',
+        'set',
+        '--path',
+        str(workspace),
+        env_extra={'LBAI_HOME': str(home)},
+    )
+    assert set_result.returncode == 0, set_result.stdout + set_result.stderr
+    assert 'workspace_set_status: READY' in set_result.stdout
+
+    result = run_cli('doctor', '--json', cwd=external, env_extra={'LBAI_HOME': str(home)})
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert report['resolution_source'] == 'active_workspace'
+    assert Path(report['workspace_root']) == workspace.resolve()
+    assert report['source_project_path'] == str(external.resolve())
+
+
+def test_cli_workspace_show_reports_active_workspace(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    home = tmp_path / 'lbai_home'
+    set_result = run_cli(
+        'workspace',
+        'set',
+        '--path',
+        str(workspace),
+        env_extra={'LBAI_HOME': str(home)},
+    )
+    assert set_result.returncode == 0
+
+    result = run_cli('workspace', 'show', '--json', env_extra={'LBAI_HOME': str(home)})
+    assert result.returncode == 0, result.stdout + result.stderr
+    payload = json.loads(result.stdout)
+    assert payload['active_workspace'] == str(workspace.resolve())
+    assert payload['configured_active_workspace_valid'] is True
 
 
 def test_cli_self_iterate_starts_prompt_lab(tmp_path):

@@ -30,14 +30,14 @@ class TestFullPipeline:
         assert 'STATUS BLOCKED' in task_result.stdout
         task_rel = parse_task_folder(task_result.stdout)
 
-        # 3. add independent evidence
-        linked = dict(load_json(fixtures, 'evidence_task_linked.json'))
-        linked_path = write_fixture('pipeline_linked_evidence.json', linked)
+        # 3. add an independent OKF knowledge concept
+        knowledge_metadata = dict(load_json(fixtures, 'evidence_task_independent.json'))
+        metadata_path = write_fixture('pipeline_knowledge_metadata.json', knowledge_metadata)
         ev_result = run_tool(
             isolated_workspace,
             'add_evidence.py',
             '--enrichment',
-            str(linked_path),
+            str(metadata_path),
             '--no-sync',
             '--content',
             '用户反馈样本：登录慢、文档缺失、导出失败。',
@@ -56,21 +56,23 @@ class TestFullPipeline:
         }
         search_path = write_fixture('pipeline_search.json', query_plan)
         payload = {
-            'schema_version': 'backend_evidence_search_response_v1',
-            'query_status': 'FOUND',
-            'evidence_pack': [
+            'schema_version': 'knowledge_search_response_v1',
+            'status': 'FOUND',
+            'results': [
                 {
-                    'event_id': 'evt_pipeline_feedback',
-                    'subject': '用户反馈样本',
-                    'entity_type': 'evidence',
-                    'value': '登录慢、文档缺失、导出失败。',
-                    'status': 'confirmed',
-                    'source': {'path': 'backend/evidence/evt_pipeline_feedback'},
-                    'evidence_text': '用户反馈样本：登录慢、文档缺失、导出失败。',
+                    'concept_uid': 'kn_pipeline_feedback',
+                    'concept_id': 'references/pipeline-feedback',
+                    'type': 'Reference',
+                    'title': '用户反馈样本',
+                    'description': '用户反馈样本',
+                    'facts': [{'statement': '登录慢、文档缺失、导出失败。'}],
+                    'source': {'repo_id': 'repo', 'path': 'role_workspace/knowledge/references/pipeline-feedback.md', 'commit_sha': 'abc'},
                     'reason': 'backend matched linked evidence',
+                    'score': 0.9,
                 }
             ],
-            'next_step': 'execute task',
+            'trace': {},
+            'diagnostics': [],
         }
         with backend_search_server(payload) as (base_url, _requests):
             config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -81,7 +83,6 @@ class TestFullPipeline:
                         'knowledge_service': {
                             'enabled': True,
                             'base_url': base_url,
-                            'auth_mode': 'local_api_key',
                             'workspace_repo_id': 'test-workspace',
                             'search_timeout_seconds': 2,
                         },

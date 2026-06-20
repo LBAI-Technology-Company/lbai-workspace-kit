@@ -9,7 +9,7 @@
 | GAP-05 | P0 | Company guardrail source | Guardrail | Cursor rules contain review/sensitive boundaries | Canonical company guardrail artifacts | Company ops owner | Guardrail source |
 | GAP-06 | P2 | MCP / callable skills layer | Runtime capability | Cursor skills exist | MCP/tool registry contract | Runtime owner | MCP manifest |
 | GAP-07 | P0 | Structured task ledger | Ledger | Task and global ledgers are markdown-light | Canonical ledger schema | Workspace kit owner | Task Ledger v1 |
-| GAP-08 | P1 | External evidence intake boundary | Evidence | `/lbai-add-evidence` captures evidence under `role_workspace/knowledge/evidence/` and links task gaps | Stronger admissibility review and role-delta conversion rules | Workspace kit owner | Evidence intake v0.6 hardening |
+| GAP-08 | Closed | OKF knowledge intake | Knowledge | `/lbai-add-evidence` writes one OKF Concept under `role_workspace/knowledge/references/` and keeps task state independent | None | Workspace kit owner | OKF native |
 | GAP-09 | P2 | Domain-specific release guardrails | Domain review | Broad review files exist | Domain-specific boundaries and benchmarks | Domain owners | Domain agent specs |
 | GAP-10 | P0 | GitHub Sync / Repo Hygiene Agent | Artifact ledger | Hygiene check exists; push is manual | Auto sync contract and status fields | Workspace kit owner | GitHub Sync v1 |
 | GAP-11 | P1 | Runner / harness contracts | Runtime guardrail | Natural language command rules exist | Agent call and output contracts | Runtime owner | Runner contracts |

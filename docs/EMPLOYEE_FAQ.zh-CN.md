@@ -74,7 +74,7 @@ lbai auth doctor
 
 如果后端未配置、不可用、超时或没有命中结果，搜索命令只负责把结果展示出来，不会回退到本地 catalog 搜索，也不会自动阻断、修改或推进其他任务流程。
 
-新增 evidence 的主文件是 `raw.md`、`metadata.json` 和 `evidence_enrichment.json`。历史 evidence 中的 `input.md`、`evidence_metadata.md`、`evidence_brief.md` 不会作为新资料主产物继续生成；员工搜索命令只查后端，不再读取这些本地旧文件作为 fallback。
+新增资料会保存为 `role_workspace/knowledge/references/*.md` 下的 OKF Concept，并更新 `index.md` 与 `log.md`。员工搜索命令只查后端，不读取本地任务或知识文件作为 fallback。
 
 ## dashboard 打不开或读不到 Markdown
 

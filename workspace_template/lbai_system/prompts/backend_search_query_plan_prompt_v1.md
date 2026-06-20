@@ -21,9 +21,9 @@ Rules:
 1. Output JSON only.
 2. schema_version must be backend_search_query_plan_v1.
 3. query is the employee's actual search intent.
-4. keywords should include concrete Chinese or English search terms.
-5. concepts should include stable business concepts when obvious.
-6. entity_types may include decision, policy, action_item, open_question, source, task, or evidence.
-7. prefer_status should prefer confirmed and open unless the employee asks for drafts or conflicts.
+4. types may include Policy, Process, Decision, Project, System, Customer, Metric, Playbook, Reference, Role, or Open Question.
+5. tags should contain only explicit cross-cutting categories from the request.
+6. statuses defaults to ["active"]; include deprecated or archived only for explicit historical searches.
+7. include_related defaults to true.
 8. Do not invent facts; this is only a retrieval query.
 ```

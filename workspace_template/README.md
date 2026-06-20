@@ -14,6 +14,8 @@
 - Codex：打开本项目后，可以直接输入或提到 `/lbai-*` 命令，由项目内 Codex 适配说明触发同一套工作流。
 - 企业 Codex Marketplace：安装 `lbai-workspace` 后，可使用 `$lbai-workspace:lbai-*` 命名空间 Skills 或自然语言触发同一套工作流；项目本地 `$lbai-*` 与 `/lbai-*` 兼容入口继续保留。
 
+企业插件的安装、升级、数据边界和故障排查见 [`docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md`](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)。
+
 最快使用路径：
 
 ```text
@@ -347,27 +349,24 @@ python3 lbai_system/tools/add_evidence.py --enrichment <json_path> --content "..
 
 Cursor / Codex 桌面里的助手会自动完成「生成 JSON + 调脚本」两步；员工只需粘贴资料。
 
-落盘后每个 evidence 目录包含：
+落盘后会创建一个 OKF Concept：
 
 ```text
-raw.md
-metadata.json
-evidence_enrichment.json
+role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 ```
 
 还会：
 
-- 保存到 `role_workspace/knowledge/evidence/`
-- 在 `metadata.json` 和 evidence ledger 中写入员工身份和后端入库状态
-- evidence folder 使用日期、资料类型和短 hash 命名，不把原始资料正文放进路径
-- 更新 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
+- 写入 OKF YAML frontmatter、稳定 UID、正文和 citations
+- 更新 `role_workspace/knowledge/index.md` 与 `role_workspace/knowledge/log.md`
+- 文件名使用日期、资料类型和短 hash，不把原始资料正文放进路径
 - 代码侧自动脱敏
 - 标记资料状态，例如 `CAPTURED` 或 `NEEDS_REVIEW`
-- 标记后端入库状态，例如 `PENDING_GITHUB_SYNC`
+- 标记后端入库状态：已 push 时为 `PENDING_BACKEND_SYNC`，否则为 `NOT_SYNCED`
 - 如果资料适合形成任务，只给出建议，不自动创建任务
-- 检查通过后只同步当前 evidence folder 和 `EVIDENCE_LEDGER_v1.md`
+- 检查通过后只同步当前 Concept、`index.md` 和 `log.md`
 
-如果资料已经本地归档，但 GitHub 同步因为 hygiene check、remote/upstream 或 push 问题被阻断，系统会保留本地 evidence，并在输出和 ledger 中标记 `sync_status: BLOCKED` 或 `PUSH_FAILED`。这表示同步未完成，不表示资料没有保存。
+如果资料已经本地归档，但 GitHub 同步因为 hygiene check、remote/upstream 或 push 问题被阻断，系统会保留本地 Concept，并输出 `sync_status: BLOCKED` 或 `PUSH_FAILED`。这表示同步未完成，不表示资料没有保存。
 
 Evidence 与 task 保持独立：`/lbai-add-evidence` 不记录 `related_tasks`，也不会自动修改任务的 `missing_inputs.md`、`task_scope.md`、`task_ledger.md` 或 `gap_record.md`。
 
@@ -727,7 +726,7 @@ python3 lbai_system/tools/serve_dashboard.py
 http://127.0.0.1:8765/workspace_dashboard.html
 ```
 
-如果看不到最新任务，通常是因为还没有运行 `/lbai-finish-task` 更新总任务台账。如果看不到最新 evidence，通常是因为还没有运行 `/lbai-add-evidence`，或 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md` 还没有记录。
+如果看不到最新任务，通常是因为还没有运行 `/lbai-finish-task` 更新总任务台账。如果看不到最新知识，通常是因为还没有运行 `/lbai-add-evidence`，或 `role_workspace/knowledge/index.md` 尚未更新。
 
 ---
 

@@ -24,36 +24,30 @@ def source_label(item: dict) -> str:
 
 
 def render_backend_result(data: dict, query: str) -> str:
-    status = data.get('query_status', 'ERROR')
+    status = data.get('status', 'ERROR')
     lines = [
         f'artifact 查询结果：{status}',
         f'query: {query or None}',
         'source: backend',
         'matches:',
     ]
-    pack = data.get('evidence_pack') or []
-    if not pack:
+    results = data.get('results') or []
+    if not results:
         lines.append('- None')
-    for idx, item in enumerate(pack, 1):
+    for idx, item in enumerate(results, 1):
+        facts = item.get('facts') or []
         lines.extend([
-            f'{idx}. {item.get("subject") or item.get("event_id") or "unknown"}',
-            f'   event_id: {item.get("event_id", "")}',
-            f'   entity_type: {item.get("entity_type", "unknown")}',
-            f'   status: {item.get("status", "unknown")}',
+            f'{idx}. {item.get("title") or item.get("concept_uid") or "unknown"}',
+            f'   concept_uid: {item.get("concept_uid", "")}',
+            f'   type: {item.get("type", "unknown")}',
             f'   source: {source_label(item)}',
-            f'   value: {item.get("value", "")}',
-            f'   evidence_text: {item.get("evidence_text", "")}',
+            f'   description: {item.get("description", "")}',
+            f'   facts: {"；".join(str(fact.get("statement") or "") for fact in facts)}',
             f'   reason: {item.get("reason", "")}',
         ])
-    if data.get('open_questions'):
-        lines.append('open_questions:')
-        lines.extend(f'- {item}' for item in data.get('open_questions') or [])
-    if data.get('conflicts'):
-        lines.append('conflicts:')
-        lines.extend(f'- {item}' for item in data.get('conflicts') or [])
     if data.get('error'):
         lines.append(f'backend_error: {data.get("error")}')
-    lines.append(f'下一步：{data.get("next_step", "None")}')
+    lines.append('下一步：使用命中的 OKF 概念和原子事实继续当前任务。' if results else '下一步：未找到匹配知识，可补充或调整 OKF 概念。')
     return '\n'.join(lines) + '\n'
 
 

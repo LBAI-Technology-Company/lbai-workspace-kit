@@ -5,7 +5,9 @@ description: Review, finish, and safely synchronize an LBAI task. Use when the u
 
 # LBAI Finish Task
 
-1. Run `lbai doctor --json --plugin-version 1.4.1 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
+Route reads and writes through the registered active workspace (`lbai workspace show`). Commands work from any Codex project once `lbai init-workspace` or `lbai workspace set` has run.
+
+1. Run `lbai doctor --json --plugin-version 1.4.2 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
 2. Read the workspace `AGENTS.md`, `lbai_system/runner_contracts/lbai_command_contract_v1.md`, `lbai_system/prompts/finish_review_enrichment_prompt_v1.md`, and `lbai_system/schemas/finish_review_enrichment_schema_v1.json`.
 3. Resolve the current task. If multiple candidates remain, ask the user to choose.
 4. Read task scope, execution plan, output, ledgers, and linked evidence.

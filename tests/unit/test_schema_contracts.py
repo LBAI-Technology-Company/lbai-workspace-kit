@@ -13,7 +13,7 @@ SCHEMAS = Path(__file__).resolve().parents[2] / 'workspace_template' / 'lbai_sys
 FIXTURE_SCHEMA_MAP = {
     'evidence_valid.json': 'evidence_enrichment_schema_v1.json',
     'evidence_needs_review.json': 'evidence_enrichment_schema_v1.json',
-    'evidence_task_linked.json': 'evidence_enrichment_schema_v1.json',
+    'evidence_task_independent.json': 'evidence_enrichment_schema_v1.json',
     'evidence_internal_finance_workstream.json': 'evidence_enrichment_schema_v1.json',
     'task_intake_open.json': 'task_intake_enrichment_schema_v1.json',
     'task_intake_review.json': 'task_intake_enrichment_schema_v1.json',

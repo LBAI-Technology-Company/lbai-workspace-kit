@@ -127,13 +127,12 @@ Blocked items：
 
 ### 预期 Cursor 做什么
 
-Cursor 应该把这段内容保存到 role workspace 的 evidence 区，且不写入任务关联字段：
+Cursor 应该把这段内容保存为 OKF Concept，且不写入任务关联字段：
 
 ```text
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/raw.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/metadata.json
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/evidence_enrichment.json
-role_workspace/ledgers/EVIDENCE_LEDGER_v1.md
+role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
+role_workspace/knowledge/index.md
+role_workspace/knowledge/log.md
 ```
 
 ### 预期状态
@@ -148,15 +147,16 @@ BLOCKED 或 OPEN，取决于任务本地 missing_inputs 判断
 
 ```text
 evidence_status: CAPTURED
-evidence_path: role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>
-backend_ingestion_status: PENDING_GITHUB_SYNC
+OKF_CONCEPT role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
+concept_uid: kn_<stable_hash>
+backend_ingestion_status: PENDING_BACKEND_SYNC 或 NOT_SYNCED
 下一步：资料已保存并可 push；后端将异步入库。若这是任务必需输入，请在当前任务对话中说明并重新执行本地缺口判断。
 ```
 
 ### 通过标准
 
 - Cursor 自动保存 evidence，不要求员工手动建文件
-- evidence 写入 `role_workspace/knowledge/evidence/`，并更新 `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
+- 资料写入 `role_workspace/knowledge/references/`，并更新 `index.md` 与 `log.md`
 - 当前任务的 `missing_inputs.md`、`task_scope.md`、`task_ledger.md`、`gap_record.md` 不会被 `/lbai-add-evidence` 自动改写
 - 后续 `/lbai-execute-task` 仍会本地判断 missing inputs；如需历史资料，先显式运行 `/lbai-search-artifacts` 查看后端结果，搜索结果不写入本地 `retrieved_context.md/json`
 
@@ -308,10 +308,9 @@ tasks/<task_folder>/task_slot.md
 tasks/<task_folder>/task_ledger.md
 tasks/<task_folder>/missing_inputs.md
 tasks/<task_folder>/task_output.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/raw.md
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/metadata.json
-role_workspace/knowledge/evidence/YYYY_MM_DD_<source_type>_<short_hash>/evidence_enrichment.json
-role_workspace/ledgers/EVIDENCE_LEDGER_v1.md
+role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
+role_workspace/knowledge/index.md
+role_workspace/knowledge/log.md
 role_workspace/ledgers/TASK_LEDGER_v1.md
 ```
 

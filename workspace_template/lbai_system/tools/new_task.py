@@ -8,9 +8,8 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
-from role_memory_backend import retrieve_role_memory_context
 from search_backend import search_backend
-from task_utils import LEADER_REVIEW_REMINDER, redact_sensitive, today_slugged_task_dir, workspace_root, write_if_missing
+from task_utils import LEADER_REVIEW_REMINDER, redact_sensitive, source_project_path, today_slugged_task_dir, workspace_root, write_if_missing
 
 
 ROOT = workspace_root()
@@ -78,7 +77,7 @@ WRITING_HINTS = (
     '对外',
     '发布',
 )
-SOURCE_KINDS_WITH_TRACEABLE_COMPANY_FACTS = {'company_knowledge', 'linked_evidence', 'external_source'}
+SOURCE_KINDS_WITH_TRACEABLE_COMPANY_FACTS = {'company_knowledge', 'external_source'}
 CONVERSATION_SOURCE_FACT_MARKERS = (
     '包括', '分为', '步骤', '流程是', '方法是', '先', '再', '最后', '核心', '原则', '机制',
     '决议', '议题', '会议', '参会', '记录人',
@@ -250,7 +249,7 @@ def backend_search_query_plan(data: dict) -> dict:
 
 
 def append_backend_company_knowledge(data: dict, backend_data: dict) -> int:
-    pack = backend_data.get('evidence_pack') or []
+    pack = backend_data.get('results') or []
     if not isinstance(pack, list):
         return 0
     known_information = data.setdefault('known_information', [])
@@ -262,19 +261,17 @@ def append_backend_company_knowledge(data: dict, backend_data: dict) -> int:
         source_ref = ''
         if isinstance(source, dict):
             source_ref = str(source.get('path') or source.get('id') or '').strip()
-        summary = str(
-            item.get('evidence_text')
-            or item.get('value')
-            or item.get('subject')
-            or item.get('event_id')
-            or ''
-        ).strip()
+        facts = item.get('facts') or []
+        summary = '；'.join(
+            str(fact.get('statement') or '').strip()
+            for fact in facts if isinstance(fact, dict) and str(fact.get('statement') or '').strip()
+        ) or str(item.get('description') or item.get('title') or item.get('concept_uid') or '').strip()
         if not summary:
             continue
         known_information.append({
             'summary': summary,
             'source_kind': 'company_knowledge',
-            'source_ref': source_ref or 'backend_evidence_search',
+            'source_ref': source_ref or 'backend_knowledge_search',
         })
         added += 1
     return added
@@ -289,7 +286,7 @@ def enrich_with_backend_company_knowledge(root: Path, data: dict) -> tuple[dict,
     enriched = dict(data)
     enriched['known_information'] = list(data.get('known_information') or [])
     added = append_backend_company_knowledge(enriched, backend_data)
-    return enriched, f'backend_evidence_search_used: {added}' if added else ''
+    return enriched, f'backend_knowledge_search_used: {added}' if added else ''
 
 
 def sanitize_for_artifacts(value):
@@ -420,6 +417,7 @@ def main():
 
     task_dir = unique_task_dir(today_slugged_task_dir(ROOT, task_description))
     task_id = task_dir.name
+    routed_from = source_project_path(ROOT)
 
     write_if_missing(task_dir / 'task_scope.md', f"""# Task Scope
 
@@ -434,7 +432,7 @@ def main():
 
 ## owner
 {args.owner}
-
+{('## source_project_path\n' + routed_from + '\n') if routed_from else ''}
 ## inputs_available
 - Task intake enrichment: {enrichment_path.name}
 
@@ -488,7 +486,7 @@ false
 ## allowed_sources
 - This task folder
 - Task-local chat clarifications saved in this task folder
-- Linked evidence saved under role_workspace/knowledge/evidence/
+- Linked OKF knowledge saved under role_workspace/knowledge/
 - Legacy task-local input_*.md when present
 - Role world model files under role_workspace/world_model/
 - Company guardrails under lbai_system/company_guardrails/
@@ -613,15 +611,11 @@ NOT_SYNCED
         write_if_missing(task_dir / 'release_boundary_check.md', '# Release Boundary Check\n\nThis task is not approved for public release until founder or role owner review is complete.\n', ROOT)
         write_if_missing(task_dir / 'founder_review_needed.md', '# Founder Review Reminder\n\nRemind the employee: leader review is required before external release. This workflow does not block execution or finish.\n', ROOT)
 
-    role_memory_detail = retrieve_role_memory_context(ROOT, task_dir, f'{task_description}\n{goal}\n{expected_output}')
-
     print(f'TASK_FOLDER {task_dir.relative_to(ROOT)}')
     print(f'STATUS {status}')
     print(f'REVIEW_NEEDED {str(review_needed).lower()}')
     if backend_search_detail:
         print(backend_search_detail)
-    if role_memory_detail and 'role_memory_context: FOUND' in role_memory_detail:
-        print(role_memory_detail)
     if sensitive_findings:
         print('SENSITIVE_CAPTURE_STATUS REDACTED')
     if review_needed:

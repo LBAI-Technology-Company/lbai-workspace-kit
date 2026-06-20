@@ -33,7 +33,7 @@ During normal discussion, brainstorming, clarification, advice, or task planning
    - `role_workspace/world_model/ROLE_WORLD_MODEL_v1.md`
    - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
    - `role_workspace/ledgers/TASK_LEDGER_v1.md`
-   - `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
+   - `role_workspace/knowledge/index.md`
    - `role_workspace/ledgers/BLOCKED_ITEMS_v1.md`
 2. Use the role background to make suggestions that fit the employee's actual responsibilities, allowed scope, and review boundaries.
 3. Treat responses as internal company work: objective, concise, evidence-seeking, and scoped to the actual business need.

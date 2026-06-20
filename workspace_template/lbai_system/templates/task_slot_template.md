@@ -3,7 +3,7 @@
 ## allowed_sources
 
 - This task folder
-- Linked evidence saved under `role_workspace/knowledge/evidence/`
+- Linked OKF Concepts under `role_workspace/knowledge/`
 - Legacy task-local `input_*.md` when present
 - Role world model files under `role_workspace/world_model/`
 - Company guardrails under `lbai_system/company_guardrails/`

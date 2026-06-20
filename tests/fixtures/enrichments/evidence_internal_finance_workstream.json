@@ -7,7 +7,6 @@
   "source_visibility": "private",
   "related_objects": ["product_iteration", "finance_workstream"],
   "language": "zh-CN",
-  "backend_ingestion_hint": "source_for_company_knowledge",
   "admissibility_status": "CAPTURED",
   "review_reasons": []
 }

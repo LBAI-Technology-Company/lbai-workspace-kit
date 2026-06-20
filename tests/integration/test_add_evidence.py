@@ -29,24 +29,22 @@ class TestAddEvidence:
             content,
         )
         assert result.returncode == 0, result.output
-        assert 'EVIDENCE_FOLDER role_workspace/knowledge/evidence/' in result.stdout
+        assert 'OKF_CONCEPT role_workspace/knowledge/references/' in result.stdout
         assert 'evidence_status: CAPTURED' in result.stdout
         assert 'employee_user_name: 王小明' in result.stdout
         assert 'employee_position: 内容助理' in result.stdout
         assert 'source_type: meeting_note' in result.stdout
         assert '未同步 GitHub' in result.stdout
 
-        folder_line = next(line for line in result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
-        rel = folder_line.split(' ', 1)[1].strip()
-        evidence_dir = isolated_workspace / rel
-        assert (evidence_dir / 'raw.md').exists()
-        assert (evidence_dir / 'metadata.json').exists()
-        assert (evidence_dir / 'evidence_enrichment.json').exists()
-        metadata = (evidence_dir / 'metadata.json').read_text(encoding='utf-8')
-        assert '"employee_user_name": "王小明"' in metadata
-        assert '"employee_position": "内容助理"' in metadata
-        assert '"backend_ingestion_status": "PENDING_GITHUB_SYNC"' in metadata
-        assert not (evidence_dir / 'evidence_brief.md').exists()
+        concept_line = next(line for line in result.stdout.splitlines() if line.startswith('OKF_CONCEPT'))
+        rel = concept_line.split(' ', 1)[1].strip()
+        concept = isolated_workspace / rel
+        assert concept.exists()
+        text = concept.read_text(encoding='utf-8')
+        assert 'type: Reference' in text
+        assert 'visibility: "team"' in text
+        assert (isolated_workspace / 'role_workspace/knowledge/index.md').exists()
+        assert (isolated_workspace / 'role_workspace/knowledge/log.md').exists()
 
     def test_ai_needs_review_status(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_needs_review.json')
@@ -61,6 +59,11 @@ class TestAddEvidence:
         )
         assert result.returncode == 0, result.output
         assert 'evidence_status: NEEDS_REVIEW' in result.stdout
+        concept_line = next(
+            line for line in result.stdout.splitlines() if line.startswith('OKF_CONCEPT')
+        )
+        concept = isolated_workspace / concept_line.split(' ', 1)[1]
+        assert 'status: draft' in concept.read_text(encoding='utf-8')
 
     def test_no_keyword_overlay_when_ai_captured(self, isolated_workspace, fixtures):
         """AI CAPTURED must not be upgraded by legacy keyword rules (e.g. 财务的对接)."""
@@ -121,7 +124,7 @@ class TestAddEvidence:
         assert result.returncode == 0, result.output
         assert 'sensitive_capture_status: REDACTED' in result.stdout
 
-    def test_updates_ledger(self, isolated_workspace, fixtures):
+    def test_updates_okf_index_and_log(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_valid.json')
         run_tool(
             isolated_workspace,
@@ -132,39 +135,47 @@ class TestAddEvidence:
             '--content',
             'ledger test content',
         )
-        ledger = (isolated_workspace / 'role_workspace' / 'ledgers' / 'EVIDENCE_LEDGER_v1.md').read_text(encoding='utf-8')
-        assert 'Employee User Name' in ledger
-        assert 'Employee Position' in ledger
-        assert 'Source Type' in ledger
-        assert 'meeting_note' in ledger
-        assert '|' in ledger
+        index = (isolated_workspace / 'role_workspace' / 'knowledge' / 'index.md').read_text(encoding='utf-8')
+        log = (isolated_workspace / 'role_workspace' / 'knowledge' / 'log.md').read_text(encoding='utf-8')
+        assert '用户反馈分类会议记录' in index
+        assert '**Creation**' in log
+        assert index.count('# References') == 1
 
-    def test_legacy_ledger_rows_are_preserved_during_migration(self, isolated_workspace, fixtures):
-        ledger_path = isolated_workspace / 'role_workspace' / 'ledgers' / 'EVIDENCE_LEDGER_v1.md'
-        ledger_path.parent.mkdir(parents=True, exist_ok=True)
-        ledger_path.write_text(
-            '# EVIDENCE_LEDGER_v1\n\n'
-            '| Date | Evidence ID | Source Kind | Usage Intent | Linked Task | Covers Gaps | Status | Sync Status | Next Step |\n'
-            '|---|---|---|---|---|---|---|---|---|\n'
-            '| 2026-06-01 | legacy_evidence | transcript | reference | None | None | CAPTURED | SYNCED | Keep legacy row |\n',
-            encoding='utf-8',
-        )
+    def test_same_content_reuses_stable_concept(self, isolated_workspace, fixtures):
         enrich = enrichment_path(fixtures, 'evidence_valid.json')
-        result = run_tool(
+        first = run_tool(
             isolated_workspace,
             'add_evidence.py',
             '--enrichment',
             str(enrich),
             '--no-sync',
             '--content',
-            'new ledger migration content',
+            'same reusable source content',
         )
-        assert result.returncode == 0, result.output
-        ledger = ledger_path.read_text(encoding='utf-8')
-        assert 'legacy_evidence' in ledger
-        assert 'Keep legacy row' in ledger
-        assert 'Employee User ID' in ledger
-        assert 'meeting_note' in ledger
+        second = run_tool(
+            isolated_workspace,
+            'add_evidence.py',
+            '--enrichment',
+            str(enrich),
+            '--no-sync',
+            '--content',
+            'same reusable source content',
+        )
+        first_path = next(
+            line for line in first.stdout.splitlines() if line.startswith('OKF_CONCEPT')
+        )
+        second_path = next(
+            line for line in second.stdout.splitlines() if line.startswith('OKF_CONCEPT')
+        )
+        assert first_path == second_path
+        concepts = list(
+            (isolated_workspace / 'role_workspace/knowledge/references').glob('*.md')
+        )
+        assert len(concepts) == 1
+        index = (isolated_workspace / 'role_workspace/knowledge/index.md').read_text(
+            encoding='utf-8'
+        )
+        assert index.count('用户反馈分类会议记录') == 1
 
     def test_evidence_remains_independent_from_task_inputs(self, isolated_workspace, fixtures):
         task = isolated_workspace / 'tasks' / '2026_06_10_blocked'
@@ -228,7 +239,7 @@ class TestAddEvidence:
         )
 
         assert result.returncode == 0, result.output
-        folder_line = next(line for line in result.stdout.splitlines() if line.startswith('EVIDENCE_FOLDER'))
-        rel = folder_line.split(' ', 1)[1].strip()
-        metadata = json.loads((isolated_workspace / rel / 'metadata.json').read_text(encoding='utf-8'))
-        assert metadata['source_occurred_at'] == '2026-06-15'
+        concept_line = next(line for line in result.stdout.splitlines() if line.startswith('OKF_CONCEPT'))
+        rel = concept_line.split(' ', 1)[1].strip()
+        concept_text = (isolated_workspace / rel).read_text(encoding='utf-8')
+        assert 'effective_from: "2026-06-15"' in concept_text

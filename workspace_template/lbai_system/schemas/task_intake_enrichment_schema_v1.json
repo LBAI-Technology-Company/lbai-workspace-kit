@@ -33,7 +33,6 @@
               "conversation_context",
               "company_knowledge",
               "role_context",
-              "linked_evidence",
               "external_source",
               "assumption"
             ]

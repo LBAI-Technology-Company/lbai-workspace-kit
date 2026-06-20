@@ -99,6 +99,7 @@ lbai init-workspace \
 8. Commit with a clear initialization message.
 9. Push to the existing private repo unless `--no-push` is used.
 10. Run `lbai doctor`.
+11. Register the initialized path as the machine-wide active workspace in `~/.lbai/config.json`.
 ```
 
 Recommended initialization commit:

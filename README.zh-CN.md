@@ -18,8 +18,8 @@
 2. **登录 GitHub**：`lbai auth login`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
 3. **确认认证**：`lbai auth doctor`（应显示 `auth_status: READY`）。
 4. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
-5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。
-6. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不要打开外层父目录）。
+5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。初始化成功后会自动注册为本机默认 active workspace（`~/.lbai/config.json`）。
+6. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不是外层父目录）；也可在任意项目里通过全局插件调用 LBAI，数据仍写入 registered active workspace。
 7. **在 Cursor/Codex 桌面 App 里运行** `/lbai-init` 完成岗位问答。
 8. 日常任务：`/lbai-new-task` → `/lbai-execute-task` → `/lbai-finish-task`；资料用 `/lbai-add-evidence`，查找用 `/lbai-search-artifacts`；prompt 实验和本地自迭代用 `/lbai-self-iterate`。
 
@@ -242,11 +242,11 @@ Schema 均在 `lbai_system/schemas/`；其中搜索命令使用后端 query plan
 | 步骤 | 谁做 | 做什么 |
 |------|------|--------|
 | 1 | **AI**（Cursor / Codex 桌面） | 读 `lbai_system/prompts/evidence_enrichment_prompt_v1.md`，生成 enrichment JSON |
-| 2 | **代码** | `add_evidence.py --enrichment <json>`：脱敏、写文件、台账、hygiene、git |
+| 2 | **代码** | `add_evidence.py --enrichment <json>`：脱敏、写入 OKF Concept、更新 index/log、hygiene、git |
 
 AI 只负责补齐轻量元数据，例如标题、资料类型、可见范围、关联对象和后端入库提示。员工端插件不再生成 reusable facts、decisions、action items、risks 或缺口分析。
 
-代码负责：脱敏、目录/台账/git/hygiene。`NEEDS_REVIEW` **仅由 AI enrichment 判定**，代码不做关键词 overlay。
+代码负责：脱敏、OKF 文件、目录、Git 和 hygiene。`NEEDS_REVIEW` **仅由 AI enrichment 判定**，代码不做关键词 overlay。
 
 若 AI 不可用（模型不可用、额度用尽、JSON 无效），直接 `evidence_status: BLOCKED`，**不会**降级为规则处理。
 
@@ -257,15 +257,13 @@ lbai_system/prompts/evidence_enrichment_prompt_v1.md
 lbai_system/schemas/evidence_enrichment_schema_v1.json
 ```
 
-每个 evidence 目录包含：
+每份资料生成一个 OKF Concept：
 
 ```text
-raw.md
-metadata.json
-evidence_enrichment.json
+role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 ```
 
-`metadata.json` 和 `EVIDENCE_LEDGER_v1.md` 会写入员工身份和后端入库状态。资料 push 到 GitHub 后，后端可异步读取并入库。
+同时更新 `role_workspace/knowledge/index.md` 和 `log.md`。资料 push 到 GitHub 后，后端按 commit 原子校验并发布。
 
 Evidence 与 task 保持独立：`/lbai-add-evidence` 只归档资料，不记录 `related_tasks`，也不会自动修改 `missing_inputs.md`、`task_scope.md`、`task_ledger.md` 或 `gap_record.md`。如果一份资料能帮助当前任务，请在任务对话里明确说明它补充了哪项信息；任务是否可执行仍由 `/lbai-new-task` 和 `/lbai-execute-task` 判断。
 
@@ -331,8 +329,10 @@ Codex 和 Cursor 继续作为模型执行环境。它们负责读取上下文、
 
 | 命令 | 作用 | 在哪运行 | 会不会动个人数据 |
 |------|------|----------|------------------|
-| `lbai update-kit` | 升级工作区里的公司模板 | 工作区目录内 | 不会动 `role_workspace/`、`tasks/` |
-| `lbai remove-kit` | 从工作区移除公司模板 | 工作区目录内 | 保留 `role_workspace/`、`tasks/` |
+| `lbai workspace show` | 查看本机注册的 active workspace | 任意目录 | 只读 |
+| `lbai workspace set --path <dir>` | 注册/切换 active workspace | 任意目录 | 只写 `~/.lbai/config.json` |
+| `lbai update-kit` | 升级工作区里的公司模板 | 任意目录（路由到 active workspace） | 不会动 `role_workspace/`、`tasks/` |
+| `lbai remove-kit` | 从工作区移除公司模板 | active workspace 内 | 保留 `role_workspace/`、`tasks/` |
 | `lbai uninstall` | 卸载本机 `lbai` 命令 | 任意目录 | 不删工作区文件夹和 GitHub 仓库 |
 
 本机 `lbai` 命令坏了或需要升级时，**重新运行第 1 步的安装命令**即可：

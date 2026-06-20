@@ -1,3 +1,0 @@
-{"id":"receivable_overseas_overdue_acceptance_missing","input":"这是一个印尼海外项目，应收账款逾期 42 天，客户说还没完成验收，所以暂时不付款。","actual_output_file":"examples/fact_extraction_output_sample_v1.json","expected_facts":{"project.region_type":"overseas","project.country":"Indonesia","receivable.overdue_days":42,"receivable.has_dispute":true,"acceptance.completed_status":"not_completed"},"expected_state":"ready_for_rule_check"}
-{"id":"receivable_payment_flow_schema_gap","input":"这是一个海外项目，但合同主体在中国，回款走境外付款流程。","actual_output_file":"examples/field_change_request_sample_v1.json","expected_facts":{"project.region_type":"overseas"},"expected_state":"needs_schema_change","expected_unmapped_count_min":1,"expected_field_change_count_min":1}
-

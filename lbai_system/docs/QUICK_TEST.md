@@ -17,7 +17,7 @@ Evidence intake smoke test:
 /lbai-add-evidence 保存这份会议记录，不创建任务：今天讨论运营计划和 action items。
 ```
 
-Expected: the workspace assistant saves evidence under `role_workspace/knowledge/evidence/`, writes `raw.md`, `metadata.json`, and `evidence_enrichment.json`, updates `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`, prints `backend_ingestion_status=PENDING_GITHUB_SYNC`, and does not create a `tasks/` folder unless the employee explicitly confirms `/lbai-new-task`.
+Expected: the workspace assistant creates one OKF Concept under `role_workspace/knowledge/references/`, updates `role_workspace/knowledge/index.md` and `log.md`, prints the Concept UID and sync status, and does not create a `tasks/` folder unless the employee explicitly confirms `/lbai-new-task`.
 
 Artifact search smoke test:
 

@@ -9,8 +9,8 @@ Convert task state into structured task and global ledger artifacts.
 - `task_scope.md`
 - `task_slot.md`
 - `task_output.md` when present
-- linked evidence under `role_workspace/knowledge/evidence/`
-- `role_workspace/ledgers/EVIDENCE_LEDGER_v1.md`
+- linked OKF Concepts under `role_workspace/knowledge/`
+- `role_workspace/knowledge/index.md`
 - legacy task-local `input_*.md` when present
 - Review files when required
 - Git hygiene and push status

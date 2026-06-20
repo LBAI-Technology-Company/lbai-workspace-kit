@@ -52,7 +52,12 @@ def run_tool(workspace: Path, script_name: str, *args: str, input_text: str | No
     return ToolResult(proc.returncode, proc.stdout, proc.stderr)
 
 
-def write_backend_auth(workspace: Path, api_key: str = 'test_backend_api_key', api_key_header: str = 'X-LBAI-API-Key') -> Path:
+def write_backend_auth(
+    workspace: Path,
+    api_key: str = 'test_backend_api_key',
+    api_key_header: str = 'X-LBAI-API-Key',
+    identity_token: str = 'test.identity.signature',
+) -> Path:
     path = workspace / '.lbai_home' / 'auth' / 'knowledge_service.json'
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -61,6 +66,8 @@ def write_backend_auth(workspace: Path, api_key: str = 'test_backend_api_key', a
                 'schema_version': 'knowledge_service_auth_v1',
                 'api_key': api_key,
                 'api_key_header': api_key_header,
+                'identity_token': identity_token,
+                'identity_header': 'X-LBAI-Identity-Token',
                 'created_at': '2026-06-14T00:00:00+00:00',
             },
             ensure_ascii=False,

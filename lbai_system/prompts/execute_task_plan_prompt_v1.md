@@ -21,8 +21,7 @@ Do not skip step 2. `/lbai-finish-task` may compare output against the plan when
 - `tasks/<task_folder>/missing_inputs.md`
 - `tasks/<task_folder>/recommended_inputs.md`
 - explicit backend search results pasted by the employee, if present in the conversation
-- `tasks/<task_folder>/role_memory_context.md` if present. Treat it as backend-summarized role experience for this task type, not as authoritative local role rules.
-- Linked evidence: read `metadata.json` and `raw.md`; legacy `evidence_brief.md` may exist in older workspaces
+- Linked OKF Concepts: read the referenced Markdown files under `role_workspace/knowledge/`
 - Task-local chat clarifications saved under the task folder, such as `input_user_provided.md`, `input_notes.md`, or `input_draft.md`
 - Role world model files
 

@@ -12,10 +12,11 @@ from typing import Iterator
 def backend_search_server(payload: dict | None = None, *, status: int = 200, raw_body: str | None = None) -> Iterator[tuple[str, list[dict]]]:
     requests: list[dict] = []
     response_payload = payload if payload is not None else {
-        'schema_version': 'backend_evidence_search_response_v1',
-        'query_status': 'NO_MATCH',
-        'evidence_pack': [],
-        'next_step': 'No match.',
+        'schema_version': 'knowledge_search_response_v1',
+        'status': 'NO_MATCH',
+        'results': [],
+        'trace': {},
+        'diagnostics': [],
     }
 
     class Handler(BaseHTTPRequestHandler):

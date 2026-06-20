@@ -18,3 +18,5 @@ lbai-workspace-kit-*.tar.gz
 *.log
 prompt_lab/runs/
 prompt_lab/finalized_reports/
+.test-venv/
+tests/.venv/

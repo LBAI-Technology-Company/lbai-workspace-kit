@@ -22,7 +22,6 @@ def write_backend_config(workspace, base_url: str, *, enabled: bool = True):
                     'enabled': enabled,
                     'base_url': base_url,
                     'api_key_header': 'X-LBAI-API-Key',
-                    'auth_mode': 'local_api_key',
                     'workspace_repo_id': 'test-workspace',
                     'search_timeout_seconds': 2,
                 },
@@ -49,23 +48,23 @@ def write_query_plan(write_fixture, name: str = 'backend_query_plan.json'):
 class TestSearchArtifacts:
     def test_backend_found_is_rendered_directly(self, isolated_workspace, write_fixture):
         payload = {
-            'schema_version': 'backend_evidence_search_response_v1',
-            'query_status': 'FOUND',
-            'evidence_pack': [
+            'schema_version': 'knowledge_search_response_v1',
+            'status': 'FOUND',
+            'results': [
                 {
-                    'event_id': 'evt_001',
-                    'subject': '用户反馈分类',
-                    'entity_type': 'evidence',
-                    'value': '反馈分为登录、导出、文档三类。',
-                    'status': 'confirmed',
-                    'source': {'path': 'backend/evidence/evt_001'},
-                    'evidence_text': '客户反馈样本已完成分类。',
+                    'concept_uid': 'kn_feedback',
+                    'concept_id': 'references/feedback',
+                    'type': 'Reference',
+                    'title': '用户反馈分类',
+                    'description': '客户反馈分类知识',
+                    'facts': [{'statement': '反馈分为登录、导出、文档三类。'}],
+                    'source': {'repo_id': 'repo', 'path': 'role_workspace/knowledge/references/feedback.md', 'commit_sha': 'abc'},
                     'reason': 'backend semantic match',
+                    'score': 0.9,
                 }
             ],
-            'open_questions': [],
-            'conflicts': [],
-            'next_step': 'Use backend result in the task discussion.',
+            'trace': {},
+            'diagnostics': [],
         }
         with backend_search_server(payload) as (base_url, requests):
             write_backend_config(isolated_workspace, base_url)
@@ -75,19 +74,20 @@ class TestSearchArtifacts:
         assert result.returncode == 0, result.output
         assert 'artifact 查询结果：FOUND' in result.stdout
         assert 'source: backend' in result.stdout
-        assert 'evt_001' in result.stdout
+        assert 'kn_feedback' in result.stdout
         assert '用户反馈分类' in result.stdout
-        assert requests and requests[0]['path'] == '/v1/search/evidence'
+        assert requests and requests[0]['path'] == '/v1/knowledge/search'
         headers = {key.lower(): value for key, value in requests[0]['headers'].items()}
         assert headers.get('x-lbai-api-key') == 'test_backend_api_key'
-        assert requests[0]['body']['query_plan']['query'] == 'feedback taxonomy'
+        assert requests[0]['body']['query'] == 'feedback taxonomy'
 
     def test_backend_no_match_is_rendered_directly(self, isolated_workspace, write_fixture):
         payload = {
-            'schema_version': 'backend_evidence_search_response_v1',
-            'query_status': 'NO_MATCH',
-            'evidence_pack': [],
-            'next_step': 'Ask the employee to add evidence.',
+            'schema_version': 'knowledge_search_response_v1',
+            'status': 'NO_MATCH',
+            'results': [],
+            'trace': {},
+            'diagnostics': [],
         }
         with backend_search_server(payload) as (base_url, _requests):
             write_backend_config(isolated_workspace, base_url)
@@ -97,7 +97,7 @@ class TestSearchArtifacts:
         assert result.returncode == 0, result.output
         assert 'artifact 查询结果：NO_MATCH' in result.stdout
         assert 'matches:\n- None' in result.stdout
-        assert 'Ask the employee to add evidence.' in result.stdout
+        assert '可补充或调整 OKF 概念' in result.stdout
 
     def test_disabled_backend_renders_error_without_local_fallback(self, isolated_workspace, fixtures, write_fixture):
         enrich = enrichment_path(fixtures, 'evidence_valid.json')
@@ -133,10 +133,11 @@ class TestSearchArtifacts:
 
     def test_backend_error_status_is_rendered(self, isolated_workspace, write_fixture):
         payload = {
-            'schema_version': 'backend_evidence_search_response_v1',
-            'query_status': 'ERROR',
-            'evidence_pack': [],
-            'next_step': 'Backend index is rebuilding.',
+            'schema_version': 'knowledge_search_response_v1',
+            'status': 'ERROR',
+            'results': [],
+            'trace': {},
+            'diagnostics': [],
             'error': 'INDEX_REBUILDING',
         }
         with backend_search_server(payload) as (base_url, _requests):
