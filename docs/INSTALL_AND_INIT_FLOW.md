@@ -29,7 +29,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped `@latest` install scripts auto-fetch the newest installer from GitHub release tags before proceeding. On macOS and Linux it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip).
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped `@latest` install scripts auto-fetch the newest installer from GitHub release tags before proceeding. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
 
 ## Authentication
 

@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.6"
+$InstallerVersion = "1.4.7"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -12,9 +12,50 @@ $BinDir = Join-Path $LbaiHome "bin"
 $VenvDir = Join-Path $LbaiHome "venv"
 $PathMarker = "# LBAI Workspace Kit CLI"
 $CodexPluginMarketplace = "lbai-internal"
+$InstallStatus = @{}
 
 function Write-Info($Message) {
     Write-Host $Message
+}
+
+function Set-InstallStatus([string]$Name, [string]$State, [string]$Detail = "") {
+    $InstallStatus[$Name] = @{ State = $State; Detail = $Detail }
+}
+
+function Write-SummaryLine([string]$Label, [string]$Name) {
+    $entry = $InstallStatus[$Name]
+    if (-not $entry) {
+        Write-Info ("{0,-28} [ -- ]" -f $Label)
+        return
+    }
+    $mark = switch ($entry.State) {
+        "OK" { "[OK]  " }
+        "FAILED" { "[失败]" }
+        "SKIPPED" { "[跳过]" }
+        "WARN" { "[警告]" }
+        default { "[ -- ]" }
+    }
+    if ($entry.Detail) {
+        Write-Info ("{0,-28} {1} {2}" -f $Label, $mark, $entry.Detail)
+    } else {
+        Write-Info ("{0,-28} {1}" -f $Label, $mark)
+    }
+}
+
+function Write-InstallSummary {
+    Write-Info ""
+    Write-Info "========== 安装结果汇总 =========="
+    Write-SummaryLine "Git" "Git"
+    Write-SummaryLine "Python 3.10+" "Python"
+    Write-SummaryLine "LBAI CLI" "Lbai"
+    Write-SummaryLine "Python 依赖 (jsonschema)" "PyDeps"
+    Write-SummaryLine "用户 PATH (lbai)" "Path"
+    Write-SummaryLine "Codex CLI" "CodexCli"
+    Write-SummaryLine "Codex marketplace" "CodexMarketplace"
+    Write-SummaryLine "Codex 插件 (lbai-workspace)" "CodexPlugin"
+    Write-SummaryLine "后端登录 (可选)" "Backend"
+    Write-Info "=================================="
+    Write-Info "说明：一键安装包含 LBAI CLI、Codex CLI 和 lbai-workspace 插件。"
 }
 
 function Fail($Message) {
@@ -72,7 +113,10 @@ function Ensure-Prerequisites {
         $pythonArgs = $pythonCommand[1..($pythonCommand.Count - 1)]
     }
     $pythonExe = $pythonCommand[0]
-    Write-Info "环境检查通过：$(& $pythonExe @pythonArgs --version)"
+    $pythonVersion = & $pythonExe @pythonArgs --version
+    Write-Info "环境检查通过：$pythonVersion"
+    Set-InstallStatus "Git" "OK" (git --version)
+    Set-InstallStatus "Python" "OK" $pythonVersion
 }
 
 function Get-LatestReleaseTagSoft {
@@ -211,8 +255,10 @@ function Ensure-UserPath {
         [Environment]::SetEnvironmentVariable("Path", $newPath, "User")
         $env:Path = "$env:Path;$BinDir"
         Write-Info "已将 lbai 加入用户 PATH。"
+        Set-InstallStatus "Path" "OK" "已写入用户 PATH ($BinDir)"
     } else {
         Write-Info "PATH 已包含 lbai。"
+        Set-InstallStatus "Path" "OK" "已包含 lbai ($BinDir)"
     }
 }
 
@@ -310,17 +356,21 @@ function Install-CodexViaGithubBinary {
 function Ensure-CodexCli {
     if ($env:LBAI_SKIP_CODEX_CLI -eq "1") {
         Write-Info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
+        Set-InstallStatus "CodexCli" "SKIPPED" "LBAI_SKIP_CODEX_CLI=1"
         return
     }
 
     $codexBin = Join-Path $env:USERPROFILE ".local\bin\codex.exe"
     if (Test-Command codex) {
-        Write-Info "环境检查通过：$(codex --version)"
+        $version = codex --version
+        Write-Info "环境检查通过：$version"
+        Set-InstallStatus "CodexCli" "OK" $version
         return
     }
     if (Test-Path $codexBin) {
         Write-Info "Codex CLI 已安装到 $codexBin。"
         Write-Info "若当前 PowerShell 仍找不到 codex，请关闭并重新打开终端。"
+        Set-InstallStatus "CodexCli" "WARN" "已安装到 $codexBin，需重启 PowerShell"
         return
     }
 
@@ -340,18 +390,22 @@ function Ensure-CodexCli {
     $env:Path = "$machinePath;$userPath"
 
     if (Test-Command codex) {
-        Write-Info "环境检查通过：$(codex --version)"
+        $version = codex --version
+        Write-Info "环境检查通过：$version"
+        Set-InstallStatus "CodexCli" "OK" $version
         return
     }
     if (Test-Path $codexBin) {
         Write-Info "Codex CLI 已安装到 $codexBin。"
         Write-Info "请关闭并重新打开 PowerShell 后运行 codex --version。"
+        Set-InstallStatus "CodexCli" "WARN" "已安装到 $codexBin，需重启 PowerShell"
         return
     }
 
     Write-Info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
     Write-Info "  irm https://chatgpt.com/codex/install.ps1 | iex"
     Write-Info "  npm install -g @openai/codex"
+    Set-InstallStatus "CodexCli" "FAILED" "自动安装失败，见上方手动命令"
 }
 
 function Invoke-Codex {
@@ -377,18 +431,24 @@ function Ensure-CodexPlugin {
 
     if ($env:LBAI_SKIP_CODEX_PLUGIN -eq "1" -or $env:LBAI_SKIP_CODEX_CLI -eq "1") {
         Write-Info "跳过 Codex 插件安装（LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1）。"
+        Set-InstallStatus "CodexMarketplace" "SKIPPED" "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
+        Set-InstallStatus "CodexPlugin" "SKIPPED" "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
         return
     }
 
     if (-not (Test-CodexReady)) {
         Write-Info "WARNING: codex 不可用，跳过 lbai-workspace 插件安装。"
         Write-Info "  请关闭并重新打开 PowerShell，然后重新运行 install.ps1。"
+        Set-InstallStatus "CodexMarketplace" "FAILED" "codex 不可用"
+        Set-InstallStatus "CodexPlugin" "FAILED" "codex 不可用，需先安装/配置 Codex CLI"
         return
     }
 
     $pluginTag = if ($env:LBAI_PLUGIN_REF) { $env:LBAI_PLUGIN_REF } else { $ReleaseTag }
     if ([string]::IsNullOrWhiteSpace($pluginTag) -or $pluginTag -eq "local") {
         Write-Info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
+        Set-InstallStatus "CodexMarketplace" "FAILED" "无法确定 release tag"
+        Set-InstallStatus "CodexPlugin" "FAILED" "无法确定 release tag"
         return
     }
 
@@ -409,19 +469,25 @@ function Ensure-CodexPlugin {
         Write-Info "WARNING: Codex marketplace 配置失败。请确认已登录 Codex 后手动运行："
         Write-Info "  codex plugin marketplace add $Repo --ref $pluginTag"
         Write-Info "  codex plugin add lbai-workspace@$CodexPluginMarketplace"
+        Set-InstallStatus "CodexMarketplace" "FAILED" "marketplace 配置失败，见上方手动命令"
+        Set-InstallStatus "CodexPlugin" "FAILED" "依赖 marketplace，未安装"
         return
     }
+
+    Set-InstallStatus "CodexMarketplace" "OK" "$CodexPluginMarketplace ($pluginTag)"
 
     Write-Info "正在安装 lbai-workspace 插件..."
     Invoke-Codex plugin remove lbai-workspace | Out-Null
     if ((Invoke-Codex plugin add "lbai-workspace@$CodexPluginMarketplace") -eq 0) {
         Write-Info "已安装 Codex 插件: lbai-workspace@$CodexPluginMarketplace"
         Write-Info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
+        Set-InstallStatus "CodexPlugin" "OK" "lbai-workspace@$CodexPluginMarketplace"
         return
     }
 
     Write-Info "WARNING: Codex 插件安装失败。请手动运行："
     Write-Info "  codex plugin add lbai-workspace@$CodexPluginMarketplace"
+    Set-InstallStatus "CodexPlugin" "FAILED" "插件安装失败，见上方手动命令"
 }
 
 Ensure-Prerequisites
@@ -434,11 +500,19 @@ Write-LbaiLauncher -RuntimePython $runtimePython
 Ensure-UserPath
 Ensure-CodexCli
 Ensure-CodexPlugin -ReleaseTag $releaseTag
+Set-InstallStatus "PyDeps" "OK" "jsonschema 等 ($VenvDir)"
 Write-Info "Installed Python runtime and dependencies (jsonschema)."
 
 if (-not $env:LBAI_SKIP_BACKEND_AUTH -and -not [Console]::IsInputRedirected) {
     Write-Info "Optional backend knowledge service setup."
-    & (Join-Path $BinDir "lbai.cmd") auth backend-login --optional
+    $backendExit = & (Join-Path $BinDir "lbai.cmd") auth backend-login --optional
+    if ($backendExit -eq 0) {
+        Set-InstallStatus "Backend" "OK" "已完成或已跳过"
+    } else {
+        Set-InstallStatus "Backend" "WARN" "未完成，可稍后运行 lbai auth backend-login"
+    }
+} else {
+    Set-InstallStatus "Backend" "SKIPPED" "非交互环境或 LBAI_SKIP_BACKEND_AUTH=1"
 }
 
 $kitVersion = "unknown"
@@ -447,10 +521,10 @@ if (Test-Path $versionFile) {
     $kitVersion = (Get-Content $versionFile -Raw).Trim()
 }
 
-Write-Info "LBAI Workspace Kit installed."
-Write-Info "已安装版本: $kitVersion"
+Set-InstallStatus "Lbai" "OK" "v$kitVersion ($(Join-Path $BinDir 'lbai.cmd'))"
+Write-InstallSummary
+
 Write-Info "Release: $releaseTag"
-Write-Info "lbai path: $(Join-Path $BinDir 'lbai.cmd')"
 Write-Info ""
 Write-Info "Next steps:"
 Write-Info "  关闭并重新打开 PowerShell"

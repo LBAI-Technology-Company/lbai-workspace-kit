@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.7
+
+- Print an install summary table at the end of `install.sh` / `install.ps1` showing OK / failed / skipped / warning for Git, Python, LBAI CLI, Codex CLI, Codex plugin, and other components.
+
 ## 1.4.6
 
 - Tighten `backend_search_query_plan_v1` to `types` / `statuses` / `include_related` and reject unknown fields.

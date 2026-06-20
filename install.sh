@@ -2,15 +2,80 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.6"
+INSTALLER_VERSION="1.4.7"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
 VENV_DIR="$LBAI_HOME/venv"
 RELEASE_TAG=""
 
+ST_GIT=""
+ST_PYTHON=""
+ST_CURL=""
+ST_LBAI=""
+ST_PYDEPS=""
+ST_PATH=""
+ST_CODEX_CLI=""
+ST_CODEX_MP=""
+ST_CODEX_PLUGIN=""
+ST_BACKEND=""
+
 info() {
   printf '%s\n' "$*"
+}
+
+set_st() {
+  case "$1" in
+    GIT) ST_GIT="${2}|${3}" ;;
+    PYTHON) ST_PYTHON="${2}|${3}" ;;
+    CURL) ST_CURL="${2}|${3}" ;;
+    LBAI) ST_LBAI="${2}|${3}" ;;
+    PYDEPS) ST_PYDEPS="${2}|${3}" ;;
+    PATH) ST_PATH="${2}|${3}" ;;
+    CODEX_CLI) ST_CODEX_CLI="${2}|${3}" ;;
+    CODEX_MP) ST_CODEX_MP="${2}|${3}" ;;
+    CODEX_PLUGIN) ST_CODEX_PLUGIN="${2}|${3}" ;;
+    BACKEND) ST_BACKEND="${2}|${3}" ;;
+  esac
+}
+
+summary_line() {
+  label="$1"
+  raw="${2:-|}"
+  state="${raw%%|*}"
+  detail="${raw#*|}"
+  if [ "$detail" = "$raw" ]; then
+    detail=""
+  fi
+  case "$state" in
+    OK) mark="[OK]  " ;;
+    FAILED) mark="[失败]" ;;
+    SKIPPED) mark="[跳过]" ;;
+    WARN) mark="[警告]" ;;
+    *) mark="[ -- ]" ;;
+  esac
+  if [ -n "$detail" ]; then
+    info "$(printf '%-28s %s %s' "$label" "$mark" "$detail")"
+  else
+    info "$(printf '%-28s %s' "$label" "$mark")"
+  fi
+}
+
+print_install_summary() {
+  info ""
+  info "========== 安装结果汇总 =========="
+  summary_line "Git" "$ST_GIT"
+  summary_line "Python 3.10+" "$ST_PYTHON"
+  summary_line "curl" "$ST_CURL"
+  summary_line "LBAI CLI" "$ST_LBAI"
+  summary_line "Python 依赖 (jsonschema)" "$ST_PYDEPS"
+  summary_line "Shell PATH (lbai)" "$ST_PATH"
+  summary_line "Codex CLI" "$ST_CODEX_CLI"
+  summary_line "Codex marketplace" "$ST_CODEX_MP"
+  summary_line "Codex 插件 (lbai-workspace)" "$ST_CODEX_PLUGIN"
+  summary_line "后端登录 (可选)" "$ST_BACKEND"
+  info "=================================="
+  info "说明：一键安装包含 LBAI CLI、Codex CLI（macOS/Linux）和 lbai-workspace 插件。"
 }
 
 fail() {
@@ -228,6 +293,9 @@ ensure_prerequisites() {
   if ! have_cmd curl; then
     fail "未检测到 curl，无法下载安装包。"
   fi
+  set_st GIT OK "$(git --version 2>/dev/null | head -n 1)"
+  set_st PYTHON OK "$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
+  set_st CURL OK "$(curl --version 2>/dev/null | head -n 1 | cut -d' ' -f1-2)"
   info "环境检查通过：$(git --version 2>/dev/null | head -n 1)"
   info "环境检查通过：$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
 }
@@ -345,6 +413,7 @@ install_codex_via_github_binary() {
 ensure_codex_cli() {
   if [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
     info "跳过 Codex CLI 安装（LBAI_SKIP_CODEX_CLI=1）。"
+    set_st CODEX_CLI SKIPPED "LBAI_SKIP_CODEX_CLI=1"
     return 0
   fi
 
@@ -353,17 +422,21 @@ ensure_codex_cli() {
     Darwin|Linux) ;;
     *)
       info "当前系统跳过 Codex CLI 自动安装。"
+      set_st CODEX_CLI SKIPPED "当前系统不支持自动安装"
       return 0
       ;;
   esac
 
   if codex_cli_available; then
-    info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
+    version="$(codex --version 2>/dev/null | head -n 1)"
+    info "环境检查通过：$version"
+    set_st CODEX_CLI OK "$version"
     return 0
   fi
 
   if ! have_cmd curl; then
     info "WARNING: 未检测到 curl，跳过 Codex CLI 自动安装。"
+    set_st CODEX_CLI FAILED "缺少 curl"
     return 0
   fi
 
@@ -379,23 +452,28 @@ ensure_codex_cli() {
     info "  curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
     info "  npm install -g @openai/codex"
     info "  或从 https://github.com/openai/codex/releases 下载对应平台二进制到 ~/.local/bin"
+    set_st CODEX_CLI FAILED "自动安装失败，见上方手动命令"
     return 0
   fi
 
   refresh_codex_path
   if codex_cli_available; then
-    info "环境检查通过：$(codex --version 2>/dev/null | head -n 1)"
+    version="$(codex --version 2>/dev/null | head -n 1)"
+    info "环境检查通过：$version"
+    set_st CODEX_CLI OK "$version"
     return 0
   fi
 
   if [ -x "$HOME/.local/bin/codex" ]; then
     info "Codex CLI 已安装到 $HOME/.local/bin/codex。"
     info "若当前终端仍找不到 codex，请运行 source ~/.zprofile 或 source ~/.zshrc 后重试。"
+    set_st CODEX_CLI WARN "已安装到 ~/.local/bin/codex，需 source shell 配置"
     return 0
   fi
 
   info "WARNING: Codex CLI 安装脚本已执行，但未检测到 codex 命令。"
   info "  请新开终端，或运行 source ~/.zprofile / source ~/.zshrc 后再试。"
+  set_st CODEX_CLI WARN "安装脚本已执行，当前终端未检测到 codex"
   return 0
 }
 
@@ -421,17 +499,23 @@ ensure_codex_plugin() {
 
   if [ "${LBAI_SKIP_CODEX_PLUGIN:-}" = "1" ] || [ "${LBAI_SKIP_CODEX_CLI:-}" = "1" ]; then
     info "跳过 Codex 插件安装（LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1）。"
+    set_st CODEX_MP SKIPPED "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
+    set_st CODEX_PLUGIN SKIPPED "LBAI_SKIP_CODEX_PLUGIN=1 或 LBAI_SKIP_CODEX_CLI=1"
     return 0
   fi
 
   if ! codex_cli_ready; then
     info "WARNING: codex 不可用，跳过 lbai-workspace 插件安装。"
     info "  请先 source ~/.zprofile 或 ~/.zshrc，然后重新运行 install.sh。"
+    set_st CODEX_MP FAILED "codex 不可用"
+    set_st CODEX_PLUGIN FAILED "codex 不可用，需先安装/配置 Codex CLI"
     return 0
   fi
 
   if [ -z "$plugin_tag" ] || [ "$plugin_tag" = "local" ]; then
     info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
+    set_st CODEX_MP FAILED "无法确定 release tag"
+    set_st CODEX_PLUGIN FAILED "无法确定 release tag"
     return 0
   fi
 
@@ -452,19 +536,25 @@ ensure_codex_plugin() {
     info "WARNING: Codex marketplace 配置失败。请确认已登录 Codex 后手动运行："
     info "  codex plugin marketplace add $REPO --ref $plugin_tag"
     info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+    set_st CODEX_MP FAILED "marketplace 配置失败，见上方手动命令"
+    set_st CODEX_PLUGIN FAILED "依赖 marketplace，未安装"
     return 0
   fi
+
+  set_st CODEX_MP OK "$CODEX_PLUGIN_MARKETPLACE ($plugin_tag)"
 
   info "正在安装 lbai-workspace 插件..."
   run_codex plugin remove lbai-workspace >/dev/null 2>&1 || true
   if run_codex plugin add "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"; then
     info "已安装 Codex 插件: lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
     info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
+    set_st CODEX_PLUGIN OK "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
     return 0
   fi
 
   info "WARNING: Codex 插件安装失败。请手动运行："
   info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+  set_st CODEX_PLUGIN FAILED "插件安装失败，见上方手动命令"
   return 0
 }
 
@@ -494,12 +584,14 @@ ensure_shell_path() {
   if [ -z "$shell_rc" ]; then
     info "Could not detect a shell rc file. Add lbai to PATH manually:"
     info "  $path_export"
+    set_st PATH WARN "未检测到 shell 配置文件，需手动加入 PATH"
     return 0
   fi
 
   touch "$shell_rc"
   if grep -qF "$PATH_MARKER" "$shell_rc" 2>/dev/null || grep -qF "$BIN_DIR" "$shell_rc" 2>/dev/null; then
     info "PATH already configured in $shell_rc"
+    set_st PATH OK "已配置 ($shell_rc)"
     return 0
   fi
 
@@ -509,6 +601,7 @@ ensure_shell_path() {
   } >> "$shell_rc"
   info "Added lbai to PATH in $shell_rc"
   info "Run: source $shell_rc"
+  set_st PATH OK "已写入 ($shell_rc)"
 }
 
 read_kit_version() {
@@ -644,18 +737,26 @@ ensure_shell_path
 ensure_codex_cli
 ensure_codex_plugin
 
+set_st PYDEPS OK "jsonschema 等 ($VENV_DIR)"
 info "Installed Python runtime and dependencies (jsonschema)."
 
 if [ -t 0 ] && [ "${LBAI_SKIP_BACKEND_AUTH:-}" != "1" ]; then
   info "Optional backend knowledge service setup."
-  "$BIN_DIR/lbai" auth backend-login --optional || true
+  if "$BIN_DIR/lbai" auth backend-login --optional; then
+    set_st BACKEND OK "已完成或已跳过"
+  else
+    set_st BACKEND WARN "未完成，可稍后运行 lbai auth backend-login"
+  fi
+else
+  set_st BACKEND SKIPPED "非交互环境或 LBAI_SKIP_BACKEND_AUTH=1"
 fi
 
 kit_version="$(read_kit_version)"
-info "LBAI Workspace Kit installed."
-info "已安装版本: $kit_version"
+set_st LBAI OK "v$kit_version ($BIN_DIR/lbai)"
+
+print_install_summary
+
 info "Release: $RELEASE_TAG"
-info "lbai path: $BIN_DIR/lbai"
 info
 shell_rc="$(detect_shell_rc || true)"
 info "Next steps:"
