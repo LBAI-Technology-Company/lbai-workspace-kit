@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.4"
+INSTALLER_VERSION="1.4.5"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -87,28 +87,24 @@ bootstrap_latest_installer() {
     return 0
   fi
 
-  if [ -f "$0" ] && grep -q 'ensure_codex_plugin' "$0" 2>/dev/null; then
-    return 0
-  fi
-
   if ! have_cmd curl; then
-    info "WARNING: 无法从 GitHub 拉取最新 install.sh（缺少 curl），继续使用当前安装脚本。"
     return 0
   fi
 
   tag="$(fetch_latest_release_tag_soft || true)"
   if [ -z "$tag" ]; then
-    info "WARNING: 无法解析最新 release tag，跳过 install.sh 自动升级。"
+    info "WARNING: 无法解析最新 release tag，继续使用当前 install.sh。"
     return 0
   fi
   tmp="$(mktemp -d)"
   fetched=0
   for url in \
+    "https://github.com/$REPO/releases/latest/download/install.sh" \
     "https://ghproxy.net/https://raw.githubusercontent.com/$REPO/$tag/install.sh" \
     "https://raw.githubusercontent.com/$REPO/$tag/install.sh"
   do
     if curl -fsSL --connect-timeout 20 --max-time 120 "$url" -o "$tmp/install.sh" 2>/dev/null \
-      && grep -q 'ensure_codex_plugin' "$tmp/install.sh" 2>/dev/null
+      && grep -q 'bootstrap_latest_installer' "$tmp/install.sh" 2>/dev/null
     then
       fetched=1
       break
@@ -122,6 +118,13 @@ bootstrap_latest_installer() {
     return 0
   fi
 
+  remote_version="$(sed -n 's/^INSTALLER_VERSION="\([^"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
+  if [ -n "${INSTALLER_VERSION:-}" ] && [ -n "$remote_version" ] && [ "$remote_version" = "$INSTALLER_VERSION" ]; then
+    rm -rf "$tmp"
+    return 0
+  fi
+
+  info "正在从 GitHub 拉取最新 install.sh ($tag)..."
   chmod +x "$tmp/install.sh"
   export LBAI_INSTALL_BOOTSTRAP=1
   export LBAI_VERSION="$tag"

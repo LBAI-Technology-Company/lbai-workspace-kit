@@ -135,6 +135,7 @@ class TestPromptSchemaInventory:
         assert 'INSTALLER_VERSION' in install_sh
         assert 'install_codex_via_github_binary' in install_sh
         assert 'install_codex_via_npm' in install_sh
+        assert 'releases/latest/download/install.sh' in install_sh
         assert 'https://chatgpt.com/codex/install.sh' in install_sh
         assert 'plugin marketplace add' in install_sh
         assert 'lbai-workspace@$CODEX_PLUGIN_MARKETPLACE' in install_sh

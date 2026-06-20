@@ -8,19 +8,13 @@ macOS / Linux:
 
 ```bash
 curl -fsSL https://cdn.jsdelivr.net/gh/LBAI-Technology-Company/lbai-workspace-kit@latest/install.sh | sh
-source ~/.zshrc
 source ~/.zprofile
+source ~/.zshrc
 lbai auth login
 lbai init-workspace
 ```
 
-If jsDelivr `@latest` is stale, v1.4.4+ installers auto-bootstrap the latest `install.sh` from GitHub. You can also pin a release explicitly:
-
-```bash
-curl -fsSL https://ghproxy.net/https://raw.githubusercontent.com/LBAI-Technology-Company/lbai-workspace-kit@v1.4.4/install.sh | sh
-source ~/.zprofile
-source ~/.zshrc
-```
+Piped `@latest` installers auto-fetch the newest `install.sh` from GitHub release tags before proceeding, so employees should always use `@latest` rather than pinning a version tag.
 
 Windows (PowerShell):
 
@@ -35,7 +29,7 @@ lbai auth login
 lbai init-workspace
 ```
 
-The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Stale jsDelivr `@latest` install scripts are auto-upgraded from GitHub before install proceeds. On macOS and Linux it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip).
+The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped `@latest` install scripts auto-fetch the newest installer from GitHub release tags before proceeding. On macOS and Linux it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback) and register the `lbai-workspace` Codex plugin from the same release tag when missing (set `LBAI_SKIP_CODEX_CLI=1` or `LBAI_SKIP_CODEX_PLUGIN=1` to skip).
 
 ## Authentication
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.5
+
+- Always bootstrap piped `@latest` installers from GitHub latest release before install proceeds.
+- Attach `install.sh` / `install.ps1` to GitHub releases for `releases/latest/download` bootstrap.
+- Keep employee install commands on jsDelivr `@latest`; do not pin version tags in docs.
+
 ## 1.4.4
 
 - Bootstrap stale `curl | sh` installers by re-fetching the latest `install.sh` / `install.ps1` from GitHub release tags (fixes jsDelivr `@latest` cache lag).

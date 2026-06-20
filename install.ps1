@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.4"
+$InstallerVersion = "1.4.5"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -110,29 +110,31 @@ function Bootstrap-LatestInstaller {
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "lbai_core/lbai/cli.py"))) {
         return
     }
-    if ($MyInvocation.MyCommand.Path -and (Select-String -Path $MyInvocation.MyCommand.Path -Pattern 'Ensure-CodexPlugin' -Quiet)) {
-        return
-    }
 
     $tag = Get-LatestReleaseTagSoft
     if (-not $tag) {
-        Write-Info "WARNING: 无法解析最新 release tag，跳过 install.ps1 自动升级。"
+        Write-Info "WARNING: 无法解析最新 release tag，继续使用当前 install.ps1。"
         return
     }
 
-    Write-Info "检测到旧版或缓存安装脚本，正在从 GitHub 拉取最新 install.ps1 ($tag)..."
     foreach ($url in @(
+        "https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://raw.githubusercontent.com/$Repo/$tag/install.ps1",
         "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
     )) {
         try {
             $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
-            if ($script -match 'Ensure-CodexPlugin') {
-                $env:LBAI_INSTALL_BOOTSTRAP = "1"
-                $env:LBAI_VERSION = $tag
-                Invoke-Expression $script
-                exit $LASTEXITCODE
+            if ($script -notmatch 'Bootstrap-LatestInstaller') {
+                continue
             }
+            if ($script -match 'InstallerVersion = "([^"]+)"' -and $Matches[1] -eq $InstallerVersion) {
+                return
+            }
+            Write-Info "正在从 GitHub 拉取最新 install.ps1 ($tag)..."
+            $env:LBAI_INSTALL_BOOTSTRAP = "1"
+            $env:LBAI_VERSION = $tag
+            Invoke-Expression $script
+            exit $LASTEXITCODE
         } catch {
             continue
         }
