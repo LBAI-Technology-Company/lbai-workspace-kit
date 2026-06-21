@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.20
+
+- Add `scripts/bump_version.py` to atomically bump `workspaceKitVersion` / plugin / installer versions across every version-bearing file (fixes past drift in root `.lbai/workspace.json`).
+- Clarify missing-information guidance: dialog input vs `/lbai-add-evidence` archival in `new_task.py` and `prepare_execute_task.py`.
+
 ## 1.4.19
 
 - **Personal-repo-first bootstrap**: install only creates an empty workspace directory (`PENDING_BIND`); `lbai bind-github` and `lbai init-workspace` inspect the private repo first—restore existing LBAI workspaces without overlaying the installer template; seed enterprise template only for empty or boilerplate repos.

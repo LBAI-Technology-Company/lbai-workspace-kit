@@ -341,8 +341,10 @@ def known_information_markdown(items: list[dict]) -> str:
 
 def next_step_for_missing(task_rel: str) -> str:
     return (
-        '请直接在对话框补充必要信息；如果补充的是原始资料、会议纪要、客户材料或可复用来源，'
-        f'再使用 /lbai-add-evidence {task_rel} 归档。'
+        f'请直接在对话框补充说明、决策或偏好（任务 {task_rel}），这些会作为任务本地输入补齐缺口；'
+        '如果补充的是会议纪要、客户材料、邮件、原始转写或可复用来源，'
+        '可先用 /lbai-add-evidence 独立归档（不传任务路径），再回到该任务对话说明它补充了哪项信息——'
+        '归档本身不会自动关闭任务缺口。'
     )
 
 

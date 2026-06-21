@@ -112,8 +112,10 @@ def main() -> int:
         for item in missing:
             print(f'- {item}')
         print(
-            'next_step: 请先在对话框补充必要信息；如果补充的是原始资料、会议纪要、客户材料或可复用来源，'
-            f'再使用 /lbai-add-evidence {task_dir.relative_to(root)} 归档。'
+            'next_step: 请先在对话框补充必要信息——直接说明、决策或偏好会作为任务本地输入'
+            '（archive_input.py --resolves "<缺口>"）补齐缺口；'
+            '资料型来源可先用 /lbai-add-evidence 独立归档（不传任务路径），'
+            '再回到该任务对话说明它补充了哪项信息，归档本身不会自动关闭缺口。'
         )
         return 1
 
