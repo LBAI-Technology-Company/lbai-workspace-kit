@@ -687,10 +687,13 @@ def commit_managed(root: Path, message: str) -> tuple[bool, str]:
 
 
 def push_current(root: Path) -> tuple[bool, str]:
-    result = run_git(root, ['push'])
-    if result.returncode != 0:
-        return False, f'git push failed: {(result.stdout + result.stderr).strip()}'
-    return True, 'git push completed'
+    from git_sync_utils import push_with_remote_sync
+
+    ok, pull_status, detail = push_with_remote_sync(root)
+    if not ok:
+        prefix = 'git pull failed' if pull_status == 'PULL_FAILED' else 'git push failed'
+        return False, f'{prefix}: {detail}'
+    return True, detail
 
 
 def print_list(title: str, items: list[str]):

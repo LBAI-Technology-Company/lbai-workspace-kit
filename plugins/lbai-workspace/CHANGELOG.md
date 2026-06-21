@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.19
+
+- **Personal-repo-first bootstrap**: install only creates an empty workspace directory (`PENDING_BIND`); `lbai bind-github` and `lbai init-workspace` inspect the private repo first—restore existing LBAI workspaces without overlaying the installer template; seed enterprise template only for empty or boilerplate repos.
+- **Pull before push**: `bind-github`, `/lbai-finish-task`, `/lbai-add-evidence`, and `/lbai-update-kit` fetch/pull remote changes before push (including unrelated-history merge on first bind).
+- Update employee FAQ and install docs for multi-machine restore and explicit `/lbai-update-kit` upgrades.
+
 ## 1.4.18
 
 - Add `lbai setup-guide` with a six-step beginner post-install checklist (shell reload, GitHub token, bind repo, doctor, backend login, role setup).

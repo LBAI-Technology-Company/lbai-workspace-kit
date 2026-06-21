@@ -107,8 +107,22 @@ lbai auth doctor
 
 1. 重新安装：`curl ... install.sh | sh` 或 Windows 的 `install.ps1`。
 2. `lbai github auth token`。
-3. `git clone` 你的 private 工作区 repo，或 `lbai init-workspace` 绑定已有 repo。
+3. `git clone` 你的 private 工作区 repo 到本机，然后 `lbai workspace set --path <克隆目录>`。
+   - 安装器**不会**再自动覆盖企业模板；个人仓库内容就是真相来源。
+   - 不要在新电脑上再次运行 `lbai bind-github`（除非目录仍是空的首次绑定）。
 4. 用 Cursor/Codex 打开克隆目录，运行 `lbai doctor` 确认 READY。
+
+## 首次绑定 vs 升级
+
+| 场景 | 正确命令 |
+|------|----------|
+| 安装后目录为空，首次连 GitHub | `lbai bind-github`（空仓库会 seed 企业 template） |
+| 个人仓库已有任务/岗位数据 | `lbai bind-github` 会 **clone 个人仓库**，不会用安装器模板覆盖 |
+| 升级 kit 版本 | `/lbai-update-kit` 或 `lbai update-kit`（用户主动） |
+
+## 多台电脑交替工作
+
+`/lbai-finish-task`、`/lbai-add-evidence` 和 `lbai bind-github` 在 push 前会**自动 fetch/pull** 远程变更。你通常不需要手动 `git pull`；若 pull 冲突，按终端提示解决冲突后再重试。
 
 ## 工作区 kit 怎么升级
 

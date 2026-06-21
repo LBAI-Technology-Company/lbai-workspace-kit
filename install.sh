@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.18"
+INSTALLER_VERSION="1.4.19"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -622,9 +622,20 @@ ensure_shared_workspace() {
   fi
 
   workspace_output="$("$BIN_DIR/lbai" workspace ensure --quiet 2>&1)" || true
-  if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: READY'; then
+  if printf '%s\n' "$workspace_output" | grep -qE 'workspace_ensure_status: (READY|PENDING_BIND)'; then
     ws_path="$(printf '%s\n' "$workspace_output" | sed -n 's/^active_workspace: //p' | head -n 1)"
-    if [ -n "$ws_path" ]; then
+    if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: PENDING_BIND'; then
+      pending_path="$(printf '%s\n' "$workspace_output" | sed -n 's/^workspace_path: //p' | head -n 1)"
+      if [ -n "$pending_path" ]; then
+        info "  -> 工作区目录已创建: $pending_path"
+        info "  -> 下一步: lbai bind-github"
+        set_st WORKSPACE OK "待绑定: $pending_path"
+      else
+        info "  -> 工作区目录已创建: ~/.lbai/workspace"
+        info "  -> 下一步: lbai bind-github"
+        set_st WORKSPACE OK "待绑定: ~/.lbai/workspace"
+      fi
+    elif [ -n "$ws_path" ]; then
       info "  -> 工作区就绪: $ws_path"
       set_st WORKSPACE OK "$ws_path"
     else

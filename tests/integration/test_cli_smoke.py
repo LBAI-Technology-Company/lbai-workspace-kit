@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.18',
+        '1.4.19',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.18'
-    assert report['workspace_kit_version'] == '1.4.18'
+    assert report['cli_version'] == '1.4.19'
+    assert report['workspace_kit_version'] == '1.4.19'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.18'
+    assert report['plugin_version'] == '1.4.19'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -433,14 +433,16 @@ def test_cli_workspace_ensure_creates_shared_workspace(tmp_path):
     home = tmp_path / 'lbai-home'
     result = run_cli('workspace', 'ensure', env_extra={'LBAI_HOME': str(home)})
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'workspace_ensure_status: READY' in result.stdout
+    assert 'workspace_ensure_status: PENDING_BIND' in result.stdout
 
     workspace = home / 'workspace'
-    assert (workspace / 'AGENTS.md').is_file()
-    assert (workspace / 'tasks').is_dir()
+    assert workspace.is_dir()
+    assert not (workspace / 'AGENTS.md').exists()
 
-    config = json.loads((home / 'config.json').read_text(encoding='utf-8'))
-    assert config['active_workspace'] == str(workspace.resolve())
+    config_path = home / 'config.json'
+    assert not config_path.exists() or 'active_workspace' not in json.loads(
+        config_path.read_text(encoding='utf-8')
+    )
 
 
 def test_cli_self_iterate_starts_prompt_lab(tmp_path):

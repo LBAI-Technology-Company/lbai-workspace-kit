@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.18"
+$InstallerVersion = "1.4.19"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -538,7 +538,18 @@ function Ensure-SharedWorkspace {
     }
 
     $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure --quiet 2>&1 | Out-String
-    if ($output -match 'workspace_ensure_status: READY') {
+    if ($output -match 'workspace_ensure_status: (READY|PENDING_BIND)') {
+        if ($output -match 'workspace_ensure_status: PENDING_BIND') {
+            if ($output -match '(?m)^workspace_path: (.+)$') {
+                $wsPath = $Matches[1].Trim()
+                Write-Info "  -> 工作区目录已创建: $wsPath"
+            } else {
+                Write-Info "  -> 工作区目录已创建: ~/.lbai/workspace"
+            }
+            Write-Info "  -> 下一步: lbai bind-github"
+            Set-InstallStatus "Workspace" "OK" "待绑定"
+            return
+        }
         if ($output -match '(?m)^active_workspace: (.+)$') {
             $wsPath = $Matches[1].Trim()
             Write-Info "  -> 工作区就绪: $wsPath"

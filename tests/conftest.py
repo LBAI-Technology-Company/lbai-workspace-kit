@@ -10,6 +10,10 @@ from tests.helpers.workspace import create_isolated_workspace, fixtures_root, ki
 
 sys.dont_write_bytecode = True
 
+_LBAI_CORE = str(kit_root() / 'lbai_core')
+if _LBAI_CORE not in sys.path:
+    sys.path.insert(0, _LBAI_CORE)
+
 
 @pytest.fixture
 def kit() -> Path:

@@ -15,6 +15,13 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from lbai.git_sync import push_with_remote_sync
+from lbai.workspace_bootstrap import (
+    clone_raw_repo,
+    inspect_remote_repo,
+    pull_personal_repo,
+    restore_from_personal_repo,
+)
 from lbai.workspace_config import (
     clear_active_workspace,
     configured_active_workspace_path,
@@ -352,6 +359,9 @@ def post_install_setup_lines(workspace_path: Path | str) -> list[str]:
         '【步骤 3】绑定私有仓库到本机工作区',
         f'  命令：{BIND_GITHUB_CMD}',
         '  · 按提示粘贴管理员给的仓库 URL（无需输入路径，自动使用本机工作区）',
+        '  · 个人仓库已有数据时：直接 clone/pull 个人仓库，不会覆盖为安装器模板',
+        '  · 个人仓库为空时：才用企业 template 初始化；升级请用 /lbai-update-kit',
+        '  · 换电脑请 clone 私有仓库后运行 lbai workspace set --path <克隆目录>',
         '  · 示例：https://github.com/组织名/你的仓库名',
         '',
         '【步骤 4】检查 GitHub 配置是否成功',
@@ -1059,6 +1069,58 @@ def git_env_with_token() -> tuple[dict[str, str], tempfile.TemporaryDirectory | 
     return {'GIT_ASKPASS': str(script), 'GIT_TERMINAL_PROMPT': '0'}, tmp
 
 
+def commit_and_push_workspace(
+    local_path: Path,
+    repo_url: str | None,
+    env: dict[str, str],
+    args: argparse.Namespace,
+    *,
+    commit_message: str,
+) -> None:
+    if args.no_commit:
+        print('git_status: COMMIT_SKIPPED')
+        return
+    if not repo_url or not (local_path / '.git').exists():
+        return
+
+    remote = set_workspace_origin_url(local_path, repo_url)
+    if remote.returncode != 0:
+        print('git_status: BLOCKED')
+        print('reason: failed to configure Git remote origin')
+        return
+
+    stage_paths = [
+        p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json']
+        if (local_path / p).exists()
+    ]
+    run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
+    status = capture(['git', 'status', '--porcelain'], cwd=local_path)
+    if not status.stdout.strip():
+        print('git_status: NO_CHANGES')
+        return
+
+    commit = run(['git', 'commit', '-m', commit_message], cwd=local_path)
+    if commit.returncode != 0:
+        print('git_status: COMMIT_FAILED')
+        return
+    if args.no_push:
+        print('git_status: COMMITTED')
+        return
+
+    ok, pull_status, detail = push_workspace_with_remote_sync(
+        local_path,
+        env=env,
+        set_upstream=True,
+    )
+    print_git_push_result(ok, pull_status, detail)
+
+
+def register_workspace_if_ready(local_path: Path) -> Path | None:
+    if not is_workspace(local_path):
+        return None
+    return set_active_workspace(local_path)
+
+
 def init_workspace(args: argparse.Namespace) -> int:
     repo_url = args.repo_url or input('GitHub 仓库地址: ').strip()
     if not repo_url:
@@ -1070,20 +1132,36 @@ def init_workspace(args: argparse.Namespace) -> int:
     print(f'workspace_path: {local_path}')
     env, tmp = git_env_with_token()
     try:
+        remote_state = inspect_remote_repo(repo_url, env=env)
+        if remote_state == 'unreachable':
+            print('init_status: BLOCKED')
+            print('reason: cannot reach remote repo')
+            print('next_step: check repo URL, token permissions, or run gh auth login')
+            return 2
+
         if local_path.exists() and any(local_path.iterdir()):
             if not (local_path / '.git').exists():
                 print('init_status: BLOCKED')
                 print(f'reason: local path exists and is not a git repo: {local_path}')
                 return 2
             print(f'using_existing_repo: {local_path}')
+        elif remote_state == 'lbai_workspace':
+            ok, detail = restore_from_personal_repo(local_path, repo_url, env=env)
+            if not ok:
+                print('init_status: BLOCKED')
+                print(f'reason: {detail}')
+                return 2
+        elif remote_state == 'seedable':
+            ok, detail = clone_raw_repo(local_path, repo_url, env=env)
+            if not ok:
+                print('init_status: BLOCKED')
+                print(f'reason: {detail}')
+                return 2
         else:
             local_path.parent.mkdir(parents=True, exist_ok=True)
-            result = run(['git', 'clone', repo_url, str(local_path)], env=env)
-            if result.returncode != 0:
-                print('init_status: BLOCKED')
-                print('reason: git clone failed')
-                print('next_step: check repo URL, token permissions, or run gh auth login')
-                return result.returncode or 2
+            if local_path.exists():
+                shutil.rmtree(local_path)
+            local_path.mkdir(parents=True, exist_ok=True)
 
         if (local_path / '.git').exists():
             remote = set_workspace_origin_url(local_path, repo_url)
@@ -1092,23 +1170,30 @@ def init_workspace(args: argparse.Namespace) -> int:
                 print('reason: failed to configure Git remote origin')
                 return remote.returncode or 2
 
-        changed = copy_template_into_workspace(local_path, overwrite_managed=True)
-
-        if not args.no_commit:
-            stage_paths = [p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json'] if (local_path / p).exists()]
-            run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
-            status = capture(['git', 'status', '--porcelain'], cwd=local_path)
-            if status.stdout.strip():
-                commit = run(['git', 'commit', '-m', 'chore(lbai): initialize workspace kit'], cwd=local_path)
-                if commit.returncode != 0:
-                    print('git_status: COMMIT_FAILED')
-                elif not args.no_push:
-                    push = run(['git', 'push', '-u', 'origin', current_branch(local_path)], cwd=local_path, env=env)
-                    print(f'git_status: {"PUSHED" if push.returncode == 0 else "PUSH_FAILED"}')
-            else:
-                print('git_status: NO_CHANGES')
+        if is_workspace(local_path):
+            print('workspace_source: personal_repo')
+            ok, detail = pull_personal_repo(local_path, repo_url, env=env) if (local_path / '.git').exists() else (True, 'restored from personal repo')
+            if not ok:
+                print('init_status: BLOCKED')
+                print(f'reason: {detail}')
+                return 2
+            print(f'workspace_sync: {detail}')
+            changed = []
         else:
-            print('git_status: COMMIT_SKIPPED')
+            print('workspace_source: enterprise_template')
+            changed = copy_template_into_workspace(local_path, overwrite_managed=True)
+            if not (local_path / '.git').exists():
+                run(['git', 'init', '-b', 'main'], cwd=local_path)
+            if not args.no_commit:
+                commit_and_push_workspace(
+                    local_path,
+                    repo_url,
+                    env,
+                    args,
+                    commit_message='chore(lbai): initialize workspace kit',
+                )
+            else:
+                print('git_status: COMMIT_SKIPPED')
 
         registered = set_active_workspace(local_path)
         print(f'active_workspace: {registered}')
@@ -1137,6 +1222,35 @@ def init_workspace(args: argparse.Namespace) -> int:
 def current_branch(cwd: Path) -> str:
     result = capture(['git', 'branch', '--show-current'], cwd=cwd)
     return result.stdout.strip() or 'main'
+
+
+def push_workspace_with_remote_sync(
+    workspace: Path,
+    env: dict[str, str] | None = None,
+    *,
+    set_upstream: bool = False,
+) -> tuple[bool, str, str]:
+    branch = current_branch(workspace)
+    return push_with_remote_sync(workspace, branch=branch, env=env, set_upstream=set_upstream)
+
+
+def print_git_push_result(ok: bool, pull_status: str, detail: str) -> None:
+    if pull_status == 'PULL_FAILED':
+        print('git_pull_status: PULL_FAILED')
+        print('git_status: PUSH_FAILED')
+        print(f'reason: {detail}')
+        return
+    if ok:
+        if pull_status not in {
+            'SKIPPED',
+            'no origin configured; skipping pull',
+            'already up to date with remote',
+        } and not pull_status.endswith('does not exist yet; nothing to pull'):
+            print(f'git_pull_status: OK ({pull_status})')
+        print('git_status: PUSHED')
+        return
+    print('git_status: PUSH_FAILED')
+    print(f'reason: {detail}')
 
 
 def workspace_metadata(root: Path) -> dict:
@@ -1586,13 +1700,7 @@ def workspace_clear(_args: argparse.Namespace) -> int:
 def bind_github(args: argparse.Namespace) -> int:
     root = auth_workspace_path()
     if not root:
-        default = default_shared_workspace_path().expanduser().resolve()
-        if is_workspace(default):
-            root = default
-        else:
-            print('workspace_status: NOT_CONFIGURED')
-            print(f'next_step: 先完成安装；默认工作区路径 {default}')
-            return 2
+        root = default_shared_workspace_path().expanduser().resolve()
 
     print(f'workspace_path: {root}')
     repo_url = (args.repo_url or '').strip()
@@ -1632,72 +1740,91 @@ def workspace_ensure(args: argparse.Namespace) -> int:
     if not quiet:
         print(f'shared_workspace_path: {local_path}')
 
-    if local_path.exists() and any(local_path.iterdir()) and not is_workspace(local_path):
+    if local_path.exists() and any(local_path.iterdir()) and not is_workspace(local_path) and not repo_url:
         print('workspace_ensure_status: BLOCKED')
         print(f'reason: path exists but is not an LBAI workspace: {local_path}')
         return 2
 
     env, tmp = git_env_with_token()
     try:
-        if repo_url:
-            if local_path.exists() and any(local_path.iterdir()) and (local_path / '.git').exists():
-                remote = set_workspace_origin_url(local_path, repo_url)
-                if remote.returncode != 0:
+        changed: list[str] = []
+
+        if not repo_url:
+            local_path.parent.mkdir(parents=True, exist_ok=True)
+            if is_workspace(local_path):
+                registered = set_active_workspace(local_path)
+                print('workspace_ensure_status: READY')
+                print(f'active_workspace: {registered}')
+                if quiet:
+                    return 0
+                print(f'workspace_path: {local_path}')
+                return 0
+
+            if local_path.exists() and any(local_path.iterdir()):
+                print('workspace_ensure_status: BLOCKED')
+                print(f'reason: path exists but is not an LBAI workspace: {local_path}')
+                return 2
+
+            local_path.mkdir(parents=True, exist_ok=True)
+            print('workspace_ensure_status: PENDING_BIND')
+            print(f'workspace_path: {local_path}')
+            print(f'next_step: {BIND_GITHUB_CMD}')
+            if quiet:
+                return 0
+            print_github_sync_setup_guide(local_path)
+            return 0
+
+        remote_state = inspect_remote_repo(repo_url, env=env)
+        if remote_state == 'unreachable':
+            print('workspace_ensure_status: BLOCKED')
+            print('reason: cannot reach remote repo')
+            print(f'next_step: check repo URL, token permissions, or run {GITHUB_AUTH_TOKEN_CMD}')
+            return 2
+
+        if remote_state == 'lbai_workspace':
+            print('workspace_source: personal_repo')
+            ok, detail = restore_from_personal_repo(local_path, repo_url, env=env)
+            if not ok:
+                print('workspace_ensure_status: BLOCKED')
+                print(f'reason: {detail}')
+                return 2
+            print(f'workspace_sync: {detail}')
+        else:
+            print('workspace_source: enterprise_template')
+            if remote_state == 'seedable':
+                ok, detail = clone_raw_repo(local_path, repo_url, env=env)
+                if not ok:
                     print('workspace_ensure_status: BLOCKED')
-                    print('reason: failed to configure Git remote origin')
-                    return remote.returncode or 2
+                    print(f'reason: {detail}')
+                    return 2
             else:
                 local_path.parent.mkdir(parents=True, exist_ok=True)
-                if local_path.exists():
+                if local_path.exists() and any(local_path.iterdir()) and not is_workspace(local_path):
                     shutil.rmtree(local_path)
-                result = run(['git', 'clone', repo_url, str(local_path)], env=env)
-                if result.returncode != 0:
-                    print('workspace_ensure_status: BLOCKED')
-                    print('reason: git clone failed')
-                    print(f'next_step: check repo URL, token permissions, or run {GITHUB_AUTH_TOKEN_CMD}')
-                    return result.returncode or 2
+                local_path.mkdir(parents=True, exist_ok=True)
 
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        if not local_path.exists():
-            local_path.mkdir(parents=True, exist_ok=True)
+            changed = copy_template_into_workspace(local_path, overwrite_managed=True)
+            if not args.no_git and not (local_path / '.git').exists():
+                run(['git', 'init', '-b', 'main'], cwd=local_path)
+            commit_and_push_workspace(
+                local_path,
+                repo_url,
+                env,
+                args,
+                commit_message='chore(lbai): initialize shared workspace',
+            )
 
-        changed = copy_template_into_workspace(local_path, overwrite_managed=True)
+        registered = register_workspace_if_ready(local_path)
+        if not registered:
+            print('workspace_ensure_status: BLOCKED')
+            print('reason: workspace is missing required LBAI files')
+            return 2
 
-        if not args.no_git and not (local_path / '.git').exists():
-            run(['git', 'init', '-b', 'main'], cwd=local_path)
-
-        if repo_url and (local_path / '.git').exists() and not args.no_commit:
-            remote = set_workspace_origin_url(local_path, repo_url)
-            if remote.returncode != 0:
-                print('workspace_ensure_status: BLOCKED')
-                print('reason: failed to configure Git remote origin')
-                return remote.returncode or 2
-            stage_paths = [
-                p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json']
-                if (local_path / p).exists()
-            ]
-            run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
-            status = capture(['git', 'status', '--porcelain'], cwd=local_path)
-            if status.stdout.strip():
-                run(['git', 'commit', '-m', 'chore(lbai): initialize shared workspace'], cwd=local_path)
-                if not args.no_push:
-                    push = run(
-                        ['git', 'push', '-u', 'origin', current_branch(local_path)],
-                        cwd=local_path,
-                        env=env,
-                    )
-                    print(f'git_status: {"PUSHED" if push.returncode == 0 else "PUSH_FAILED"}')
-            else:
-                print('git_status: NO_CHANGES')
-
-        registered = set_active_workspace(local_path)
         print('workspace_ensure_status: READY')
         print(f'active_workspace: {registered}')
         if quiet:
             return 0
         print(f'workspace_path: {local_path}')
-        if not repo_url:
-            print_github_sync_setup_guide(local_path)
         if changed:
             print('changed:')
             for item in changed:

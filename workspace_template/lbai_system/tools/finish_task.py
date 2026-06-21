@@ -112,10 +112,13 @@ def commit_task_artifacts(root: Path, task_folder: str, commit_message: str) -> 
 
 
 def push_current(root: Path) -> tuple[bool, str]:
-    push_result = run_git(root, ['push'])
-    if push_result.returncode != 0:
-        return False, f'git push failed: {(push_result.stdout + push_result.stderr).strip()}'
-    return True, 'git push completed'
+    from git_sync_utils import push_with_remote_sync
+
+    ok, pull_status, detail = push_with_remote_sync(root)
+    if not ok:
+        prefix = 'git pull failed' if pull_status == 'PULL_FAILED' else 'git push failed'
+        return False, f'{prefix}: {detail}'
+    return True, detail
 
 
 def reset_last_commit_keep_changes(root: Path) -> tuple[bool, str]:

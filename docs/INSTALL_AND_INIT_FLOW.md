@@ -14,7 +14,7 @@ lbai github auth token
 lbai auth backend-login
 ```
 
-Install also creates and registers a shared workspace at `~/.lbai/workspace`. After that, open **any** Codex project and run **LBAI Role Setup** (or `/lbai-init` inside a workspace project).
+Install also prepares an empty workspace directory at `~/.lbai/workspace` and waits for `lbai bind-github`. It does **not** copy the enterprise template during install. After `lbai bind-github` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
 
 If GitHub is slow or unreachable from your network, use the ghproxy mirror:
 
@@ -41,7 +41,7 @@ lbai github auth token
 lbai auth backend-login
 ```
 
-Install also creates and registers a shared workspace at `%USERPROFILE%\.lbai\workspace`. After that, open **any** Codex project and run **LBAI Role Setup** (or `/lbai-init` inside a workspace project).
+Install also prepares an empty workspace directory at `%USERPROFILE%\.lbai\workspace` and waits for `lbai bind-github`. It does **not** copy the enterprise template during install. After `lbai bind-github` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
 
 The installer downloads the latest release package through internal mirrors when needed. It also checks for Git and Python 3.10+ and attempts to install them when missing. Piped installers auto-fetch the newest script from GitHub release assets when the local copy is stale. On macOS, Linux, and Windows it also attempts to install the OpenAI Codex CLI (official script, npm, or GitHub binary fallback), register the `lbai-workspace` Codex plugin, and create the shared workspace at `~/.lbai/workspace` (set `LBAI_SKIP_CODEX_CLI=1`, `LBAI_SKIP_CODEX_PLUGIN=1`, or `LBAI_SKIP_WORKSPACE_INIT=1` to skip). When install finishes, the script prints an **安装结果汇总** table showing OK / failed / skipped status for each component.
 
@@ -107,16 +107,13 @@ lbai init-workspace \
 
 ```text
 1. Read GitHub authentication from `lbai github auth token`, `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI credential state.
-2. Clone the private repo into the selected local path, or use an existing local Git repo.
-3. Copy files from `workspace_template/`.
-4. Overwrite company-managed paths.
-5. Fill missing employee default paths without overwriting existing `role_workspace/` or `tasks/` files.
-6. Write workspace version metadata.
-7. Stage only initialized template files.
-8. Commit with a clear initialization message.
-9. Push to the existing private repo unless `--no-push` is used.
-10. Run `lbai doctor`.
-11. Register the initialized path as the machine-wide active workspace in `~/.lbai/config.json`.
+2. Inspect the private repo:
+   - If it is already an LBAI workspace: clone/pull personal repo only; do not overlay the installer template.
+   - If it is empty or only has GitHub boilerplate: seed from workspace_template/, then commit and push.
+3. Fill missing employee default paths without overwriting existing `role_workspace/` or `tasks/` files.
+4. Register the workspace in `~/.lbai/config.json`.
+5. Run `lbai doctor`.
+6. Upgrade kit versions later with `/lbai-update-kit` only when the employee chooses to.
 ```
 
 Recommended initialization commit:

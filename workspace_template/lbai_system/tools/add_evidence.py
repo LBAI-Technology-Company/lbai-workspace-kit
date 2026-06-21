@@ -190,10 +190,13 @@ def sync_paths(root: Path, concept_rel: str, message: str) -> tuple[str, str]:
     commit_result = run_git(root, ['commit', '-m', message])
     if commit_result.returncode != 0:
         return 'BLOCKED', f'git commit failed: {(commit_result.stdout + commit_result.stderr).strip()}'
-    push_result = run_git(root, ['push'])
-    if push_result.returncode != 0:
-        return 'PUSH_FAILED', f'git push failed: {(push_result.stdout + push_result.stderr).strip()}'
-    return 'PUSHED', 'git push completed'
+    from git_sync_utils import push_with_remote_sync
+
+    ok, pull_status, detail = push_with_remote_sync(root)
+    if not ok:
+        prefix = 'git pull failed' if pull_status == 'PULL_FAILED' else 'git push failed'
+        return 'PUSH_FAILED', f'{prefix}: {detail}'
+    return 'PUSHED', detail
 
 
 def block(reason: str, next_step: str) -> int:
