@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.14"
+INSTALLER_VERSION="1.4.15"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"

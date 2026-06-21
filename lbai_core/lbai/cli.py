@@ -243,7 +243,82 @@ def print_git_credential_sync(ok: bool, message: str) -> None:
     print(f'git_credential_sync: {"OK" if ok else "NEEDS_ATTENTION"}')
     print(f'git_credential_note: {message}')
     if not ok:
-        print(f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}；若仍失败，联系管理员确认 Token 是否有 repo 权限')
+        if 'read:org' in message.lower():
+            print(
+                f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}，粘贴包含 read:org '
+                '且可访问目标 private repo 的新 Token；若无法创建，请联系管理员'
+            )
+        else:
+            print(
+                f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}；若仍失败，'
+                '联系管理员确认 Token 是否有效且可访问目标 private repo'
+            )
+
+
+def auth_workspace_path() -> Path | None:
+    active = get_active_workspace()
+    if active:
+        return active.resolve()
+    context = workspace_resolution_context()
+    if context['workspace_valid']:
+        return Path(context['workspace_root']).resolve()
+    return None
+
+
+def workspace_origin_url(root: Path) -> str:
+    result = capture(['git', 'remote', 'get-url', 'origin'], cwd=root)
+    if result.returncode != 0:
+        return ''
+    return result.stdout.strip()
+
+
+def set_workspace_origin_url(root: Path, repo_url: str) -> subprocess.CompletedProcess:
+    if workspace_origin_url(root):
+        return run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=root)
+    return run(['git', 'remote', 'add', 'origin', repo_url], cwd=root)
+
+
+def print_github_repo_binding_guidance(*, auth_ready: bool) -> None:
+    root = auth_workspace_path()
+    if not root:
+        print('workspace_status: NOT_CONFIGURED')
+        print(
+            'workspace_next_step: 已有工作区请运行 lbai workspace set --path <工作区路径>；'
+            '仅首次创建工作区时运行 lbai init-workspace'
+        )
+        return
+
+    print('workspace_status: READY')
+    print(f'workspace_path: {root}')
+    origin = workspace_origin_url(root)
+    if origin:
+        print('github_repo_status: BOUND')
+        print(f'github_repo_url: {origin}')
+        return
+
+    print('github_repo_status: NOT_BOUND')
+    print('github_repo_prompt: 请填写管理员提供的员工 private GitHub 仓库地址')
+    command = f'lbai init-workspace --repo-url <private-repo-url> --path "{root}"'
+    if auth_ready:
+        print(f'next_step: {command}')
+    else:
+        print(f'after_auth_ready: {command}')
+
+
+def print_auth_verification_next_step(sync_ok: bool) -> None:
+    if sync_ok:
+        print('verification_step: lbai auth doctor')
+        print_github_repo_binding_guidance(auth_ready=True)
+        return
+    print(
+        'next_step: 修复上述 Token 权限或 Git 凭据同步问题后运行 lbai auth doctor；'
+        '鉴权通过后会显示填写 private GitHub 仓库地址的命令'
+    )
+    print_github_repo_binding_guidance(auth_ready=False)
+
+
+def print_ready_workspace_next_step() -> None:
+    print_github_repo_binding_guidance(auth_ready=True)
 
 
 def ensure_git_credentials_synced() -> tuple[bool, str]:
@@ -621,7 +696,7 @@ def github_auth_token(_args: argparse.Namespace) -> int:
             print('auth_status: UNCHANGED')
             ok, message = ensure_git_credentials_synced()
             print_git_credential_sync(ok, message)
-            print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+            print_auth_verification_next_step(ok)
             return 0 if ok else 2
     else:
         print('GitHub Token 将保存在本机 ~/.lbai/auth/，不会写入工作区文件。')
@@ -633,7 +708,7 @@ def github_auth_token(_args: argparse.Namespace) -> int:
                 print('auth_status: USING_GH')
                 ok, message = setup_gh_for_git()
                 print_git_credential_sync(ok, message)
-                print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+                print_auth_verification_next_step(ok)
                 return 0 if ok else 2
             print('auth_status: BLOCKED')
             print('reason: empty token')
@@ -647,7 +722,7 @@ def github_auth_token(_args: argparse.Namespace) -> int:
     print(f'token_store: {path}')
     ok, message = sync_git_credentials(token)
     print_git_credential_sync(ok, message)
-    print('next_step: lbai auth doctor  # 确认 READY 后再 lbai init-workspace')
+    print_auth_verification_next_step(ok)
     return 0 if ok else 2
 
 
@@ -674,7 +749,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
             return 0
         if existing.get('api_key'):
             print('backend_auth_status: UNCHANGED')
-            print('next_step: lbai init-workspace')
+            print_ready_workspace_next_step()
             return 0
         print('backend_auth_status: BLOCKED')
         print('reason: empty API key')
@@ -709,7 +784,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
     )
     print('backend_auth_status: SAVED')
     print(f'backend_auth_store: {path}')
-    print('next_step: lbai init-workspace')
+    print_ready_workspace_next_step()
     return 0
 
 
@@ -737,14 +812,19 @@ def auth_doctor(_args: argparse.Namespace) -> int:
         print(f'- backend_auth_source: {knowledge_service_auth_path()}')
     if sync_status == 'ok':
         print('auth_status: READY')
-        print('next_step: lbai init-workspace')
+        print_ready_workspace_next_step()
         return 0
     if sync_status in {'stale', 'missing', 'needs_setup'}:
         print('auth_status: NEEDS_SYNC')
-        print(f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 粘贴新 Token，或直接回车重新同步')
+        print(
+            f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 若曾报告权限缺失请粘贴新 Token；'
+            '否则可直接回车重新同步'
+        )
+        print_github_repo_binding_guidance(auth_ready=False)
         return 2
     print('auth_status: BLOCKED')
     print(f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 粘贴管理员提供的 GitHub Token')
+    print_github_repo_binding_guidance(auth_ready=False)
     return 2
 
 
@@ -882,7 +962,11 @@ def init_workspace(args: argparse.Namespace) -> int:
                 return result.returncode or 2
 
         if (local_path / '.git').exists():
-            run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=local_path)
+            remote = set_workspace_origin_url(local_path, repo_url)
+            if remote.returncode != 0:
+                print('init_status: BLOCKED')
+                print('reason: failed to configure Git remote origin')
+                return remote.returncode or 2
 
         changed = copy_template_into_workspace(local_path, overwrite_managed=True)
 
@@ -1394,7 +1478,11 @@ def workspace_ensure(args: argparse.Namespace) -> int:
     try:
         if repo_url:
             if local_path.exists() and any(local_path.iterdir()) and (local_path / '.git').exists():
-                run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=local_path)
+                remote = set_workspace_origin_url(local_path, repo_url)
+                if remote.returncode != 0:
+                    print('workspace_ensure_status: BLOCKED')
+                    print('reason: failed to configure Git remote origin')
+                    return remote.returncode or 2
             else:
                 local_path.parent.mkdir(parents=True, exist_ok=True)
                 if local_path.exists():
@@ -1416,7 +1504,11 @@ def workspace_ensure(args: argparse.Namespace) -> int:
             run(['git', 'init', '-b', 'main'], cwd=local_path)
 
         if repo_url and (local_path / '.git').exists() and not args.no_commit:
-            run(['git', 'remote', 'set-url', 'origin', repo_url], cwd=local_path)
+            remote = set_workspace_origin_url(local_path, repo_url)
+            if remote.returncode != 0:
+                print('workspace_ensure_status: BLOCKED')
+                print('reason: failed to configure Git remote origin')
+                return remote.returncode or 2
             stage_paths = [
                 p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json']
                 if (local_path / p).exists()

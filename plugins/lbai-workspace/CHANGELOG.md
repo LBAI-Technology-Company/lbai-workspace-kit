@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.15
+
+- Improve GitHub authentication guidance by separating credential readiness from workspace and private-repository binding status.
+- Show the exact `lbai init-workspace --repo-url <private-repo-url> --path "<workspace>"` command when an existing workspace has no `origin`.
+- Add a missing `origin` remote when binding an already initialized local workspace, and report missing `read:org` scope explicitly.
+
 ## 1.4.14
 
 - Unify Codex plugin command names with Cursor `/lbai-*` commands: **LBAI Role Setup** for init and **LBAI Self Iterate** for self-iterate; update employee docs and install next-step hints.

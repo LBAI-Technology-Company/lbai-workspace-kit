@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.14',
+        '1.4.15',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.14'
-    assert report['workspace_kit_version'] == '1.4.14'
+    assert report['cli_version'] == '1.4.15'
+    assert report['workspace_kit_version'] == '1.4.15'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.14'
+    assert report['plugin_version'] == '1.4.15'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -292,6 +292,85 @@ def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'git_credential_sync: ok' in result.stdout
     assert 'auth_status: READY' in result.stdout
+
+
+def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, monkeypatch):
+    active_workspace = create_isolated_workspace(tmp_path)
+    subprocess.run(
+        ['git', 'remote', 'remove', 'origin'],
+        cwd=active_workspace,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    home = tmp_path / 'lbai_home'
+    cred_store = tmp_path / 'git-credentials'
+    gitconfig = tmp_path / 'gitconfig'
+    gitconfig.write_text(
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        encoding='utf-8',
+    )
+    monkeypatch.setenv('LBAI_HOME', str(home))
+    monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
+    monkeypatch.setenv('PATH', path_without_gh())
+    token = 'lbai_existing_workspace_token'
+    auth_dir = home / 'auth'
+    auth_dir.mkdir(parents=True)
+    (auth_dir / 'github_token').write_text(token + '\n', encoding='utf-8')
+
+    cli_module = import_workspace_cli()
+    cli_module.set_active_workspace(active_workspace)
+    ok, message = cli_module.sync_git_credentials(token)
+    assert ok, message
+
+    result = run_cli(
+        'auth',
+        'doctor',
+        cwd=kit_root(),
+        env_extra={
+            'LBAI_HOME': str(home),
+            'GIT_CONFIG_GLOBAL': str(gitconfig),
+            'GIT_CONFIG_SYSTEM': '/dev/null',
+            'PATH': path_without_gh(),
+        },
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'workspace_status: READY' in result.stdout
+    assert f'workspace_path: {active_workspace}' in result.stdout
+    assert 'github_repo_status: NOT_BOUND' in result.stdout
+    assert '请填写管理员提供的员工 private GitHub 仓库地址' in result.stdout
+    assert (
+        f'lbai init-workspace --repo-url <private-repo-url> --path "{active_workspace}"'
+        in result.stdout
+    )
+
+
+def test_git_credential_permission_hint_names_missing_read_org(capsys):
+    cli_module = import_workspace_cli()
+    cli_module.print_git_credential_sync(
+        False,
+        "error validating token: missing required scope 'read:org'",
+    )
+    output = capsys.readouterr().out
+    assert 'read:org' in output
+    assert 'private repo' in output
+
+
+def test_set_workspace_origin_url_adds_missing_origin(tmp_path):
+    workspace = create_isolated_workspace(tmp_path)
+    subprocess.run(
+        ['git', 'remote', 'remove', 'origin'],
+        cwd=workspace,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    cli_module = import_workspace_cli()
+    repo_url = 'https://github.com/example/employee-workspace.git'
+    result = cli_module.set_workspace_origin_url(workspace, repo_url)
+    assert result.returncode == 0
+    assert cli_module.workspace_origin_url(workspace) == repo_url
 
 
 def test_cli_doctor_resolves_active_workspace_from_external_project(tmp_path):
