@@ -413,8 +413,6 @@ def write_knowledge_service_auth(api_key: str, api_key_header: str = KNOWLEDGE_S
         'updated_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     data.setdefault('base_url', KNOWLEDGE_SERVICE_BASE_URL)
-    data.setdefault('identity_token', '')
-    data.setdefault('identity_header', 'X-LBAI-Identity-Token')
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
 

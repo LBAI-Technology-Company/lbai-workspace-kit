@@ -45,8 +45,6 @@ def post_json(
     timeout: int,
     api_key: str | None = None,
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
-    identity_token: str | None = None,
-    identity_header: str = 'X-LBAI-Identity-Token',
 ) -> tuple[dict | None, str | None]:
     body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -54,8 +52,6 @@ def post_json(
     api_key_header = str(api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip()
     if api_key and api_key_header:
         headers[api_key_header] = api_key
-    if identity_token and identity_header:
-        headers[identity_header] = identity_token
     request = urllib.request.Request(
         url,
         data=body,
@@ -116,8 +112,6 @@ def search_backend(root: Path, query_plan: dict) -> tuple[dict | None, str | Non
     credentials = knowledge_service_credentials(root)
     if not credentials.get('api_key'):
         return None, 'knowledge_service.api_key missing; run lbai auth backend-login'
-    if not credentials.get('identity_token'):
-        return None, 'knowledge_service.identity_token missing; run lbai auth backend-login --identity-token <token>'
     timeout = int(config.get('search_timeout_seconds') or 20)
     url = backend_url(str(config.get('base_url')), '/v1/knowledge/search')
     data, error = post_json(
@@ -126,8 +120,6 @@ def search_backend(root: Path, query_plan: dict) -> tuple[dict | None, str | Non
         timeout,
         credentials.get('api_key'),
         str(credentials.get('api_key_header') or KNOWLEDGE_SERVICE_API_KEY_HEADER),
-        credentials.get('identity_token'),
-        str(credentials.get('identity_header') or 'X-LBAI-Identity-Token'),
     )
     if error:
         return None, error

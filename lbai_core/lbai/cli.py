@@ -476,8 +476,6 @@ def write_knowledge_service_auth(
     api_key: str,
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
-    identity_token: str = "",
-    identity_header: str = "X-LBAI-Identity-Token",
 ) -> Path:
     path = knowledge_service_auth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -486,8 +484,6 @@ def write_knowledge_service_auth(
         'api_key': api_key.strip(),
         'api_key_header': (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(),
         'base_url': (base_url or KNOWLEDGE_SERVICE_BASE_URL).strip(),
-        'identity_token': identity_token.strip(),
-        'identity_header': identity_header.strip(),
         'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
@@ -500,8 +496,6 @@ def verify_knowledge_service_key(
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
     timeout: int = 10,
-    identity_token: str = "",
-    identity_header: str = "X-LBAI-Identity-Token",
 ) -> tuple[bool, str]:
     url = base_url.rstrip('/') + '/v1/knowledge/search'
     payload = {
@@ -516,8 +510,6 @@ def verify_knowledge_service_key(
         'Accept': 'application/json',
         (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(): api_key.strip(),
     }
-    if identity_token.strip():
-        headers[identity_header.strip() or "X-LBAI-Identity-Token"] = identity_token.strip()
     request = urllib.request.Request(url, data=body, headers=headers, method='POST')
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -871,7 +863,6 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         prompt = 'Paste LBAI backend API key: '
 
     api_key = (args.api_key or '').strip()
-    identity_token = (args.identity_token or '').strip()
     if not api_key:
         api_key = prompt_secret(prompt.rstrip(': '), api_key_hint)
     if not api_key:
@@ -888,13 +879,6 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         print('backend_auth_status: BLOCKED')
         print('reason: empty API key')
         return 2
-    if not identity_token:
-        identity_token = str(existing.get('identity_token') or '').strip()
-    if not identity_token:
-        print('backend_auth_status: BLOCKED')
-        print('reason: empty identity token')
-        print('next_step: 向管理员索取绑定员工身份的知识服务 identity token。')
-        return 2
 
     if not args.no_verify:
         ok, message = verify_knowledge_service_key(
@@ -902,8 +886,6 @@ def auth_backend_login(args: argparse.Namespace) -> int:
             args.api_key_header,
             args.base_url,
             args.verify_timeout,
-            identity_token,
-            args.identity_header,
         )
         print(message)
         if not ok:
@@ -914,7 +896,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         print('backend_key_check: SKIPPED (--no-verify)')
 
     path = write_knowledge_service_auth(
-        api_key, args.api_key_header, args.base_url, identity_token, args.identity_header
+        api_key, args.api_key_header, args.base_url
     )
     print('backend_auth_status: SAVED')
     print(f'backend_auth_store: {path}')
@@ -936,10 +918,6 @@ def auth_doctor(_args: argparse.Namespace) -> int:
     print(f'- git_credential_sync: {sync_status}')
     print(f'- git_credential_note: {sync_detail}')
     print(f'- backend_api_key_available: {"yes" if backend_auth.get("api_key") else "no"}')
-    print(
-        f'- backend_identity_token_available: '
-        f'{"yes" if backend_auth.get("identity_token") else "no"}'
-    )
     if source:
         print(f'- auth_source: {source}')
     if backend_auth.get('api_key'):
@@ -1309,9 +1287,7 @@ def doctor_report(args: argparse.Namespace) -> dict:
         },
         'authentication': {
             'github_available': bool(read_token() or gh_authenticated()),
-            'knowledge_service_available': bool(
-                backend_auth.get('api_key') and backend_auth.get('identity_token')
-            ),
+            'knowledge_service_available': bool(backend_auth.get('api_key')),
         },
         'knowledge_service': {
             'enabled': False,
@@ -1846,8 +1822,6 @@ def build_parser() -> argparse.ArgumentParser:
     backend_login.add_argument('--api-key')
     backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
     backend_login.add_argument('--base-url', default=KNOWLEDGE_SERVICE_BASE_URL)
-    backend_login.add_argument('--identity-token')
-    backend_login.add_argument('--identity-header', default='X-LBAI-Identity-Token')
     backend_login.add_argument('--verify-timeout', type=int, default=10)
     backend_login.add_argument('--no-verify', action='store_true')
     backend_login.add_argument('--optional', action='store_true')

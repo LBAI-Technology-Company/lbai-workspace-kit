@@ -39,7 +39,7 @@ class TestUpdateKit:
         assert 'cli_core_update: SKIPPED' in result.stdout
         assert 'cli_core_detail: --skip-core-update' in result.stdout
 
-    def test_auth_update_preserves_identity_token(self, tmp_path, monkeypatch):
+    def test_auth_update_rewrites_api_key(self, tmp_path, monkeypatch):
         monkeypatch.setenv('LBAI_HOME', str(tmp_path / 'lbai_home'))
         tools_dir = template_root() / 'lbai_system' / 'tools'
         sys.path.insert(0, str(tools_dir))
@@ -60,8 +60,6 @@ class TestUpdateKit:
                 {
                     'schema_version': 'knowledge_service_auth_v1',
                     'api_key': 'old-key',
-                    'identity_token': 'signed.identity.token',
-                    'identity_header': 'X-LBAI-Identity-Token',
                 }
             ),
             encoding='utf-8',
@@ -69,4 +67,5 @@ class TestUpdateKit:
         module.write_knowledge_service_auth('new-key')
         stored = json.loads(auth_path.read_text(encoding='utf-8'))
         assert stored['api_key'] == 'new-key'
-        assert stored['identity_token'] == 'signed.identity.token'
+        assert stored['base_url'] == module.KNOWLEDGE_SERVICE_BASE_URL
+        assert 'identity_token' not in stored

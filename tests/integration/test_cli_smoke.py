@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.20',
+        '1.4.21',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.20'
-    assert report['workspace_kit_version'] == '1.4.20'
+    assert report['cli_version'] == '1.4.21'
+    assert report['workspace_kit_version'] == '1.4.21'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.20'
+    assert report['plugin_version'] == '1.4.21'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -127,8 +127,6 @@ def test_cli_backend_login_verifies_and_stores_key_outside_workspace(tmp_path):
             'test_backend_api_key',
             '--base-url',
             base_url,
-            '--identity-token',
-            'test.identity.signature',
             env_extra={'LBAI_HOME': str(home)},
         )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -136,7 +134,6 @@ def test_cli_backend_login_verifies_and_stores_key_outside_workspace(tmp_path):
     assert requests and requests[0]['path'] == '/v1/knowledge/search'
     headers = {key.lower(): value for key, value in requests[0]['headers'].items()}
     assert headers.get('x-lbai-api-key') == 'test_backend_api_key'
-    assert headers.get('x-lbai-identity-token') == 'test.identity.signature'
     auth_file = home / 'auth' / 'knowledge_service.json'
     assert auth_file.exists()
     text = auth_file.read_text(encoding='utf-8')
@@ -153,8 +150,6 @@ def test_cli_backend_login_rejects_invalid_key(tmp_path):
             'bad_backend_api_key',
             '--base-url',
             base_url,
-            '--identity-token',
-            'test.identity.signature',
             env_extra={'LBAI_HOME': str(home)},
         )
     assert result.returncode == 2
@@ -170,8 +165,6 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
         'backend-login',
         '--api-key',
         'offline_backend_api_key',
-        '--identity-token',
-        'test.identity.signature',
         '--no-verify',
         env_extra={'LBAI_HOME': str(home)},
     )

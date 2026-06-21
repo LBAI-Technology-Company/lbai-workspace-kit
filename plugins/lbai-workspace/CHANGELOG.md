@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.21
+
+- Drop the backend knowledge-service `identity token` requirement: the server now authenticates with the API Key only. `lbai auth backend-login` no longer prompts or blocks on an `identity_token`, the `--identity-token` / `--identity-header` flags are removed, the `X-LBAI-Identity-Token` header is no longer sent on searches, and `auth doctor` / `doctor` no longer report `backend_identity_token_available`.
+
 ## 1.4.20
 
 - Add `scripts/bump_version.py` to atomically bump `workspaceKitVersion` / plugin / installer versions across every version-bearing file (fixes past drift in root `.lbai/workspace.json`).

@@ -12,7 +12,6 @@ STATUS_VALUES = ['OPEN', 'BLOCKED', 'COMPLETED']
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
-KNOWLEDGE_SERVICE_IDENTITY_HEADER = 'X-LBAI-Identity-Token'
 LEADER_REVIEW_REMINDER = '对外发布或涉及官网/定价/合规/投资人/媒体/客户承诺等内容前，请负责人 review；本流程不阻断执行。'
 REVIEW_TASK_FILES = ['overclaim_check.md', 'release_boundary_check.md', 'founder_review_needed.md']
 OPTIONAL_REVIEW_TASK_FILES = ['leader_review_request.md']
@@ -122,8 +121,6 @@ def knowledge_service_credentials(root: Path | None = None) -> dict:
     return {
         'api_key': api_key,
         'api_key_header': api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER,
-        'identity_token': str(auth.get('identity_token') or '').strip(),
-        'identity_header': str(auth.get('identity_header') or KNOWLEDGE_SERVICE_IDENTITY_HEADER).strip(),
     }
 
 
