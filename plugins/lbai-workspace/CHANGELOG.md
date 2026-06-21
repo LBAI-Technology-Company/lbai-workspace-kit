@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.17
+
+- Complete Windows compatibility for UTF-8 output, long paths, path assertions, source-tree plugin preflight, and Prompt Lab cleanup.
+- Publish the repository-binding guidance with a fully green Ubuntu and Windows CI baseline.
+
 ## 1.4.16
 
 - Fix the test runner's virtualenv Python discovery on Windows.
