@@ -3,8 +3,8 @@
   "description": "Canonical LBAI employee command surface. Cursor .cursor/commands and lbai_system/cursor/commands must stay byte-identical.",
   "commands": [
     {
-      "name": "lbai-init.md",
-      "slug": "/lbai-init",
+      "name": "lbai-role-setup.md",
+      "slug": "/lbai-role-setup",
       "tool": "init_lbai.py",
       "category": "init",
       "display_order": 10,

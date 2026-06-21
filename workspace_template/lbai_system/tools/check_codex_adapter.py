@@ -6,7 +6,7 @@ REQUIRED_FILES = [
     Path('AGENTS.md'),
     Path('lbai_system/runner_contracts/lbai_command_contract_v1.md'),
     Path('lbai_system/codex/skills/lbai-workflow/SKILL.md'),
-    Path('.agents/skills/lbai-init/SKILL.md'),
+    Path('.agents/skills/lbai-role-setup/SKILL.md'),
     Path('.agents/skills/lbai-add-evidence/SKILL.md'),
     Path('.agents/skills/lbai-search-artifacts/SKILL.md'),
     Path('.agents/skills/lbai-new-task/SKILL.md'),
@@ -17,7 +17,7 @@ REQUIRED_FILES = [
 ]
 
 REQUIRED_COMMANDS = [
-    '/lbai-init',
+    '/lbai-role-setup',
     '/lbai-add-evidence',
     '/lbai-search-artifacts',
     '/lbai-new-task',

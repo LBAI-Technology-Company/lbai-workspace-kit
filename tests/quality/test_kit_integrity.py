@@ -92,7 +92,7 @@ class TestPromptSchemaInventory:
         expected = {
             'lbai-add-evidence.md',
             'lbai-search-artifacts.md',
-            'lbai-init.md',
+            'lbai-role-setup.md',
             'lbai-new-task.md',
             'lbai-execute-task.md',
             'lbai-finish-task.md',

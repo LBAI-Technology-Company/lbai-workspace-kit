@@ -3,6 +3,7 @@ import argparse
 import getpass
 import json
 import os
+import platform
 import re
 import shutil
 import stat
@@ -47,6 +48,7 @@ KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
 GITHUB_AUTH_TOKEN_CMD = 'lbai github auth token'
+BIND_GITHUB_CMD = 'lbai bind-github'
 PLUGIN_MIN_WORKSPACE_VERSION = '1.4.1'
 
 DOCTOR_REQUIRED_FILES = [
@@ -288,13 +290,122 @@ def set_workspace_origin_url(root: Path, repo_url: str) -> subprocess.CompletedP
     return run(['git', 'remote', 'add', 'origin', repo_url], cwd=root)
 
 
+def mask_secret(value: str) -> str:
+    if not value:
+        return ''
+    masked = '*' * min(len(value), 12)
+    if len(value) > 12:
+        masked += '...'
+    return masked
+
+
+def prompt_secret(label: str, hint: str | None = None) -> str:
+    if hint:
+        print(hint)
+    value = getpass.getpass(f'{label}: ').strip()
+    if value:
+        print(f'已输入：{mask_secret(value)}')
+    return value
+
+
+def shell_reload_hints() -> list[str]:
+    shell_name = os.path.basename(os.environ.get('SHELL', ''))
+    hints: list[str] = []
+    if shell_name == 'zsh':
+        hints.append('source ~/.zshrc')
+        if platform.system() == 'Darwin':
+            hints.append('source ~/.zprofile   # macOS 上 Codex 需要')
+    elif shell_name == 'bash':
+        if platform.system() == 'Darwin' and (Path.home() / '.bash_profile').exists():
+            hints.append('source ~/.bash_profile')
+        else:
+            hints.append('source ~/.bashrc')
+    else:
+        hints.append('关闭并重新打开终端（Windows 请重新打开 PowerShell）')
+    return hints
+
+
+def post_install_setup_lines(workspace_path: Path | str) -> list[str]:
+    root = str(workspace_path)
+    load_cmds = shell_reload_hints()
+    load_block = '\n  '.join(load_cmds)
+
+    return [
+        '========== 安装后续配置（请按顺序逐步完成） ==========',
+        '',
+        '软件已装到本机，还需完成下面各步才能正常工作和同步。',
+        '',
+        '开始前，向管理员索取（勿发到公开聊天）：',
+        '  · GitHub 私有仓库 URL（你的专属 private repo）',
+        '  · GitHub Token（Personal Access Token，需 repo 权限）',
+        '  · 知识服务 API Key（步骤 5 使用）',
+        '',
+        '【步骤 1】让 lbai 命令生效',
+        f'  {load_block}',
+        '  验证：lbai --version  应显示版本号',
+        '',
+        '【步骤 2】保存 GitHub Token',
+        f'  命令：{GITHUB_AUTH_TOKEN_CMD}',
+        '  · 粘贴 Token 时终端会显示 ***，表示正在输入',
+        '  · 已保存过可直接回车，会重新同步 Git 凭据',
+        '',
+        '【步骤 3】绑定私有仓库到本机工作区',
+        f'  命令：{BIND_GITHUB_CMD}',
+        '  · 按提示粘贴管理员给的仓库 URL（无需输入路径，自动使用本机工作区）',
+        '  · 示例：https://github.com/组织名/你的仓库名',
+        '',
+        '【步骤 4】检查 GitHub 配置是否成功',
+        '  命令：lbai auth doctor',
+        '  · 成功时应看到 github_repo_status: BOUND',
+        '  · 有报错请把完整输出发给管理员',
+        '',
+        '【步骤 5】登录知识服务',
+        '  命令：lbai auth backend-login',
+        '  · 粘贴 API Key 时终端会显示 ***，表示正在输入',
+        '  · 已配置过直接回车保留原 Key',
+        '',
+        '【步骤 6】设置岗位角色（首次必做）',
+        '  · Codex：任意项目 → 命令面板 → LBAI Role Setup',
+        '  · Cursor：聊天输入 /lbai-role-setup',
+        '',
+        '随时重看本指引：lbai setup-guide',
+        '====================================================',
+    ]
+
+
+def github_sync_setup_lines(workspace_path: Path | str) -> list[str]:
+    root = str(workspace_path)
+    return [
+        'GitHub 私有仓库尚未绑定，请继续完成安装后续步骤：',
+        f'  步骤 2：{GITHUB_AUTH_TOKEN_CMD}',
+        f'  步骤 3：{BIND_GITHUB_CMD}',
+        '  步骤 4：lbai auth doctor',
+        '  完整分步指引：lbai setup-guide',
+    ]
+
+
+def print_github_sync_setup_guide(workspace_path: Path | str) -> None:
+    for line in github_sync_setup_lines(workspace_path):
+        print(line)
+
+
+def setup_guide(args: argparse.Namespace) -> int:
+    if args.path:
+        workspace_path = Path(args.path).expanduser().resolve()
+    else:
+        workspace_path = auth_workspace_path() or default_shared_workspace_path().expanduser().resolve()
+    for line in post_install_setup_lines(workspace_path):
+        print(line)
+    return 0
+
+
 def print_github_repo_binding_guidance(*, auth_ready: bool) -> None:
     root = auth_workspace_path()
     if not root:
         print('workspace_status: NOT_CONFIGURED')
         print(
-            'workspace_next_step: 已有工作区请运行 lbai workspace set --path <工作区路径>；'
-            '仅首次创建工作区时运行 lbai init-workspace'
+            '下一步：已有工作区运行 lbai workspace set --path <工作区路径>；'
+            '首次创建运行 lbai init-workspace'
         )
         return
 
@@ -307,24 +418,24 @@ def print_github_repo_binding_guidance(*, auth_ready: bool) -> None:
         return
 
     print('github_repo_status: NOT_BOUND')
-    print('github_repo_prompt: 请填写管理员提供的员工 private GitHub 仓库地址')
-    command = f'lbai init-workspace --repo-url <private-repo-url> --path "{root}"'
-    if auth_ready:
-        print(f'next_step: {command}')
-    else:
-        print(f'after_auth_ready: {command}')
+    print_github_sync_setup_guide(root)
+    if not auth_ready:
+        print('（请先完成步骤 2，再执行步骤 3）')
 
 
 def print_auth_verification_next_step(sync_ok: bool) -> None:
-    if sync_ok:
-        print('verification_step: lbai auth doctor')
-        print_github_repo_binding_guidance(auth_ready=True)
+    if not sync_ok:
+        print('先修复上方 Token 权限或 Git 凭据问题，然后运行 lbai auth doctor')
+        print_github_repo_binding_guidance(auth_ready=False)
         return
-    print(
-        'next_step: 修复上述 Token 权限或 Git 凭据同步问题后运行 lbai auth doctor；'
-        '鉴权通过后会显示填写 private GitHub 仓库地址的命令'
-    )
-    print_github_repo_binding_guidance(auth_ready=False)
+
+    root = auth_workspace_path()
+    if root and workspace_origin_url(root):
+        print('github_repo_status: BOUND')
+        print(f'github_repo_url: {workspace_origin_url(root)}')
+        print('运行 lbai auth doctor 可复查全部鉴权状态')
+        return
+    print_github_repo_binding_guidance(auth_ready=True)
 
 
 def print_ready_workspace_next_step() -> None:
@@ -701,7 +812,7 @@ def github_auth_token(_args: argparse.Namespace) -> int:
         print('auth_check: already configured')
         print(f'auth_source: {source}')
         print('如需更换 Token 请粘贴新 Token；直接回车会重新同步 Git 凭据（推荐换 Token 后执行一次）。')
-        token = getpass.getpass('GitHub Token: ').strip()
+        token = prompt_secret('GitHub Token', '粘贴 Token 时终端会显示 ***，表示正在输入')
         if not token:
             print('auth_status: UNCHANGED')
             ok, message = ensure_git_credentials_synced()
@@ -710,9 +821,9 @@ def github_auth_token(_args: argparse.Namespace) -> int:
             return 0 if ok else 2
     else:
         print('GitHub Token 将保存在本机 ~/.lbai/auth/，不会写入工作区文件。')
-        print('粘贴 Token 后，lbai 会自动同步到 Git，终端 git push 也能直接使用。')
+        print('粘贴后 lbai 会自动同步到 Git，终端 git push 也能直接使用。')
         print('Do not paste this token into README, .env, role_workspace, tasks, or chat artifacts.')
-        token = getpass.getpass('Paste GitHub token: ').strip()
+        token = prompt_secret('GitHub Token', '粘贴 Token 时终端会显示 ***，表示正在输入')
         if not token:
             if gh_authenticated():
                 print('auth_status: USING_GH')
@@ -740,18 +851,19 @@ def auth_backend_login(args: argparse.Namespace) -> int:
     existing = read_knowledge_service_auth()
     if existing.get('api_key'):
         print('backend_auth_check: already configured')
-        print(f'backend_auth_store: {knowledge_service_auth_path()}')
-        print('如需重新配置请输入新 API Key；直接回车保持不变。')
+        print('直接回车保持不变；如需更换请输入新 API Key。')
+        api_key_hint = '粘贴 API Key 时终端会显示 ***，表示正在输入'
         prompt = 'LBAI backend API key: '
     else:
         print('LBAI backend API key will be saved outside the workspace.')
         print('It will not be written to workspace files, Git commits, role_workspace, or tasks.')
+        api_key_hint = '粘贴 API Key 时终端会显示 ***，表示正在输入'
         prompt = 'Paste LBAI backend API key: '
 
     api_key = (args.api_key or '').strip()
     identity_token = (args.identity_token or '').strip()
     if not api_key:
-        api_key = getpass.getpass(prompt).strip()
+        api_key = prompt_secret(prompt.rstrip(': '), api_key_hint)
     if not api_key:
         if args.optional:
             print('backend_auth_status: SKIPPED')
@@ -759,7 +871,9 @@ def auth_backend_login(args: argparse.Namespace) -> int:
             return 0
         if existing.get('api_key'):
             print('backend_auth_status: UNCHANGED')
+            print('知识服务已配置。')
             print_ready_workspace_next_step()
+            print('完整安装后续步骤：lbai setup-guide')
             return 0
         print('backend_auth_status: BLOCKED')
         print('reason: empty API key')
@@ -1008,7 +1122,7 @@ def init_workspace(args: argparse.Namespace) -> int:
             print(f'cursor_note: 请在 Cursor 或 Codex 中打开 cursor_open 路径；/lbai-* 命令只在该目录下的 .cursor/commands/ 生效，不要打开外层父目录 {parent}')
         else:
             print('cursor_note: 请在 Cursor 或 Codex 中打开 cursor_open 路径；/lbai-* 命令只在该目录下的 .cursor/commands/ 生效')
-        print(f'next_step: 用 Cursor 或 Codex 打开 cursor_open 目录，运行 /lbai-init')
+        print(f'next_step: 用 Cursor 或 Codex 打开 cursor_open 目录，运行 /lbai-role-setup')
         print(f'cursor_cli: cursor "{local_path}"')
         print('day1_reminder: 业务命令必须在 Cursor/Codex 桌面 App 里输入 /lbai-*；不要在终端裸跑 lbai new-task 等命令。')
         print('changed:')
@@ -1469,6 +1583,43 @@ def workspace_clear(_args: argparse.Namespace) -> int:
     return 0
 
 
+def bind_github(args: argparse.Namespace) -> int:
+    root = auth_workspace_path()
+    if not root:
+        default = default_shared_workspace_path().expanduser().resolve()
+        if is_workspace(default):
+            root = default
+        else:
+            print('workspace_status: NOT_CONFIGURED')
+            print(f'next_step: 先完成安装；默认工作区路径 {default}')
+            return 2
+
+    print(f'workspace_path: {root}')
+    repo_url = (args.repo_url or '').strip()
+    if not repo_url:
+        print('粘贴管理员提供的 GitHub 私有仓库 URL：')
+        repo_url = input().strip()
+    if not repo_url:
+        print('bind_github_status: BLOCKED')
+        print('reason: empty repo URL')
+        return 2
+
+    ensure_args = argparse.Namespace(
+        path=str(root),
+        repo_url=repo_url,
+        no_git=False,
+        no_commit=args.no_commit,
+        no_push=args.no_push,
+        quiet=False,
+    )
+    code = workspace_ensure(ensure_args)
+    if code == 0:
+        print('bind_github_status: READY')
+        print(f'github_repo_url: {repo_url}')
+        print('next_step: lbai auth doctor')
+    return code
+
+
 def workspace_ensure(args: argparse.Namespace) -> int:
     if args.path:
         local_path = Path(args.path).expanduser().resolve()
@@ -1477,7 +1628,9 @@ def workspace_ensure(args: argparse.Namespace) -> int:
         local_path = active if active else default_shared_workspace_path().expanduser().resolve()
 
     repo_url = (args.repo_url or os.environ.get('LBAI_WORKSPACE_REPO_URL', '')).strip() or None
-    print(f'shared_workspace_path: {local_path}')
+    quiet = getattr(args, 'quiet', False)
+    if not quiet:
+        print(f'shared_workspace_path: {local_path}')
 
     if local_path.exists() and any(local_path.iterdir()) and not is_workspace(local_path):
         print('workspace_ensure_status: BLOCKED')
@@ -1540,14 +1693,11 @@ def workspace_ensure(args: argparse.Namespace) -> int:
         registered = set_active_workspace(local_path)
         print('workspace_ensure_status: READY')
         print(f'active_workspace: {registered}')
+        if quiet:
+            return 0
         print(f'workspace_path: {local_path}')
-        print('codex_note: 在任意 Codex 项目中使用 LBAI 插件命令（如 LBAI Role Setup）或 $lbai-*；任务与证据写入 active_workspace')
         if not repo_url:
-            print(
-                'github_sync_note: 可选。登录后运行 '
-                'lbai init-workspace --repo-url <private-repo> --path '
-                f'"{local_path}" 绑定 GitHub 同步'
-            )
+            print_github_sync_setup_guide(local_path)
         if changed:
             print('changed:')
             for item in changed:
@@ -1591,6 +1741,14 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument('--no-commit', action='store_true')
     init.add_argument('--no-push', action='store_true')
 
+    bind_github_parser = sub.add_parser(
+        'bind-github',
+        help='Bind a private GitHub repo URL to the active workspace (paste URL only).',
+    )
+    bind_github_parser.add_argument('--repo-url')
+    bind_github_parser.add_argument('--no-commit', action='store_true')
+    bind_github_parser.add_argument('--no-push', action='store_true')
+
     doc = sub.add_parser('doctor')
     doc.add_argument('--path')
     doc.add_argument('--json', action='store_true')
@@ -1615,6 +1773,11 @@ def build_parser() -> argparse.ArgumentParser:
     workspace_ensure_parser.add_argument('--no-git', action='store_true')
     workspace_ensure_parser.add_argument('--no-commit', action='store_true')
     workspace_ensure_parser.add_argument('--no-push', action='store_true')
+    workspace_ensure_parser.add_argument(
+        '--quiet',
+        action='store_true',
+        help='Only print readiness status (for install scripts).',
+    )
 
     update = sub.add_parser('update-kit')
     update.add_argument('--no-commit', action='store_true')
@@ -1637,6 +1800,14 @@ def build_parser() -> argparse.ArgumentParser:
         '--purge-auth',
         action='store_true',
         help='Also delete saved GitHub token under ~/.lbai/auth/.',
+    )
+    setup_guide_parser = sub.add_parser(
+        'setup-guide',
+        help='Show beginner-friendly post-install setup steps.',
+    )
+    setup_guide_parser.add_argument(
+        '--path',
+        help='Workspace path for step 3 (defaults to active or shared workspace).',
     )
     sub.add_parser('init')
     sub.add_parser('new-task')
@@ -1678,6 +1849,8 @@ def main(argv: list[str] | None = None) -> int:
         parser.error('github requires auth')
     if known.command == 'init-workspace':
         return init_workspace(known)
+    if known.command == 'bind-github':
+        return bind_github(known)
     if known.command == 'doctor':
         return doctor(known)
     if known.command == 'workspace':
@@ -1696,6 +1869,8 @@ def main(argv: list[str] | None = None) -> int:
         return remove_kit(known)
     if known.command == 'uninstall':
         return uninstall(known)
+    if known.command == 'setup-guide':
+        return setup_guide(known)
     if known.command in {'init', 'new-task', 'add-evidence', 'search-artifacts'}:
         return run_workspace_tool(known.command, known, extra)
     if known.command == 'finish-task':

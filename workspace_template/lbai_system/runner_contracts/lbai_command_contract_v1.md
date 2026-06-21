@@ -31,7 +31,7 @@ Adapters must read this contract, then call or follow the listed tools. Do not i
 ## Shared Command Rules
 
 - Accept the same command names in Cursor and Codex:
-  - `/lbai-init`
+  - `/lbai-role-setup` (Cursor slash command; Codex: **LBAI Role Setup**)
   - `/lbai-add-evidence`
   - `/lbai-search-artifacts`
   - `/lbai-new-task`
@@ -52,9 +52,9 @@ Adapters must read this contract, then call or follow the listed tools. Do not i
 - During normal task work, do not edit `.cursor/`, `lbai_system/`, `AGENTS.md`, `README.md`, or `workspace_dashboard.html`.
 - Do not modify `role_workspace/` or `tasks/` during `/lbai-update-kit`.
 
-## /lbai-init
+## /lbai-role-setup
 
-Initialize or update the employee's role memory. This is not a business task and must not create a task folder.
+Initialize or update the employee's role memory. Cursor slash command `/lbai-role-setup`; Codex palette **LBAI Role Setup**. Legacy alias: `/lbai-init` (same behavior).
 
 Supported runtimes: **Cursor** and **Codex desktop app** only. No rule-based fallback.
 

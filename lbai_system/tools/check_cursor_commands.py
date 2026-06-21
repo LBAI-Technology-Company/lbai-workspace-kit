@@ -6,7 +6,7 @@ from pathlib import Path
 EXPECTED = {
     'lbai-add-evidence.md',
     'lbai-search-artifacts.md',
-    'lbai-init.md',
+    'lbai-role-setup.md',
     'lbai-new-task.md',
     'lbai-execute-task.md',
     'lbai-finish-task.md',
@@ -16,6 +16,7 @@ EXPECTED = {
 
 STALE = {
     'init-lbai.md',
+    'lbai-init.md',
     'new-task.md',
     'execute-task.md',
     'finish-task.md',
@@ -84,7 +85,7 @@ def main():
         print('NEXT_STEP 删除旧命令文件，确认 .cursor/commands/ 和 lbai_system/cursor/commands/ 都包含八个 lbai- 命令文件且内容一致，然后重启 Cursor 或 Reload Window。')
         return 1
     print('STATUS OK')
-    print('NEXT_STEP 在 Cursor 输入 /lbai 应该能看到 /lbai-init、/lbai-add-evidence、/lbai-search-artifacts、/lbai-new-task、/lbai-execute-task、/lbai-finish-task、/lbai-update-kit、/lbai-self-iterate。')
+    print('NEXT_STEP 在 Cursor 输入 /lbai 应该能看到 /lbai-role-setup、/lbai-add-evidence、/lbai-search-artifacts、/lbai-new-task、/lbai-execute-task、/lbai-finish-task、/lbai-update-kit、/lbai-self-iterate。')
     return 0
 
 

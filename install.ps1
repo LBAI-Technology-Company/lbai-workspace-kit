@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.17"
+$InstallerVersion = "1.4.18"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -68,7 +68,7 @@ function Write-InstallSummary {
     Write-SummaryLine "公用工作区 (active_workspace)" "Workspace"
     Write-SummaryLine "后端登录 (可选)" "Backend"
     Write-Info "=================================="
-    Write-Info "说明：一键安装包含 LBAI CLI、Codex CLI、lbai-workspace 插件，以及 ~/.lbai/workspace 公用工作区。"
+    Write-Info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、~/.lbai/workspace 公用工作区。"
 }
 
 function Fail($Message) {
@@ -165,49 +165,45 @@ function Bootstrap-LatestInstaller {
     if ($env:LBAI_INSTALL_BOOTSTRAP -eq "1") {
         return
     }
-    Write-Step "检查安装脚本是否需要从 GitHub 更新"
+    Write-Info "  [检查] 安装脚本是否需要从 GitHub 更新"
     if ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "lbai_core/lbai/cli.py"))) {
-        Write-Info "  -> 使用本地 checkout，无需更新安装脚本"
+        Write-Info "  -> 使用本地 checkout，跳过更新"
         return
     }
 
-    Write-Step "解析 GitHub 最新 release 版本"
     $tag = Get-LatestReleaseTagSoft
     if (-not $tag) {
-        Write-Info "WARNING: 无法解析最新 release tag，继续使用当前 install.ps1。"
+        Write-Info "  WARNING: 无法解析最新 release，继续使用当前 install.ps1"
         return
     }
-    Write-Info "  -> 最新 release: $tag"
 
-    Write-Step "从 GitHub 拉取最新 install.ps1（如本地脚本较旧）"
     foreach ($url in @(
         "https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://github.com/$Repo/releases/latest/download/install.ps1",
         "https://ghproxy.net/https://raw.githubusercontent.com/$Repo/$tag/install.ps1",
         "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
     )) {
-        Write-Info "  尝试: $url"
         try {
             $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
             if ($script -notmatch 'Write-InstallSummary') {
-                Write-Info "  -> 此地址不可用，尝试下一个..."
+                Write-Info "  尝试下载安装脚本: $url"
                 continue
             }
             if ($script -match 'InstallerVersion = "([^"]+)"' -and $Matches[1] -eq $InstallerVersion) {
-                Write-Info "  -> 当前安装脚本已是最新 ($InstallerVersion)"
+                Write-Info "  -> 安装脚本已是最新 ($InstallerVersion)"
                 return
             }
-            Write-Info "  -> 切换到 GitHub 最新安装脚本 ($tag)..."
+            Write-Info "  -> 切换到最新安装脚本 ($tag)"
             $env:LBAI_INSTALL_BOOTSTRAP = "1"
             $env:LBAI_VERSION = $tag
             Invoke-Expression $script
             exit $LASTEXITCODE
         } catch {
-            Write-Info "  -> 此地址不可用，尝试下一个..."
+            Write-Info "  尝试下载安装脚本: $url"
             continue
         }
     }
-    Write-Info "WARNING: 无法从 GitHub 拉取最新 install.ps1，继续使用当前安装脚本。"
+    Write-Info "  WARNING: 无法拉取最新 install.ps1，继续使用当前脚本"
 }
 
 Write-Info ""
@@ -541,17 +537,19 @@ function Ensure-SharedWorkspace {
         return
     }
 
-    Write-Info "  运行: lbai workspace ensure"
-    $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure 2>&1 | Out-String
-    Write-Info $output.TrimEnd()
+    $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure --quiet 2>&1 | Out-String
     if ($output -match 'workspace_ensure_status: READY') {
         if ($output -match '(?m)^active_workspace: (.+)$') {
-            Set-InstallStatus "Workspace" "OK" $Matches[1].Trim()
+            $wsPath = $Matches[1].Trim()
+            Write-Info "  -> 工作区就绪: $wsPath"
+            Set-InstallStatus "Workspace" "OK" $wsPath
         } else {
+            Write-Info "  -> 工作区就绪: ~/.lbai/workspace"
             Set-InstallStatus "Workspace" "OK" "~/.lbai/workspace"
         }
         return
     }
+    Write-Info $output.TrimEnd()
     Set-InstallStatus "Workspace" "FAILED" "公用工作区初始化失败"
 }
 
@@ -597,12 +595,10 @@ Write-InstallSummary
 
 Write-Info "Release: $releaseTag"
 Write-Info ""
-Write-Info "Next steps:"
-Write-Info "  关闭并重新打开 PowerShell"
-Write-Info "  lbai github auth token"
-Write-Info "  lbai auth doctor"
-Write-Info "  lbai auth backend-login"
-Write-Info "  在任意 Codex 项目中运行 LBAI Role Setup（Cursor 工作区则运行 /lbai-init）"
+& (Join-Path $BinDir "lbai.cmd") setup-guide
 if (-not (Test-CodexReady) -and ((Test-Command codex) -or (Test-Path (Join-Path $env:USERPROFILE ".local\bin\codex.exe")))) {
-    Write-Info "  关闭并重新打开 PowerShell，然后重新运行 install.ps1 以自动安装 lbai-workspace 插件"
+    Write-Info ""
+    Write-Info "提示：Codex CLI 已安装但插件未就绪，重新打开 PowerShell 后重新运行 install.ps1"
 }
+Write-Info ""
+Write-Info "升级：重新运行 install.ps1    卸载：lbai uninstall"

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.18
+
+- Add `lbai setup-guide` with a six-step beginner post-install checklist (shell reload, GitHub token, bind repo, doctor, backend login, role setup).
+- Add `lbai bind-github` so employees paste only the private repo URL; the active workspace path is applied automatically.
+- Rename Cursor role setup to `/lbai-role-setup` and Codex plugin skill to `lbai-role-setup` (aligned with **LBAI Role Setup**).
+- Show `***` masked confirmation after GitHub Token and backend API Key input so paste success is obvious.
+- Streamline installer bootstrap logging and print `lbai setup-guide` at the end of install.
+
 ## 1.4.17
 
 - Complete Windows compatibility for UTF-8 output, long paths, path assertions, source-tree plugin preflight, and Prompt Lab cleanup.

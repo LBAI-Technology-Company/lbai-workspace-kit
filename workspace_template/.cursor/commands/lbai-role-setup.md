@@ -1,6 +1,6 @@
-# /lbai-init
+# /lbai-role-setup
 
-Cursor command wrapper for the shared LBAI workflow contract.
+Cursor command wrapper for the shared LBAI workflow contract (same as Codex **LBAI Role Setup**).
 
 User input:
 

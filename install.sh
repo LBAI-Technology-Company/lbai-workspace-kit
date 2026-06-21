@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.17"
+INSTALLER_VERSION="1.4.18"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -91,7 +91,7 @@ print_install_summary() {
   summary_line "公用工作区 (active_workspace)" "$ST_WORKSPACE"
   summary_line "后端登录 (可选)" "$ST_BACKEND"
   info "=================================="
-  info "说明：一键安装包含 LBAI CLI、Codex CLI、lbai-workspace 插件，以及 ~/.lbai/workspace 公用工作区。"
+  info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、~/.lbai/workspace 公用工作区。"
 }
 
 fail() {
@@ -158,33 +158,34 @@ resolve_latest_release_tag() {
   printf '%s\n' "$tag"
 }
 
+bootstrap_info() {
+  info "  $*"
+}
+
 bootstrap_latest_installer() {
   if [ "${LBAI_INSTALL_BOOTSTRAP:-}" = "1" ]; then
     return 0
   fi
 
-  step "检查安装脚本是否需要从 GitHub 更新"
+  bootstrap_info "[检查] 安装脚本是否需要从 GitHub 更新"
 
   script_dir="$(detect_script_dir || true)"
   if [ -n "$script_dir" ] && [ -f "$script_dir/lbai_core/lbai/cli.py" ] && [ -d "$script_dir/workspace_template" ]; then
-    info "  -> 使用本地 checkout，无需更新安装脚本"
+    bootstrap_info "-> 使用本地 checkout，跳过更新"
     return 0
   fi
 
   if ! have_cmd curl; then
-    info "  -> 未检测到 curl，跳过安装脚本更新"
+    bootstrap_info "-> 未检测到 curl，跳过更新"
     return 0
   fi
 
-  step "解析 GitHub 最新 release 版本"
   tag="$(fetch_latest_release_tag_soft || true)"
   if [ -z "$tag" ]; then
-    info "WARNING: 无法解析最新 release tag，继续使用当前 install.sh。"
+    bootstrap_info "WARNING: 无法解析最新 release，继续使用当前 install.sh"
     return 0
   fi
-  info "  -> 最新 release: $tag"
 
-  step "从 GitHub 拉取最新 install.sh（如 CDN/本地脚本较旧）"
   tmp="$(mktemp -d)"
   fetched=0
   for url in \
@@ -193,32 +194,30 @@ bootstrap_latest_installer() {
     "https://ghproxy.net/https://raw.githubusercontent.com/$REPO/$tag/install.sh" \
     "https://raw.githubusercontent.com/$REPO/$tag/install.sh"
   do
-    info "  尝试: $url"
     if curl -fsSL --connect-timeout 20 --max-time 120 "$url" -o "$tmp/install.sh" 2>/dev/null \
       && grep -q 'print_install_summary' "$tmp/install.sh" 2>/dev/null
     then
       fetched=1
-      info "  -> 下载成功"
       break
     fi
-    info "  -> 此地址不可用，尝试下一个..."
+    bootstrap_info "尝试下载安装脚本: $url"
     rm -f "$tmp/install.sh"
   done
 
   if [ "$fetched" -ne 1 ]; then
     rm -rf "$tmp"
-    info "WARNING: 无法从 GitHub 拉取最新 install.sh，继续使用当前安装脚本。"
+    bootstrap_info "WARNING: 无法拉取最新 install.sh，继续使用当前脚本"
     return 0
   fi
 
   remote_version="$(sed -n 's/^INSTALLER_VERSION="\([^"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
   if [ -n "${INSTALLER_VERSION:-}" ] && [ -n "$remote_version" ] && [ "$remote_version" = "$INSTALLER_VERSION" ]; then
     rm -rf "$tmp"
-    info "  -> 当前安装脚本已是最新 ($INSTALLER_VERSION)"
+    bootstrap_info "-> 安装脚本已是最新 ($INSTALLER_VERSION)"
     return 0
   fi
 
-  info "  -> 切换到 GitHub 最新安装脚本 ($tag, v$remote_version)..."
+  bootstrap_info "-> 切换到最新安装脚本 ($tag, v$remote_version)"
   chmod +x "$tmp/install.sh"
   export LBAI_INSTALL_BOOTSTRAP=1
   export LBAI_VERSION="$tag"
@@ -232,6 +231,8 @@ info "开始安装..."
 info "=========================================="
 
 bootstrap_latest_installer
+
+INSTALL_STEP=0
 
 resolve_python_bin() {
   if have_cmd python3 && python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
@@ -620,20 +621,21 @@ ensure_shared_workspace() {
     return 0
   fi
 
-  info "  运行: lbai workspace ensure"
-  workspace_output="$("$BIN_DIR/lbai" workspace ensure 2>&1)" || true
-  printf '%s\n' "$workspace_output"
+  workspace_output="$("$BIN_DIR/lbai" workspace ensure --quiet 2>&1)" || true
   if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: READY'; then
     ws_path="$(printf '%s\n' "$workspace_output" | sed -n 's/^active_workspace: //p' | head -n 1)"
     if [ -n "$ws_path" ]; then
+      info "  -> 工作区就绪: $ws_path"
       set_st WORKSPACE OK "$ws_path"
     else
+      info "  -> 工作区就绪: ~/.lbai/workspace"
       set_st WORKSPACE OK "~/.lbai/workspace"
     fi
     step_done
     return 0
   fi
 
+  printf '%s\n' "$workspace_output"
   set_st WORKSPACE FAILED "公用工作区初始化失败"
   step_done
   return 0
@@ -733,14 +735,13 @@ download_archive() {
     "https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz" \
     "https://gh-proxy.com/https://github.com/$REPO/archive/refs/tags/$RELEASE_TAG.tar.gz"
   do
-    info "  尝试: $url"
     if curl -fsSL --connect-timeout 20 --max-time 600 --retry 2 --retry-delay 2 "$url" -o "$archive" 2>/dev/null \
       && tar -tzf "$archive" >/dev/null 2>&1
     then
       info "  -> 下载成功"
       return 0
     fi
-    info "  -> 此地址不可用，尝试下一个..."
+    info "  尝试: $url"
     rm -f "$archive"
   done
 
@@ -864,24 +865,11 @@ set_st LBAI OK "v$kit_version ($BIN_DIR/lbai)"
 print_install_summary
 
 info "Release: $RELEASE_TAG"
-info
-shell_rc="$(detect_shell_rc || true)"
-info "Next steps:"
-if [ -n "$shell_rc" ]; then
-  info "  source $shell_rc"
-fi
-if [ "$(uname -s 2>/dev/null || true)" = "Darwin" ] && [ -f "$HOME/.zprofile" ]; then
-  info "  source ~/.zprofile   # Codex CLI PATH（macOS 常见）"
-fi
-info "  lbai github auth token"
-info "  lbai auth doctor"
-info "  lbai auth backend-login"
-info "  在任意 Codex 项目中运行 LBAI Role Setup（Cursor 工作区则运行 /lbai-init）"
+info ""
+"$BIN_DIR/lbai" setup-guide
 if ! codex_cli_ready && { codex_cli_bin >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; }; then
-  info "  source ~/.zprofile   # 然后 codex --version"
-  info "  重新运行 install.sh 以自动安装 lbai-workspace 插件"
+  info ""
+  info "提示：Codex CLI 已安装但插件未就绪，执行 source ~/.zprofile 后重新运行 install.sh"
 fi
-info
-info "To repair or upgrade the installed CLI, rerun install.sh."
-info "To remove the installed CLI later:"
-info "  lbai uninstall"
+info ""
+info "升级：重新运行 install.sh    卸载：lbai uninstall"

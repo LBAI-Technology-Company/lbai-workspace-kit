@@ -1,6 +1,6 @@
 ---
 name: lbai-workflow
-description: Use this project-level skill when the user types or refers to /lbai-init, /lbai-add-evidence, /lbai-search-artifacts, /lbai-new-task, /lbai-execute-task, /lbai-finish-task, /lbai-update-kit, /lbai-self-iterate, or asks Codex to run the LBAI role workspace workflow in this repository.
+description: Use this project-level skill when the user types or refers to /lbai-role-setup, /lbai-add-evidence, /lbai-search-artifacts, /lbai-new-task, /lbai-execute-task, /lbai-finish-task, /lbai-update-kit, /lbai-self-iterate, or asks Codex to run the LBAI role workspace workflow in this repository.
 ---
 
 # LBAI Workflow for Codex
@@ -9,10 +9,10 @@ This is a project-local Codex adapter. It must affect only this repository.
 
 ## First conversation bootstrap
 
-When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI works in this repo, reply with this command list and recommend `/lbai-init` if role files are empty:
+When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI works in this repo, reply with this command list and recommend `/lbai-role-setup` if role files are empty:
 
 ```text
-/lbai-init
+/lbai-role-setup
 /lbai-new-task
 /lbai-add-evidence
 /lbai-search-artifacts
@@ -61,7 +61,7 @@ Remind them: run these in the **Codex desktop app** with this workspace folder o
 Supported employee-facing commands:
 
 ```text
-/lbai-init
+/lbai-role-setup
 /lbai-add-evidence
 /lbai-search-artifacts
 /lbai-new-task
@@ -77,7 +77,7 @@ Codex can execute these commands when the user types them or describes them in n
 
 | Command | Prompt | Tool |
 |---------|--------|------|
-| `/lbai-init` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
+| `/lbai-role-setup` | `init_enrichment_prompt_v1.md` | `init_lbai.py --enrichment` |
 | `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
 | `/lbai-search-artifacts` | `backend_search_query_plan_prompt_v1.md` | backend search query plan via `search_artifacts.py --enrichment`; backend-only, display-only when backend is unavailable or has no matches |
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |

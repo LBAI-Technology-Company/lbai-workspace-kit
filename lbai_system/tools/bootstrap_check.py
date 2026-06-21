@@ -63,7 +63,7 @@ ROLE_TEMPLATE_FILES = [
 COMMAND_FILES = [
     'lbai-add-evidence.md',
     'lbai-search-artifacts.md',
-    'lbai-init.md',
+    'lbai-role-setup.md',
     'lbai-new-task.md',
     'lbai-execute-task.md',
     'lbai-finish-task.md',
@@ -253,7 +253,7 @@ def main():
     elif not upstream_ok:
         print('next_step: 设置当前分支 upstream 后重新运行 bootstrap check。')
     else:
-        print('next_step: 可以使用 /lbai-init、/lbai-add-evidence、/lbai-search-artifacts 或 /lbai-new-task。')
+        print('next_step: 可以使用 /lbai-role-setup、/lbai-add-evidence、/lbai-search-artifacts 或 /lbai-new-task。')
     return 0 if status in {'BOOTSTRAP_COMPLETED', 'BOOTSTRAP_REPAIRED'} else 1
 
 

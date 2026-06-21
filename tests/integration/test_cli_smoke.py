@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.17',
+        '1.4.18',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.17'
-    assert report['workspace_kit_version'] == '1.4.17'
+    assert report['cli_version'] == '1.4.18'
+    assert report['workspace_kit_version'] == '1.4.18'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.17'
+    assert report['plugin_version'] == '1.4.18'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -328,11 +328,35 @@ def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, m
     assert 'workspace_status: READY' in result.stdout
     assert f'workspace_path: {active_workspace}' in result.stdout
     assert 'github_repo_status: NOT_BOUND' in result.stdout
-    assert '请填写管理员提供的员工 private GitHub 仓库地址' in result.stdout
+    assert '安装后续步骤' in result.stdout
+    assert 'lbai setup-guide' in result.stdout
     assert (
-        f'lbai init-workspace --repo-url <private-repo-url> --path "{active_workspace}"'
-        in result.stdout
+        f'lbai init-workspace --repo-url <你的仓库URL> --path "{active_workspace}"'
+        not in result.stdout
     )
+    assert 'lbai bind-github' in result.stdout
+
+
+def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
+    active_workspace = create_isolated_workspace(tmp_path)
+    result = run_cli(
+        'setup-guide',
+        '--path',
+        str(active_workspace),
+        cwd=kit_root(),
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '安装后续配置（请按顺序逐步完成）' in result.stdout
+    assert '【步骤 1】' in result.stdout
+    assert '【步骤 2】' in result.stdout
+    assert '【步骤 3】绑定私有仓库到本机工作区' in result.stdout
+    assert 'lbai bind-github' in result.stdout
+    assert '【步骤 4】' in result.stdout
+    assert '【步骤 5】登录知识服务' in result.stdout
+    assert '【步骤 6】设置岗位角色' in result.stdout
+    assert '/lbai-role-setup' in result.stdout
+    assert '终端会显示 ***' in result.stdout
+    assert 'lbai setup-guide' in result.stdout
 
 
 def test_git_credential_permission_hint_names_missing_read_org(capsys):

@@ -6,7 +6,7 @@ This repo is an LBAI enterprise role workspace for employee office work.
 
 | Command | When to use |
 |---------|-------------|
-| `/lbai-init` | First-time role setup or role updates |
+| `/lbai-role-setup` | First-time role setup or role updates (Codex: **LBAI Role Setup**) |
 | `/lbai-new-task` | Start a formal task |
 | `/lbai-add-evidence` | Capture meeting notes, feedback, or source material |
 | `/lbai-search-artifacts` | Find prior tasks, evidence, or references |
@@ -59,19 +59,19 @@ The three task lifecycle commands are `/lbai-new-task`, `/lbai-execute-task`, an
 
 ## Codex project adapter
 
-When this repository is opened in Codex, the same employee-facing commands are supported as project-local workflow commands. If the user types or refers to `/lbai-init`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, `/lbai-update-kit`, or `/lbai-self-iterate`, read:
+When this repository is opened in Codex, the same employee-facing commands are supported as project-local workflow commands. If the user types or refers to `/lbai-role-setup`, `/lbai-add-evidence`, `/lbai-search-artifacts`, `/lbai-new-task`, `/lbai-execute-task`, `/lbai-finish-task`, `/lbai-update-kit`, or `/lbai-self-iterate`, read:
 
 - `lbai_system/codex/skills/lbai-workflow/SKILL.md`
 - `lbai_system/runner_contracts/lbai_command_contract_v1.md`
 
 This Codex adapter is project-local. Thin project-local command adapter files may live under `.agents/skills/`, but current Codex usage should still rely on `/lbai-*` commands and the `lbai_system/codex/skills/lbai-workflow/SKILL.md` project adapter. The `.agents/skills/` files must point back to `lbai_system/runner_contracts/lbai_command_contract_v1.md` and must not duplicate command logic. Do not install, copy, or write these skills to `~/.codex/skills/`, and do not make them affect other Codex projects. The shared command contract is the source of truth for command behavior; Cursor and Codex adapters should stay thin.
 
-The optional enterprise Codex plugin `lbai-workspace` exposes the same workflows through eight command-palette entries: **LBAI Role Setup**, **LBAI New Task**, **LBAI Add Evidence**, **LBAI Search Artifacts**, **LBAI Execute Task**, **LBAI Finish Task**, **LBAI Update Kit**, and **LBAI Self Iterate**. You can also reference skills as `$lbai-init`, `$lbai-new-task`, `$lbai-self-iterate`, and so on. See `docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md` for the full mapping to `/lbai-*` Cursor commands. After `lbai init-workspace` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
+The optional enterprise Codex plugin `lbai-workspace` exposes the same workflows through eight command-palette entries: **LBAI Role Setup**, **LBAI New Task**, **LBAI Add Evidence**, **LBAI Search Artifacts**, **LBAI Execute Task**, **LBAI Finish Task**, **LBAI Update Kit**, and **LBAI Self Iterate**. You can also reference skills as `$lbai-role-setup`, `$lbai-new-task`, `$lbai-self-iterate`, and so on. See `docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md` for the full mapping to `/lbai-*` Cursor commands. After `lbai bind-github` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
 
 For first-time setup or later role changes, employees may use:
 
 ```text
-/lbai-init
+/lbai-role-setup
 ```
 
 This command updates only `role_workspace/` role memory files and should not create a business task folder.

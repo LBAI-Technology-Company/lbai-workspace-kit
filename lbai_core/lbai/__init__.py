@@ -1,3 +1,3 @@
 """LBAI workspace kit CLI package."""
 
-__version__ = "1.4.17"
+__version__ = "1.4.18"
