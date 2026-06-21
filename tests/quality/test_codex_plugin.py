@@ -96,13 +96,10 @@ def test_plugin_skill_display_names():
 
 
 def test_plugin_preflight_uses_machine_readable_cli():
-    env = os.environ.copy()
-    env['PATH'] = f'{ROOT / "lbai_core" / "bin"}{os.pathsep}{env.get("PATH", "")}'
     result = subprocess.run(
         [sys.executable, str(PLUGIN / 'scripts' / 'preflight.py'), '--workspace', str(ROOT)],
         capture_output=True,
         text=True,
-        env=env,
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)

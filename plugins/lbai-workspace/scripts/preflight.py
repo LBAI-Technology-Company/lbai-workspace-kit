@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -48,26 +49,38 @@ def main() -> int:
     args = parser.parse_args()
 
     lbai = shutil.which('lbai')
-    if not lbai:
-        return blocked(
-            'lbai_cli_missing',
-            'Install the LBAI CLI, run lbai github auth token, then run lbai init-workspace.',
+    command_env = None
+    if lbai:
+        command = [lbai]
+    else:
+        source_core = PLUGIN_ROOT.parents[1] / 'lbai_core'
+        if not (source_core / 'lbai' / 'cli.py').exists():
+            return blocked(
+                'lbai_cli_missing',
+                'Install the LBAI CLI, run lbai github auth token, then run lbai init-workspace.',
+            )
+        command = [sys.executable, '-m', 'lbai.cli']
+        command_env = os.environ.copy()
+        existing_pythonpath = command_env.get('PYTHONPATH', '')
+        command_env['PYTHONPATH'] = (
+            f'{source_core}{os.pathsep}{existing_pythonpath}'
+            if existing_pythonpath
+            else str(source_core)
         )
 
-    command = [
-        lbai,
+    command.extend([
         'doctor',
         '--json',
         '--plugin-version',
         PLUGIN_VERSION,
         '--min-workspace-version',
         MIN_WORKSPACE_VERSION,
-    ]
+    ])
     if args.workspace:
         command.extend(['--path', str(Path(args.workspace).expanduser().resolve())])
     if args.require_backend:
         command.append('--require-backend')
-    result = subprocess.run(command, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True, env=command_env)
     try:
         report = json.loads(result.stdout)
     except json.JSONDecodeError:

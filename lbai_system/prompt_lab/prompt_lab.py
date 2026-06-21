@@ -6,6 +6,7 @@ import difflib
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -43,6 +44,11 @@ SCORE_FIELDS = [
 PROMPT_LAB_ISOLATED_ENV = 'LBAI_PROMPT_LAB_ISOLATED'
 CHAIN_MODES = frozenset({'intake_evidence', 'full_lifecycle'})
 CONTEXT_MODES = frozenset({'auto', 'real_task', 'mock'})
+
+
+def remove_readonly(func, path, _exc_info) -> None:
+    os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+    func(path)
 ALLOWED_RUN_TOOLS = frozenset({
     'add_evidence.py',
     'archive_input.py',
@@ -1416,7 +1422,7 @@ def command_finalize(args: argparse.Namespace) -> int:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(report, target)
 
-    shutil.rmtree(run_dir)
+    shutil.rmtree(run_dir, onerror=remove_readonly)
     print('finalize_status: CLEANED')
     print(f'run_id: {run_id}')
     print(f'kept_prompt_dir: {current_prompt_dir(root).relative_to(root)}')

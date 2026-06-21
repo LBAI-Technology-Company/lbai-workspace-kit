@@ -15,7 +15,7 @@ class TestNewTask:
         enrich = enrichment_path(fixtures, 'task_intake_open.json')
         result = run_tool(isolated_workspace, 'new_task.py', '--enrichment', str(enrich))
         assert result.returncode == 0, result.output
-        assert 'TASK_FOLDER tasks/' in result.stdout
+        assert 'TASK_FOLDER tasks/' in result.stdout.replace('\\', '/')
         assert 'STATUS OPEN' in result.stdout
         assert 'REVIEW_NEEDED false' in result.stdout
 

@@ -29,7 +29,7 @@ class TestAddEvidence:
             content,
         )
         assert result.returncode == 0, result.output
-        assert 'OKF_CONCEPT role_workspace/knowledge/references/' in result.stdout
+        assert 'OKF_CONCEPT role_workspace/knowledge/references/' in result.stdout.replace('\\', '/')
         assert 'evidence_status: CAPTURED' in result.stdout
         assert 'employee_user_name: 王小明' in result.stdout
         assert 'employee_position: 内容助理' in result.stdout
