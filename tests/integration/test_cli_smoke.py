@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.15',
+        '1.4.16',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.15'
-    assert report['workspace_kit_version'] == '1.4.15'
+    assert report['cli_version'] == '1.4.16'
+    assert report['workspace_kit_version'] == '1.4.16'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.15'
+    assert report['plugin_version'] == '1.4.16'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -180,14 +180,6 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
     assert (home / 'auth' / 'knowledge_service.json').exists()
 
 
-def path_without_gh() -> str:
-    parts = []
-    for part in os.environ.get('PATH', '').split(':'):
-        if part and not (Path(part) / 'gh').exists():
-            parts.append(part)
-    return ':'.join(parts)
-
-
 def import_workspace_cli():
     workspace_core = str(kit_root() / 'lbai_core')
     for key in list(sys.modules):
@@ -206,23 +198,22 @@ def test_git_credential_sync_roundtrip(tmp_path, monkeypatch):
     cred_store = tmp_path / 'git-credentials'
     gitconfig = tmp_path / 'gitconfig'
     gitconfig.write_text(
-        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store.as_posix()}\n',
         encoding='utf-8',
     )
     monkeypatch.setenv('LBAI_HOME', str(home))
     monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
-    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
-    monkeypatch.setenv('PATH', path_without_gh())
-    sys.path.insert(0, str(kit_root() / 'lbai_core'))
-    from lbai.cli import auth_token_path, git_credential_password, sync_git_credentials
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', os.devnull)
+    monkeypatch.setenv('LBAI_GITHUB_AUTH_USE_GH', '0')
+    cli_module = import_workspace_cli()
 
     token = 'lbai_test_github_token'
-    auth_token_path().parent.mkdir(parents=True, exist_ok=True)
-    auth_token_path().write_text(token + '\n', encoding='utf-8')
+    cli_module.auth_token_path().parent.mkdir(parents=True, exist_ok=True)
+    cli_module.auth_token_path().write_text(token + '\n', encoding='utf-8')
 
-    ok, message = sync_git_credentials(token)
+    ok, message = cli_module.sync_git_credentials(token)
     assert ok, message
-    assert git_credential_password() == token
+    assert cli_module.git_credential_password() == token
 
 
 def test_cli_github_auth_token_stores_token(tmp_path, monkeypatch):
@@ -230,13 +221,13 @@ def test_cli_github_auth_token_stores_token(tmp_path, monkeypatch):
     cred_store = tmp_path / 'git-credentials'
     gitconfig = tmp_path / 'gitconfig'
     gitconfig.write_text(
-        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store.as_posix()}\n',
         encoding='utf-8',
     )
     monkeypatch.setenv('LBAI_HOME', str(home))
     monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
-    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
-    monkeypatch.setenv('PATH', path_without_gh())
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', os.devnull)
+    monkeypatch.setenv('LBAI_GITHUB_AUTH_USE_GH', '0')
     cli_module = import_workspace_cli()
     import argparse
 
@@ -263,30 +254,28 @@ def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
     cred_store = tmp_path / 'git-credentials'
     gitconfig = tmp_path / 'gitconfig'
     gitconfig.write_text(
-        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store.as_posix()}\n',
         encoding='utf-8',
     )
     monkeypatch.setenv('LBAI_HOME', str(home))
     monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
-    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
-    monkeypatch.setenv('PATH', path_without_gh())
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', os.devnull)
+    monkeypatch.setenv('LBAI_GITHUB_AUTH_USE_GH', '0')
     token = 'lbai_doctor_sync_token'
     auth_dir = home / 'auth'
     auth_dir.mkdir(parents=True)
     (auth_dir / 'github_token').write_text(token + '\n', encoding='utf-8')
 
-    sys.path.insert(0, str(kit_root() / 'lbai_core'))
-    from lbai.cli import sync_git_credentials
-
-    sync_git_credentials(token)
+    cli_module = import_workspace_cli()
+    cli_module.sync_git_credentials(token)
     result = run_cli(
         'auth',
         'doctor',
         env_extra={
             'LBAI_HOME': str(home),
             'GIT_CONFIG_GLOBAL': str(gitconfig),
-            'GIT_CONFIG_SYSTEM': '/dev/null',
-            'PATH': path_without_gh(),
+            'GIT_CONFIG_SYSTEM': os.devnull,
+            'LBAI_GITHUB_AUTH_USE_GH': '0',
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
@@ -307,13 +296,13 @@ def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, m
     cred_store = tmp_path / 'git-credentials'
     gitconfig = tmp_path / 'gitconfig'
     gitconfig.write_text(
-        f'[credential "https://github.com"]\n\thelper = store --file={cred_store}\n',
+        f'[credential "https://github.com"]\n\thelper = store --file={cred_store.as_posix()}\n',
         encoding='utf-8',
     )
     monkeypatch.setenv('LBAI_HOME', str(home))
     monkeypatch.setenv('GIT_CONFIG_GLOBAL', str(gitconfig))
-    monkeypatch.setenv('GIT_CONFIG_SYSTEM', '/dev/null')
-    monkeypatch.setenv('PATH', path_without_gh())
+    monkeypatch.setenv('GIT_CONFIG_SYSTEM', os.devnull)
+    monkeypatch.setenv('LBAI_GITHUB_AUTH_USE_GH', '0')
     token = 'lbai_existing_workspace_token'
     auth_dir = home / 'auth'
     auth_dir.mkdir(parents=True)
@@ -331,8 +320,8 @@ def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, m
         env_extra={
             'LBAI_HOME': str(home),
             'GIT_CONFIG_GLOBAL': str(gitconfig),
-            'GIT_CONFIG_SYSTEM': '/dev/null',
-            'PATH': path_without_gh(),
+            'GIT_CONFIG_SYSTEM': os.devnull,
+            'LBAI_GITHUB_AUTH_USE_GH': '0',
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr

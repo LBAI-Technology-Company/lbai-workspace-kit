@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.16
+
+- Fix the test runner's virtualenv Python discovery on Windows.
+- Keep `git` available when tests exercise the Git credential fallback on GitHub-hosted runners.
+
 ## 1.4.15
 
 - Improve GitHub authentication guidance by separating credential readiness from workspace and private-repository binding status.

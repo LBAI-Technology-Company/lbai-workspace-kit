@@ -126,8 +126,16 @@ def env_token() -> str:
     return (os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN') or '').strip()
 
 
+def github_cli_enabled() -> bool:
+    return os.environ.get('LBAI_GITHUB_AUTH_USE_GH', '1').strip().lower() not in {
+        '0',
+        'false',
+        'no',
+    }
+
+
 def gh_authenticated() -> bool:
-    if not shutil.which('gh'):
+    if not github_cli_enabled() or not shutil.which('gh'):
         return False
     return capture(['gh', 'auth', 'status']).returncode == 0
 
@@ -170,7 +178,7 @@ def sync_git_credentials(token: str) -> tuple[bool, str]:
 
     erase_git_github_credentials()
 
-    gh = shutil.which('gh')
+    gh = shutil.which('gh') if github_cli_enabled() else None
     if gh:
         login = run_with_input([gh, 'auth', 'login', '--with-token'], token + '\n')
         if login.returncode != 0:
@@ -196,6 +204,8 @@ def sync_git_credentials(token: str) -> tuple[bool, str]:
 
 
 def setup_gh_for_git() -> tuple[bool, str]:
+    if not github_cli_enabled():
+        return False, 'GitHub CLI credential backend disabled'
     gh = shutil.which('gh')
     if not gh:
         return False, '未安装 GitHub CLI (gh)'
