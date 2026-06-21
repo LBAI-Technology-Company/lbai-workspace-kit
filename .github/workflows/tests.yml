@@ -12,11 +12,18 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Enable Git long paths on Windows
+        if: runner.os == 'Windows'
+        shell: bash
+        run: git config --global core.longpaths true
       - name: Run test suite
         shell: bash
         run: bash tests/run_tests.sh -q
