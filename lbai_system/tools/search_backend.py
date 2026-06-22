@@ -21,7 +21,11 @@ def backend_url(base_url: str, path: str) -> str:
     return base_url.rstrip('/') + path
 
 
-def build_request(root: Path, query_plan: dict) -> tuple[dict | None, str | None]:
+def build_request(
+    root: Path,
+    query_plan: dict,
+    workspace_repo_id: str = '',
+) -> tuple[dict | None, str | None]:
     config = knowledge_service_config(root)
     if not config.get('enabled'):
         return None, 'knowledge_service.disabled'
@@ -29,7 +33,7 @@ def build_request(root: Path, query_plan: dict) -> tuple[dict | None, str | None
     if not base_url:
         return None, 'knowledge_service.base_url missing'
     return {
-        'workspace_repo_id': config.get('workspace_repo_id') or root.name,
+        'workspace_repo_id': workspace_repo_id or config.get('workspace_repo_id') or root.name,
         'query': query_plan.get('query', ''),
         'types': query_plan.get('types') or [],
         'tags': query_plan.get('tags') or [],
@@ -105,11 +109,15 @@ def render_response(data: dict, source: str = 'backend') -> str:
 
 
 def search_backend(root: Path, query_plan: dict) -> tuple[dict | None, str | None]:
-    request_data, config_error = build_request(root, query_plan)
+    credentials = knowledge_service_credentials(root)
+    request_data, config_error = build_request(
+        root,
+        query_plan,
+        str(credentials.get('workspace_repo_id') or '').strip(),
+    )
     if config_error:
         return None, config_error
     config = knowledge_service_config(root)
-    credentials = knowledge_service_credentials(root)
     if not credentials.get('api_key'):
         return None, 'knowledge_service.api_key missing; run lbai auth backend-login'
     timeout = int(config.get('search_timeout_seconds') or 20)

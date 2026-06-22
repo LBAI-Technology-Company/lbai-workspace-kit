@@ -56,6 +56,7 @@ def write_backend_auth(
     workspace: Path,
     api_key: str = 'test_backend_api_key',
     api_key_header: str = 'X-LBAI-API-Key',
+    workspace_repo_id: str = '',
 ) -> Path:
     path = workspace / '.lbai_home' / 'auth' / 'knowledge_service.json'
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -65,6 +66,7 @@ def write_backend_auth(
                 'schema_version': 'knowledge_service_auth_v1',
                 'api_key': api_key,
                 'api_key_header': api_key_header,
+                'workspace_repo_id': workspace_repo_id,
                 'created_at': '2026-06-14T00:00:00+00:00',
             },
             ensure_ascii=False,

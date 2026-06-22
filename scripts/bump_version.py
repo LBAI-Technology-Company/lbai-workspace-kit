@@ -89,11 +89,19 @@ def bump_json_field(path: Path, field: str, version: str) -> bool:
 
 
 def bump_install_sh(version: str) -> bool:
-    return bump_regex(INSTALL_SH, r'INSTALLER_VERSION="[^"]*"', f'INSTALLER_VERSION="{version}"')
+    return bump_regex(
+        INSTALL_SH,
+        r'(?m)^INSTALLER_VERSION="[^"]*"$',
+        f'INSTALLER_VERSION="{version}"',
+    )
 
 
 def bump_install_ps1(version: str) -> bool:
-    return bump_regex(INSTALL_PS1, r'\$InstallerVersion = "[^"]*"', f'$InstallerVersion = "{version}"')
+    return bump_regex(
+        INSTALL_PS1,
+        r'(?m)^\$InstallerVersion = "[^"]*"$',
+        f'$InstallerVersion = "{version}"',
+    )
 
 
 def bump_init(version: str) -> bool:

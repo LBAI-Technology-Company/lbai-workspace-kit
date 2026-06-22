@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.22',
+        '1.4.23',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.22'
-    assert report['workspace_kit_version'] == '1.4.22'
+    assert report['cli_version'] == '1.4.23'
+    assert report['workspace_kit_version'] == '1.4.23'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.22'
+    assert report['plugin_version'] == '1.4.23'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -119,7 +119,9 @@ def test_cli_new_task_without_enrichment_shows_friendly_hint(tmp_path, monkeypat
 
 def test_cli_backend_login_verifies_and_stores_key_outside_workspace(tmp_path):
     home = tmp_path / 'lbai_home'
-    with backend_search_server() as (base_url, requests):
+    with backend_search_server(
+        payload={'workspace_repo_id': 'repo-102', 'repo_url': 'https://github.com/acme/repo'}
+    ) as (base_url, requests):
         result = run_cli(
             'auth',
             'backend-login',
@@ -131,13 +133,14 @@ def test_cli_backend_login_verifies_and_stores_key_outside_workspace(tmp_path):
         )
     assert result.returncode == 0, result.stdout + result.stderr
     assert 'backend_key_check: OK' in result.stdout
-    assert requests and requests[0]['path'] == '/v1/knowledge/search'
+    assert requests and requests[0]['path'] == '/v1/knowledge/auth/repo'
     headers = {key.lower(): value for key, value in requests[0]['headers'].items()}
     assert headers.get('x-lbai-api-key') == 'test_backend_api_key'
     auth_file = home / 'auth' / 'knowledge_service.json'
     assert auth_file.exists()
     text = auth_file.read_text(encoding='utf-8')
     assert 'test_backend_api_key' in text
+    assert '"workspace_repo_id": "repo-102"' in text
 
 
 def test_cli_backend_login_rejects_invalid_key(tmp_path):

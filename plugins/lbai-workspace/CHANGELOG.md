@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.23
+
+- Resolve the repository identity from a repository API key during `lbai auth backend-login`.
+- Persist the resolved `workspace_repo_id` with backend credentials and use it for knowledge searches, preventing false `401 Unauthorized` responses from shared workspace directory names.
+- Keep the installer self-update version parser intact during future automated version bumps.
+
 ## 1.4.22
 
 - Fix `install.sh` self-update version check: the sed pattern had its `[^"]*` placeholder clobbered to the literal version, causing `RE error: parentheses not balanced` and a broken remote-version comparison.

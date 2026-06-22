@@ -121,6 +121,7 @@ def knowledge_service_credentials(root: Path | None = None) -> dict:
     return {
         'api_key': api_key,
         'api_key_header': api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER,
+        'workspace_repo_id': str(auth.get('workspace_repo_id') or '').strip(),
     }
 
 

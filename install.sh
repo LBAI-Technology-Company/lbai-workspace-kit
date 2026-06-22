@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.22"
+INSTALLER_VERSION="1.4.23"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -210,7 +210,7 @@ bootstrap_latest_installer() {
     return 0
   fi
 
-  remote_version="$(sed -n 's/^INSTALLER_VERSION="1.4.22"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
+  remote_version="$(sed -n 's/^INSTALLER_VERSION="\([^"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
   if [ -n "${INSTALLER_VERSION:-}" ] && [ -n "$remote_version" ] && [ "$remote_version" = "$INSTALLER_VERSION" ]; then
     rm -rf "$tmp"
     bootstrap_info "-> 安装脚本已是最新 ($INSTALLER_VERSION)"

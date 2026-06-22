@@ -476,6 +476,7 @@ def write_knowledge_service_auth(
     api_key: str,
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
+    workspace_repo_id: str = '',
 ) -> Path:
     path = knowledge_service_auth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -486,6 +487,8 @@ def write_knowledge_service_auth(
         'base_url': (base_url or KNOWLEDGE_SERVICE_BASE_URL).strip(),
         'created_at': datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     }
+    if workspace_repo_id.strip():
+        data['workspace_repo_id'] = workspace_repo_id.strip()
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
     return path
@@ -496,37 +499,32 @@ def verify_knowledge_service_key(
     api_key_header: str = KNOWLEDGE_SERVICE_API_KEY_HEADER,
     base_url: str = KNOWLEDGE_SERVICE_BASE_URL,
     timeout: int = 10,
-) -> tuple[bool, str]:
-    url = base_url.rstrip('/') + '/v1/knowledge/search'
-    payload = {
-        'workspace_repo_id': 'auth-check',
-        'query': 'auth check',
-        'statuses': ['active'],
-        'limit': 1,
-    }
-    body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+) -> tuple[bool, str, str]:
+    url = base_url.rstrip('/') + '/v1/knowledge/auth/repo'
     headers = {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
         (api_key_header or KNOWLEDGE_SERVICE_API_KEY_HEADER).strip(): api_key.strip(),
     }
-    request = urllib.request.Request(url, data=body, headers=headers, method='POST')
+    request = urllib.request.Request(url, headers=headers, method='GET')
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            response.read()
-            return True, f'backend_key_check: OK ({response.status})'
+            data = json.loads(response.read().decode('utf-8'))
+            repo_id = str(data.get('workspace_repo_id') or '').strip()
+            if not repo_id:
+                return False, 'backend_key_check: FAILED invalid repository identity response; API key was not saved.', ''
+            return True, f'backend_key_check: OK ({response.status}, repo={repo_id})', repo_id
     except urllib.error.HTTPError as exc:
         if exc.code in {401, 403}:
-            return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.'
+            return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.', ''
         if 400 <= exc.code < 500:
-            return True, f'backend_key_check: REACHED_BACKEND HTTP_{exc.code} ({exc.reason}); key was accepted but auth-check payload was rejected.'
-        return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.'
+            return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); repository identity could not be resolved.', ''
+        return False, f'backend_key_check: FAILED HTTP_{exc.code} ({exc.reason}); API key was not saved.', ''
     except urllib.error.URLError as exc:
-        return False, f'backend_key_check: FAILED URL_ERROR ({exc.reason}); API key was not saved.'
+        return False, f'backend_key_check: FAILED URL_ERROR ({exc.reason}); API key was not saved.', ''
     except TimeoutError:
-        return False, 'backend_key_check: FAILED TIMEOUT; API key was not saved.'
+        return False, 'backend_key_check: FAILED TIMEOUT; API key was not saved.', ''
     except Exception as exc:
-        return False, f'backend_key_check: FAILED {exc}; API key was not saved.'
+        return False, f'backend_key_check: FAILED {exc}; API key was not saved.', ''
 
 
 def run(cmd: list[str], cwd: Path | None = None, env: dict[str, str] | None = None, check: bool = False) -> subprocess.CompletedProcess:
@@ -851,6 +849,7 @@ def github_auth_token(_args: argparse.Namespace) -> int:
 
 def auth_backend_login(args: argparse.Namespace) -> int:
     existing = read_knowledge_service_auth()
+    workspace_repo_id = str(args.workspace_repo_id or existing.get('workspace_repo_id') or '').strip()
     if existing.get('api_key'):
         print('backend_auth_check: already configured')
         print('直接回车保持不变；如需更换请输入新 API Key。')
@@ -881,7 +880,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         return 2
 
     if not args.no_verify:
-        ok, message = verify_knowledge_service_key(
+        ok, message, workspace_repo_id = verify_knowledge_service_key(
             api_key,
             args.api_key_header,
             args.base_url,
@@ -896,7 +895,7 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         print('backend_key_check: SKIPPED (--no-verify)')
 
     path = write_knowledge_service_auth(
-        api_key, args.api_key_header, args.base_url
+        api_key, args.api_key_header, args.base_url, workspace_repo_id
     )
     print('backend_auth_status: SAVED')
     print(f'backend_auth_store: {path}')
@@ -1823,6 +1822,7 @@ def build_parser() -> argparse.ArgumentParser:
     backend_login.add_argument('--api-key-header', default=KNOWLEDGE_SERVICE_API_KEY_HEADER)
     backend_login.add_argument('--base-url', default=KNOWLEDGE_SERVICE_BASE_URL)
     backend_login.add_argument('--verify-timeout', type=int, default=10)
+    backend_login.add_argument('--workspace-repo-id')
     backend_login.add_argument('--no-verify', action='store_true')
     backend_login.add_argument('--optional', action='store_true')
     auth_sub.add_parser('doctor', help='Check GitHub token sync and backend auth status.')

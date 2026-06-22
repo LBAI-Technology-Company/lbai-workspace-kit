@@ -66,7 +66,7 @@ class TestSearchArtifacts:
         }
         with backend_search_server(payload) as (base_url, requests):
             write_backend_config(isolated_workspace, base_url)
-            write_backend_auth(isolated_workspace)
+            write_backend_auth(isolated_workspace, workspace_repo_id='repo-from-key')
             result = run_tool(isolated_workspace, 'search_artifacts.py', '--enrichment', str(write_query_plan(write_fixture)))
 
         assert result.returncode == 0, result.output
@@ -77,6 +77,7 @@ class TestSearchArtifacts:
         assert requests and requests[0]['path'] == '/v1/knowledge/search'
         headers = {key.lower(): value for key, value in requests[0]['headers'].items()}
         assert headers.get('x-lbai-api-key') == 'test_backend_api_key'
+        assert requests[0]['body']['workspace_repo_id'] == 'repo-from-key'
         assert requests[0]['body']['query'] == 'feedback taxonomy'
 
     def test_backend_no_match_is_rendered_directly(self, isolated_workspace, write_fixture):
