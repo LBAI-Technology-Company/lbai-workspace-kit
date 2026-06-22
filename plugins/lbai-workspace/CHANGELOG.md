@@ -5,6 +5,7 @@
 - Resolve the repository identity from a repository API key during `lbai auth backend-login`.
 - Persist the resolved `workspace_repo_id` with backend credentials and use it for knowledge searches, preventing false `401 Unauthorized` responses from shared workspace directory names.
 - Keep the installer self-update version parser intact during future automated version bumps.
+- Add explicit merge behavior for Git 2.54+ and make remote workspace inspection independent of a bare repository's default `HEAD`.
 
 ## 1.4.22
 

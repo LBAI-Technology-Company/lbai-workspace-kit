@@ -53,7 +53,14 @@ def pull_remote_before_push(
     if merge_base.returncode != 0:
         pull = run_git(
             root,
-            ['pull', 'origin', branch, '--allow-unrelated-histories', '--no-edit'],
+            [
+                'pull',
+                '--no-rebase',
+                'origin',
+                branch,
+                '--allow-unrelated-histories',
+                '--no-edit',
+            ],
             env=env,
         )
         if pull.returncode != 0:
@@ -68,7 +75,7 @@ def pull_remote_before_push(
 
     pull = run_git(root, ['pull', '--rebase', 'origin', branch], env=env)
     if pull.returncode != 0:
-        pull = run_git(root, ['pull', 'origin', branch, '--no-edit'], env=env)
+        pull = run_git(root, ['pull', '--no-rebase', 'origin', branch, '--no-edit'], env=env)
         if pull.returncode != 0:
             detail = (pull.stdout + pull.stderr).strip()
             return False, f'git pull failed: {detail}'

@@ -63,6 +63,8 @@ def test_push_with_remote_sync_rebases_before_push(tmp_path: Path):
 
     local = tmp_path / 'local'
     git(tmp_path, 'clone', str(bare), str(local))
+    git(local, 'config', 'user.email', 'lbai-test@example.com')
+    git(local, 'config', 'user.name', 'LBAI Test')
     (local / 'tasks' / 'note.md').parent.mkdir(parents=True)
     (local / 'tasks' / 'note.md').write_text('local task\n', encoding='utf-8')
     git(local, 'add', 'tasks/note.md')

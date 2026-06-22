@@ -18,10 +18,19 @@ def inspect_remote_repo(repo_url: str, env: dict[str, str] | None = None) -> Rem
         return 'unreachable'
     if not ls.stdout.strip():
         return 'empty'
+    branches = [
+        line.rsplit('refs/heads/', 1)[-1].strip()
+        for line in ls.stdout.splitlines()
+        if 'refs/heads/' in line
+    ]
+    branch = 'main' if 'main' in branches else branches[0]
 
     with tempfile.TemporaryDirectory(prefix='lbai-remote-inspect-') as tmp:
         tmp_path = Path(tmp)
-        clone = _run(['git', 'clone', '--depth', '1', repo_url, str(tmp_path)], env=env)
+        clone = _run(
+            ['git', 'clone', '--depth', '1', '--branch', branch, repo_url, str(tmp_path)],
+            env=env,
+        )
         if clone.returncode != 0:
             return 'unreachable'
         if is_workspace(tmp_path):

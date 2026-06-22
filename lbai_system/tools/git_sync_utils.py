@@ -40,7 +40,11 @@ except ImportError:
             return True, f'{remote_ref} does not exist yet; nothing to pull'
         merge_base = run_git(root, ['merge-base', 'HEAD', remote_ref], env=env)
         if merge_base.returncode != 0:
-            pull = run_git(root, ['pull', 'origin', branch, '--allow-unrelated-histories', '--no-edit'], env=env)
+            pull = run_git(
+                root,
+                ['pull', '--no-rebase', 'origin', branch, '--allow-unrelated-histories', '--no-edit'],
+                env=env,
+            )
             if pull.returncode != 0:
                 return False, f'git pull --allow-unrelated-histories failed: {(pull.stdout + pull.stderr).strip()}'
             return True, 'merged unrelated remote history'
@@ -50,7 +54,7 @@ except ImportError:
             return True, 'already up to date with remote'
         pull = run_git(root, ['pull', '--rebase', 'origin', branch], env=env)
         if pull.returncode != 0:
-            pull = run_git(root, ['pull', 'origin', branch, '--no-edit'], env=env)
+            pull = run_git(root, ['pull', '--no-rebase', 'origin', branch, '--no-edit'], env=env)
             if pull.returncode != 0:
                 return False, f'git pull failed: {(pull.stdout + pull.stderr).strip()}'
             return True, f'merged {behind_count} remote commit(s)'
