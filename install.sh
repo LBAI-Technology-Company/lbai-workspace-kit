@@ -210,7 +210,7 @@ bootstrap_latest_installer() {
     return 0
   fi
 
-  remote_version="$(sed -n 's/^INSTALLER_VERSION="1.4.21"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
+  remote_version="$(sed -n 's/^INSTALLER_VERSION="\([^"]*\)".*/\1/p' "$tmp/install.sh" | head -n 1)"
   if [ -n "${INSTALLER_VERSION:-}" ] && [ -n "$remote_version" ] && [ "$remote_version" = "$INSTALLER_VERSION" ]; then
     rm -rf "$tmp"
     bootstrap_info "-> 安装脚本已是最新 ($INSTALLER_VERSION)"
@@ -724,7 +724,11 @@ create_python_runtime() {
   fi
 
   info "  正在安装 Python 依赖 (jsonschema)..."
-  if ! "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null; then
+  # pip 只需访问 PyPI (HTTPS)。用户 shell 可能设了 SOCKS 代理（all_proxy / ALL_PROXY
+  # 等），venv 又没装 pysocks，会导致 "Missing dependencies for SOCKS support"。
+  # 这里临时清掉代理环境变量，让 pip 直连，避免对 pysocks 的隐式依赖。
+  if ! env -u http_proxy -u https_proxy -u all_proxy -u ALL_PROXY -u HTTP_PROXY -u HTTPS_PROXY \
+      "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null; then
     fail "could not install Python dependencies into $VENV_DIR. Check network or pip configuration, then rerun install.sh."
   fi
 }
