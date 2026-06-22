@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.22
+
+- Fix `install.sh` self-update version check: the sed pattern had its `[^"]*` placeholder clobbered to the literal version, causing `RE error: parentheses not balanced` and a broken remote-version comparison.
+- Fix `install.sh` Python dependency install failing with `Missing dependencies for SOCKS support` when the caller's shell sets a SOCKS proxy (`all_proxy`/`ALL_PROXY`); pip now runs with proxy env vars stripped so it talks to PyPI directly.
+
 ## 1.4.21
 
 - Drop the backend knowledge-service `identity token` requirement: the server now authenticates with the API Key only. `lbai auth backend-login` no longer prompts or blocks on an `identity_token`, the `--identity-token` / `--identity-header` flags are removed, the `X-LBAI-Identity-Token` header is no longer sent on searches, and `auth doctor` / `doctor` no longer report `backend_identity_token_available`.

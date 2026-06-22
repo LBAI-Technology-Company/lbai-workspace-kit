@@ -1,5 +1,5 @@
 {
-  "workspaceKitVersion": "1.4.21",
+  "workspaceKitVersion": "1.4.22",
   "coreVersionRequired": ">=0.1.0",
   "templateSource": "LBAI-Technology-Company/lbai-workspace-kit",
   "managedPaths": [
