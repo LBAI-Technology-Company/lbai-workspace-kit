@@ -17,7 +17,7 @@
    ```
 2. **登录 GitHub**：`lbai github auth token`（粘贴有 repo 权限的 Token；已配置过时**直接回车**可重新同步 Git 凭据）。
 3. **确认认证**：`lbai auth doctor`（应显示 `auth_status: READY`）。
-4. **配置后端检索 Key**：`lbai auth backend-login`（可选；只保存在本机）。
+4. **配置后端检索 Key**：`lbai auth backend-login`（可选；按提示粘贴管理员发给你的后端 API Key，只保存在本机）。
 5. **初始化工作区**：`lbai init-workspace`，输入管理员提供的 private repo URL，选择本地目录。初始化成功后会自动注册为本机默认 active workspace（`~/.lbai/config.json`）。
 6. **用 Cursor 或 Codex 打开 init 输出的 `cursor_open` 目录**（不是外层父目录）；也可在任意项目里通过全局插件调用 LBAI，数据仍写入 registered active workspace。
 7. **在 Cursor 里运行** `/lbai-init` **完成岗位问答**；在 **Codex 里选择 `LBAI Role Setup`**（或输入 `$lbai-init`）。
@@ -137,9 +137,7 @@ lbai auth doctor
 lbai auth backend-login
 ```
 
-这个服务端 API Key 只保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入工作区 Git 仓库。
-
-可先运行 `lbai auth doctor` 检查认证状态。
+按提示粘贴管理员发给你的后端 API Key（服务端只校验 API Key，不再需要 identity token）。这个 API Key 只保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入工作区 Git 仓库。完成后可运行 `lbai auth doctor` 确认 `backend_api_key_available: yes`。
 
 **第 3 步：初始化工作区**
 
@@ -162,14 +160,6 @@ lbai init-workspace
 ```
 
 初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写用户姓名、岗位信息和对话习惯。
-
-如需使用后端知识检索，先运行：
-
-```bash
-lbai auth backend-login
-```
-
-服务端 API Key 会保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入 workspace repo、`.lbai/workspace.json`、`role_workspace/` 或 `tasks/`，`lbai update-kit` 也不会清除它。
 
 `.lbai/workspace.json` 保存技术身份和非敏感后端服务配置，例如 `employee_user_id`、邮箱/部门、`workspace_repo_id` 和 `knowledge_service`；`ROLE_PROFILE_v1.json` 保存面向模型上下文的岗位画像，例如用户姓名、岗位名称和对话习惯。
 

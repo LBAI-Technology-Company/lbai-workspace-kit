@@ -174,6 +174,7 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
    （向管理员索取 GitHub Token，需有 private repo 读写权限；粘贴后会自动同步 Git 凭据）
    lbai auth doctor
    lbai auth backend-login
+   （向管理员索取后端知识服务 API Key；服务端只校验 API Key，无需 identity token）
 
 3. 公用工作区（安装时已自动创建）：
    lbai workspace show
