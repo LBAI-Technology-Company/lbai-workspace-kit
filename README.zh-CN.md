@@ -137,7 +137,7 @@ lbai auth doctor
 lbai auth backend-login
 ```
 
-按提示粘贴管理员发给你的后端 API Key（服务端只校验 API Key，不再需要 identity token）。这个 API Key 只保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入工作区 Git 仓库。完成后可运行 `lbai auth doctor` 确认 `backend_api_key_available: yes`。
+按提示粘贴管理员发给你的后端 API Key（服务端只校验 API Key，不再需要 identity token）。登录时会向后端解析当前仓库身份（`workspace_repo_id`）并连同 API Key 一起保存在员工本机 `~/.lbai/auth/knowledge_service.json`，不会写入工作区 Git 仓库。完成后可运行 `lbai auth doctor` 确认 `backend_api_key_available: yes`。
 
 **第 3 步：初始化工作区**
 
@@ -161,7 +161,7 @@ lbai init-workspace
 
 初始化完成后，用 Cursor 或 Codex 打开本地工作区，运行 `/lbai-init` 填写用户姓名、岗位信息和对话习惯。
 
-`.lbai/workspace.json` 保存技术身份和非敏感后端服务配置，例如 `employee_user_id`、邮箱/部门、`workspace_repo_id` 和 `knowledge_service`；`ROLE_PROFILE_v1.json` 保存面向模型上下文的岗位画像，例如用户姓名、岗位名称和对话习惯。
+`.lbai/workspace.json` 保存技术身份和非敏感后端服务配置，例如 `employee_user_id`、邮箱/部门、`workspace_repo_id` 和 `knowledge_service`；`ROLE_PROFILE_v1.json` 保存面向模型上下文的岗位画像，例如用户姓名、岗位名称和对话习惯。后端检索时实际使用的 `workspace_repo_id` 优先取登录时解析并保存在本机认证文件（`~/.lbai/auth/knowledge_service.json`）里的值，其次才用 `workspace.json` 里的配置默认值。
 
 ### 打开正确的 Cursor 工作区目录
 
