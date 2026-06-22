@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.24
+
+- Add the required `role_workspace/knowledge/index.md` to every workspace template source so newly initialized and updated workspaces pass OKF validation.
+
 ## 1.4.23
 
 - Resolve the repository identity from a repository API key during `lbai auth backend-login`.
