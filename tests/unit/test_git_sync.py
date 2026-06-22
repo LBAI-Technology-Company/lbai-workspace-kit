@@ -38,6 +38,7 @@ def test_pull_merges_unrelated_histories(tmp_path: Path):
     init_repo(remote_work, message='remote seed', filename='README.md', content='remote readme\n')
     git(remote_work, 'remote', 'add', 'origin', str(bare))
     git(remote_work, 'push', '-u', 'origin', 'main')
+    git(bare, 'symbolic-ref', 'HEAD', 'refs/heads/main')
 
     local = tmp_path / 'local'
     init_repo(local, message='local seed', filename='AGENTS.md', content='# local workspace\n')
@@ -60,6 +61,7 @@ def test_push_with_remote_sync_rebases_before_push(tmp_path: Path):
     init_repo(remote_work, message='remote seed', filename='README.md', content='remote readme\n')
     git(remote_work, 'remote', 'add', 'origin', str(bare))
     git(remote_work, 'push', '-u', 'origin', 'main')
+    git(bare, 'symbolic-ref', 'HEAD', 'refs/heads/main')
 
     local = tmp_path / 'local'
     git(tmp_path, 'clone', str(bare), str(local))

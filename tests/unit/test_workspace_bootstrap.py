@@ -53,6 +53,7 @@ def test_inspect_remote_repo_states(tmp_path: Path):
     git(tmp_path, 'init', '--bare', str(bare2))
     git(lbai_work, 'remote', 'add', 'origin', str(bare2))
     git(lbai_work, 'push', '-u', 'origin', 'main')
+    git(bare2, 'symbolic-ref', 'HEAD', 'refs/heads/main')
     assert inspect_remote_repo(str(bare2)) == 'lbai_workspace'
 
     clone_dir = tmp_path / 'cloned'
