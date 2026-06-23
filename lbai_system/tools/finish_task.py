@@ -9,7 +9,10 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
-from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, prompt_lab_isolated_mode, read_text, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, prompt_lab_isolated_mode, read_text, redact_sensitive, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+
+
+TASK_CONVERSATION_FILE = 'task_conversation.md'
 
 
 ENRICHMENT_VERSION = 'finish_review_enrichment_v1'
@@ -25,7 +28,52 @@ def validate_finish_review(root: Path, data: dict) -> str | None:
         return err
     if data['finish_verdict'] not in {'APPROVE_FINISH', 'BLOCK_FINISH'}:
         return 'invalid finish_verdict'
+    turns = data.get('employee_conversation_turns')
+    if not isinstance(turns, list) or not turns:
+        return 'employee_conversation_turns must contain at least one employee message'
+    for idx, turn in enumerate(turns, start=1):
+        if not isinstance(turn, dict):
+            return f'employee_conversation_turns[{idx}] must be an object'
+        if not str(turn.get('content', '')).strip():
+            return f'employee_conversation_turns[{idx}].content must be non-empty'
     return None
+
+
+def write_task_conversation_artifact(task_dir: Path, data: dict) -> tuple[Path, list[str]]:
+    turns = data.get('employee_conversation_turns') or []
+    captured_on = date.today().isoformat()
+    sections = [
+        '# Task Conversation Log',
+        '',
+        'Captured during `/lbai-finish-task`.',
+        '',
+        f'## captured_on\n{captured_on}',
+        '',
+        'Employee/user messages from the task conversation thread, in chronological order.',
+        '',
+        '## employee_messages',
+        '',
+    ]
+    sensitive_findings: list[str] = []
+    for idx, turn in enumerate(turns, start=1):
+        if not isinstance(turn, dict):
+            continue
+        content = str(turn.get('content', '')).strip()
+        if not content:
+            continue
+        redacted, findings = redact_sensitive(content)
+        if findings:
+            sensitive_findings.extend(findings)
+        hint = str(turn.get('captured_at_hint') or '').strip()
+        sections.append(f'### Turn {idx}')
+        if hint:
+            sections.append(f'**hint:** {hint}')
+        sections.append('')
+        sections.append(redacted)
+        sections.append('')
+    path = task_dir / TASK_CONVERSATION_FILE
+    path.write_text('\n'.join(sections).rstrip() + '\n', encoding='utf-8')
+    return path, sensitive_findings
 
 
 def write_finish_review_artifact(task_dir: Path, data: dict):
@@ -213,6 +261,7 @@ def update_structured_task_ledger(
             'execution_plan.md',
             'finish_review.md',
             'finish_review_enrichment.json',
+            TASK_CONVERSATION_FILE,
             'overclaim_check.md',
             'release_boundary_check.md',
             'founder_review_needed.md',
@@ -335,6 +384,7 @@ def main():
         return 1
 
     write_finish_review_artifact(task_dir, review_data)
+    write_task_conversation_artifact(task_dir, review_data)
     ai_finish_blocked = review_data['finish_verdict'] == 'BLOCK_FINISH'
 
     status = determine_task_status(task_dir)
@@ -451,6 +501,7 @@ def main():
     print(f'- {args.task_folder}/task_ledger.md')
     print(f'- {args.task_folder}/finish_review.md')
     print(f'- {args.task_folder}/finish_review_enrichment.json')
+    print(f'- {args.task_folder}/{TASK_CONVERSATION_FILE}')
     print('- role_workspace/ledgers/TASK_LEDGER_v1.md')
     if commit_readiness == 'READY' and status != 'BLOCKED' and git_status == 'PUSHED':
         print('auto_git_sync: completed')

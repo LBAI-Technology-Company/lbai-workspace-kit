@@ -300,8 +300,8 @@ lbai_system/tools/finish_task.py <task_folder> --enrichment <json_path>
 Behavior:
 
 1. If input is empty, resolve the task with `resolve_current_task.py finish`.
-2. Read task scope, task output, and linked evidence; produce finish review enrichment JSON.
-3. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, runs hygiene check, updates ledgers, and syncs when allowed.
+2. Read task scope, task output, linked evidence, and the current task conversation; produce finish review enrichment JSON including `employee_conversation_turns`.
+3. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, `task_conversation.md`, runs hygiene check, updates ledgers, and syncs when allowed.
 4. If `finish_verdict` is `BLOCK_FINISH`, set `commit_readiness: BLOCKED` even when files exist.
 5. If task status is not `BLOCKED` and commit readiness is `READY`, auto git add/commit/push scoped artifacts.
 

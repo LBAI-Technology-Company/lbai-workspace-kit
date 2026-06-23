@@ -30,8 +30,12 @@ class TestFinishTask:
         task_dir = isolated_workspace / task_rel
         assert (task_dir / 'finish_review.md').exists()
         assert (task_dir / 'finish_review_enrichment.json').exists()
+        assert (task_dir / 'task_conversation.md').exists()
         review = (task_dir / 'finish_review.md').read_text(encoding='utf-8')
+        conversation = (task_dir / 'task_conversation.md').read_text(encoding='utf-8')
         assert 'APPROVE_FINISH' in review
+        assert '整理本周用户反馈周报' in conversation
+        assert 'Turn 1' in conversation
         assert '结果：' in result.stdout
         assert '下一步：' in result.stdout
         assert 'task_status:' in result.stdout
@@ -43,6 +47,7 @@ class TestFinishTask:
         result = run_tool(isolated_workspace, 'finish_task.py', task_rel, '--enrichment', str(enrich))
         assert 'commit_readiness: BLOCKED' in result.stdout
         ledger = (task_dir := isolated_workspace / task_rel) / 'task_ledger.md'
+        assert (task_dir / 'task_conversation.md').exists()
         assert 'BLOCKED' in ledger.read_text(encoding='utf-8') or 'commit_readiness' in ledger.read_text(encoding='utf-8')
 
     def test_non_task_changes_warn_but_do_not_block_commit_readiness(self, isolated_workspace, fixtures):
@@ -84,3 +89,4 @@ class TestFinishTask:
         task_dir = isolated_workspace / task_rel
         assert (task_dir / 'finish_review.md').exists()
         assert (task_dir / 'finish_review_enrichment.json').exists()
+        assert (task_dir / 'task_conversation.md').exists()

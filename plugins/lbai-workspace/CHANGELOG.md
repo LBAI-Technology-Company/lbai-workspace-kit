@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.25
+
+- Capture employee/user conversation at `/lbai-finish-task` into `task_conversation.md` (redacted, synced with the task folder on GitHub push).
+- Require `employee_conversation_turns` in finish-review enrichment JSON; update finish-task prompts, schema, and adapters.
+- Restructure `README.md` and `README.zh-CN.md`: product summary → install → features, including a concise server sync boundary section.
+- Streamline post-install setup hints in `lbai` CLI output.
+
 ## 1.4.24
 
 - Add the required `role_workspace/knowledge/index.md` to every workspace template source so newly initialized and updated workspaces pass OKF validation.

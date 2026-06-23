@@ -7,8 +7,8 @@ Read `AGENTS.md` and execute `/lbai-finish-task` per `lbai_system/runner_contrac
 
 Read `lbai_system/prompts/finish_review_enrichment_prompt_v1.md`.
 
-1. Read task scope, task_output, execution_plan.md (if present), linked evidence
-2. Produce finish review enrichment JSON per `lbai_system/schemas/finish_review_enrichment_schema_v1.json`
+1. Read task scope, task_output, execution_plan.md (if present), linked evidence, missing_inputs.md, and the current task conversation (employee/user messages only).
+2. Produce finish review enrichment JSON per `lbai_system/schemas/finish_review_enrichment_schema_v1.json`, including `employee_conversation_turns`.
 3. Run `python3 lbai_system/tools/finish_task.py <task_folder> --enrichment <json_path>`
 
 No rule-based fallback.

@@ -10,10 +10,13 @@ Use in **Cursor** or **Codex desktop app** for `/lbai-finish-task`. No rule-base
    - `tasks/<task_folder>/execution_plan.md` if present
    - linked evidence paths from scope/ledger
    - `tasks/<task_folder>/missing_inputs.md` if present
+   - the current Cursor/Codex conversation thread for this task
 
-2. Produce JSON per `lbai_system/schemas/finish_review_enrichment_schema_v1.json`.
+2. Extract every employee/user message from the task conversation into `employee_conversation_turns`, in chronological order. Include pasted source text, clarifications, decisions, and preferences. Do not invent messages. Do not include assistant/tool/system messages.
 
-3. Run:
+3. Produce JSON per `lbai_system/schemas/finish_review_enrichment_schema_v1.json`.
+
+4. Run:
 
 ```bash
 python3 lbai_system/tools/finish_task.py tasks/<task_folder> --enrichment /tmp/finish_review.json
@@ -34,7 +37,8 @@ Rules:
 5. overclaim_risks: unapproved public/pricing/legal/customer claims in output.
 6. gaps: what is still missing or weak.
 7. Do not approve empty or placeholder task_output.
-8. Output JSON only. schema_version: finish_review_enrichment_v1
+8. employee_conversation_turns must contain at least one non-empty employee message from the current task conversation.
+9. Output JSON only. schema_version: finish_review_enrichment_v1
 ```
 
 ## User template
@@ -54,7 +58,10 @@ task_output.md:
 Linked evidence summaries (if any):
 ---
 
-Return finish review enrichment JSON.
+Task conversation (employee/user messages only, chronological):
+{{paste or summarize employee messages from the current chat thread}}
+
+Return finish review enrichment JSON, including employee_conversation_turns.
 ```
 
 ## Failure

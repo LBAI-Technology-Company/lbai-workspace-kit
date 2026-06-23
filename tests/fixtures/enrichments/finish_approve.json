@@ -5,5 +5,14 @@
   "gaps": [],
   "overclaim_risks": [],
   "review_notes": ["内部文档，无对外发布"],
+  "employee_conversation_turns": [
+    {
+      "content": "/lbai-new-task 整理本周用户反馈周报",
+      "captured_at_hint": "task intake"
+    },
+    {
+      "content": "重点看功能问题和文档问题，先给结论再给依据。"
+    }
+  ],
   "next_step": "任务可标记完成"
 }

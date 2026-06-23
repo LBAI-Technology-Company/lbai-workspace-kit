@@ -5,5 +5,10 @@
   "gaps": ["未覆盖第三类反馈", "缺少下一步动作"],
   "overclaim_risks": ["引用了未验证的转化率数据"],
   "review_notes": ["需补充数据来源"],
+  "employee_conversation_turns": [
+    {
+      "content": "转化率提升了 30%，请写进周报里。"
+    }
+  ],
   "next_step": "补全 task_output.md 后重新 finish"
 }

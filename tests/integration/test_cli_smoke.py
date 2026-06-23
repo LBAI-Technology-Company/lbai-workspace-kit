@@ -50,20 +50,20 @@ def test_cli_doctor_json_contract(tmp_path):
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.24',
+        '1.4.25',
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.24'
-    assert report['workspace_kit_version'] == '1.4.24'
+    assert report['cli_version'] == '1.4.25'
+    assert report['workspace_kit_version'] == '1.4.25'
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.24'
+    assert report['plugin_version'] == '1.4.25'
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 
@@ -342,17 +342,21 @@ def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
         cwd=kit_root(),
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert '安装后续配置（请按顺序逐步完成）' in result.stdout
-    assert '【步骤 1】' in result.stdout
-    assert '【步骤 2】' in result.stdout
+    assert '【步骤 1】让 lbai 命令生效' in result.stdout
+    assert '验证：lbai --version  应显示版本号' in result.stdout
+    assert '【步骤 2】保存 GitHub Token' in result.stdout
+    assert '已保存过可直接回车，会重新同步 Git 凭据' in result.stdout
     assert '【步骤 3】绑定私有仓库到本机工作区' in result.stdout
     assert 'lbai bind-github' in result.stdout
-    assert '【步骤 4】' in result.stdout
+    assert '按提示粘贴管理员给的git仓库 URL' in result.stdout
+    assert '【步骤 4】检查 GitHub 配置是否成功' in result.stdout
+    assert 'lbai auth doctor' in result.stdout
     assert '【步骤 5】登录知识服务' in result.stdout
+    assert 'lbai auth backend-login' in result.stdout
+    assert '已配置过直接回车保留原 Key' in result.stdout
     assert '【步骤 6】设置岗位角色' in result.stdout
+    assert 'Codex：任意项目 → 对话窗口 → LBAI Role Setup' in result.stdout
     assert '/lbai-role-setup' in result.stdout
-    assert '终端会显示 ***' in result.stdout
-    assert 'lbai setup-guide' in result.stdout
 
 
 def test_git_credential_permission_hint_names_missing_read_org(capsys):
