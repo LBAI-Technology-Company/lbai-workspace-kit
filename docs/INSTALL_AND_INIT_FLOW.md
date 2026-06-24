@@ -109,7 +109,7 @@ lbai init-workspace \
 1. Read GitHub authentication from `lbai github auth token`, `GITHUB_TOKEN`, `GH_TOKEN`, or GitHub CLI credential state.
 2. Inspect the private repo:
    - If it is already an LBAI workspace: clone/pull personal repo only; do not overlay the installer template.
-   - If it is empty or only has GitHub boilerplate: seed from workspace_template/, then commit and push.
+   - If it is empty or only has GitHub boilerplate: seed from workspace_template/ locally, then commit and push **employee artifacts only** (`.gitignore`, `role_workspace/`, `tasks/`, `prompt_lab/`).
 3. Fill missing employee default paths without overwriting existing `role_workspace/` or `tasks/` files.
 4. Register the workspace in `~/.lbai/config.json`.
 5. Run `lbai doctor`.
@@ -119,7 +119,7 @@ lbai init-workspace \
 Recommended initialization commit:
 
 ```text
-chore(lbai): initialize workspace kit
+chore(lbai): initialize employee workspace
 ```
 
 ## Local-Only Fallback

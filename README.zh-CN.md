@@ -95,7 +95,7 @@ lbai init-workspace
 | `/lbai-new-task` | LBAI New Task | 创建任务 |
 | `/lbai-execute-task` | LBAI Execute Task | 执行任务 |
 | `/lbai-finish-task` | LBAI Finish Task | 收尾与 Git 同步 |
-| `/lbai-update-kit` | LBAI Update Kit | 升级公司模板 |
+| `/lbai-update-kit` | LBAI Update Kit | 升级公司模板（仅本地） |
 | `/lbai-self-iterate` | LBAI Self Iterate | Prompt Lab |
 
 ### 3.2 任务主链
@@ -110,16 +110,17 @@ lbai init-workspace
 
 ### 3.3 数据同步与服务端边界
 
-按 **建档 → 执行 → 收尾** 官方流程，服务端经 GitHub 收到的是**结构化工作记录**，**不是**插件会话完整镜像。
+按 **建档 → 执行 → 收尾** 官方流程，服务端经 GitHub 收到的是**员工业务数据**，**不是**工作流模版，也**不是**插件会话完整镜像。本插件默认**单端使用**。
 
 | 数据 | 何时上 GitHub |
 |------|---------------|
 | OKF 资料 | `add-evidence` push 成功 → 后端 `PENDING_BACKEND_SYNC` |
 | 任务整包 | `finish-task` push 成功（含交付物、finish_review、员工对话摘要 `task_conversation.md`） |
 | 任务台账 | finish 时一并 push `TASK_LEDGER_v1.md` |
+| 工作流模版 | **不上 GitHub**（`lbai_system/`、`.cursor/` 等仅本地；由 `/lbai-update-kit` 更新磁盘副本） |
 
 **有：** 任务 artifact、OKF 资料、收尾审查、员工侧对话摘要。  
-**无：** AI 助手全文；未 finish 的任务；仅聊天未落盘内容。push 失败则可能仅本地可见。
+**无：** 公司 workflow 模版；AI 助手全文；未 finish 的任务；仅聊天未落盘内容。push 失败则可能仅本地可见。
 
 ### 3.4 统一模式
 

@@ -51,6 +51,12 @@ EMPLOYEE_DEFAULT_PATHS = [
     'tasks',
     'prompt_lab',
 ]
+
+# Employee-owned artifacts synced to private GitHub. Managed workflow kit paths stay local.
+GIT_TRACKED_PATHS = [
+    '.gitignore',
+    *EMPLOYEE_DEFAULT_PATHS,
+]
 KNOWLEDGE_SERVICE_BASE_URL = 'https://workflow-kit.lbai.ai'
 KNOWLEDGE_SERVICE_API_KEY_ENV = 'LBAI_KNOWLEDGE_SERVICE_API_KEY'
 KNOWLEDGE_SERVICE_API_KEY_HEADER = 'X-LBAI-API-Key'
@@ -1047,10 +1053,10 @@ def commit_and_push_workspace(
         return
 
     stage_paths = [
-        p for p in [*MANAGED_PATHS, *EMPLOYEE_DEFAULT_PATHS, '.lbai/workspace.json']
+        p for p in GIT_TRACKED_PATHS
         if (local_path / p).exists()
     ]
-    run(['git', 'add', '-f', '--', *stage_paths], cwd=local_path)
+    run(['git', 'add', '-A', '--', *stage_paths], cwd=local_path)
     status = capture(['git', 'status', '--porcelain'], cwd=local_path)
     if not status.stdout.strip():
         print('git_status: NO_CHANGES')
@@ -1147,7 +1153,7 @@ def init_workspace(args: argparse.Namespace) -> int:
                     repo_url,
                     env,
                     args,
-                    commit_message='chore(lbai): initialize workspace kit',
+                    commit_message='chore(lbai): initialize employee workspace',
                 )
             else:
                 print('git_status: COMMIT_SKIPPED')
@@ -1432,7 +1438,7 @@ def remove_kit(args: argparse.Namespace) -> int:
             print(f'- {item}')
         return 0
 
-    run(['git', 'add', '-u', '--', *MANAGED_PATHS, '.lbai'], cwd=root)
+    run(['git', 'add', '-u', '--', *[p for p in MANAGED_PATHS if p != '.gitignore'], '.lbai'], cwd=root)
     status = capture(['git', 'status', '--porcelain'], cwd=root)
     if not status.stdout.strip():
         print('remove_kit_status: REMOVED')
@@ -1766,7 +1772,7 @@ def workspace_ensure(args: argparse.Namespace) -> int:
                 repo_url,
                 env,
                 args,
-                commit_message='chore(lbai): initialize shared workspace',
+                commit_message='chore(lbai): initialize employee workspace',
             )
 
         registered = register_workspace_if_ready(local_path)

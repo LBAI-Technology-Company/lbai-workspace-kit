@@ -347,18 +347,20 @@ Behavior:
    - `覆盖升级`
    - `暂不升级`
 6. If the employee chooses `覆盖升级`, rerun `update_kit.py` with `--overwrite-managed` and the same source.
-7. If GitHub remote or upstream is missing, block before copying workflow files.
-8. If the update creates safe managed changes, commit with `chore(lbai): update workflow kit to <version>` and push to the current upstream.
-9. Admin/debug flags may return non-employee sync states:
-   - `--dry-run` may return `DRY_RUN` and `git_status: SKIPPED`.
-   - `--no-commit` may return `git_status: COMMIT_SKIPPED`.
+7. If GitHub remote or upstream is missing, still update local workflow files.
+8. Do **not** commit or push managed workflow template files. They stay on disk and are listed in `.gitignore`. If this workspace still has legacy template paths in Git index, best-effort run a one-time cleanup (`chore(lbai): stop tracking workflow kit template`); cleanup failure must **not** block the local template update.
+9. Default assumption: **single-device usage**. Do not design update-kit around multi-device template sync.
+10. Admin/debug flags:
+   - `--dry-run` → `DRY_RUN` / `git_status: SKIPPED`
+   - `--no-commit` → skip legacy Git cleanup
+   - `--no-push` → cleanup commit locally only
 
 Response format:
 
 ```text
 工作流更新完成：<UPDATED | NO_CHANGES | BLOCKED | DRY_RUN>
 commit_readiness: <READY | BLOCKED | NEEDS_MANUAL_CHECK>
-git_status: <PUSHED | COMMITTED | NO_CHANGES | PUSH_FAILED | BLOCKED | SKIPPED | COMMIT_SKIPPED>
+git_status: <LOCAL_ONLY | SKIPPED | COMMIT_SKIPPED | NO_CHANGES | PUSHED | COMMITTED | PUSH_FAILED | BLOCKED>
 当前版本：<workspaceKitVersion，来自 GitHub release 的 lbai-workspace-kit VERSION，写入 .lbai/workspace.json>
 已更新：
 - <files or 无>

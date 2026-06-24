@@ -68,23 +68,26 @@ tasks/
 
 ## Update Flow
 
+Single-device default: one local workspace + one private GitHub repo for employee artifacts.
+
 ```text
 1. Confirm current directory is an LBAI workspace.
 2. Read workspace version metadata.
 3. Fetch the selected release of lbai-workspace-kit.
-4. Copy only managed paths from workspace_template/.
+4. Copy only managed paths from workspace_template/ to local disk.
 5. Preserve employee-owned role, task, and prompt_lab artifacts.
 6. Run hygiene checks.
-7. Stage only managed paths.
-8. Commit the update.
-9. Push to the existing private repo.
-10. Best-effort update the installed CLI/core from the same release archive after workspace sync and Git steps succeed (or after `--no-commit` / `NO_CHANGES` when no push is required).
+7. Update local managed paths only (no template Git commit/push).
+8. Best-effort legacy Git index cleanup if old template paths were still tracked.
+9. Best-effort update the installed CLI/core from the same release archive.
 ```
 
-Recommended commit message:
+Employee Git sync stays on `/lbai-finish-task` and `/lbai-add-evidence` only.
+
+Recommended cleanup commit message (legacy repos only):
 
 ```text
-chore(lbai): update workflow kit to <version>
+chore(lbai): stop tracking workflow kit template
 ```
 
 ## Version Metadata

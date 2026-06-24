@@ -150,10 +150,4 @@ Manual Git commands are fallback/debug guidance only, not the normal employee fl
 
 Rely on `.gitignore` plus the hygiene check to exclude secrets and temp files. Do not commit `.env`, keys, or other sensitive artifacts.
 
-`/lbai-update-kit` automatically stages only managed workflow paths, commits with:
-
-```bash
-git commit -m "chore(lbai): update workflow kit to <version>"
-```
-
-and pushes to the current upstream when the update is safe.
+`/lbai-update-kit` updates company-maintained workflow files **locally only**. Template paths (`lbai_system/`, `.cursor/`, etc.) are in `.gitignore` and are not synced to GitHub. Legacy repos may receive a one-time cleanup commit to stop tracking template files that were committed before this policy.

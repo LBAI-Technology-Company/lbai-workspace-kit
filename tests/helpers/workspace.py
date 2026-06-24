@@ -36,7 +36,9 @@ def create_isolated_workspace(base_dir: Path, *, initial_commit: bool = True) ->
     subprocess.run(['git', 'config', 'user.name', 'LBAI Test'], cwd=workspace, check=True)
 
     if initial_commit:
-        subprocess.run(['git', 'add', '-A'], cwd=workspace, check=True, capture_output=True, text=True)
+        employee_paths = ['.gitignore', 'role_workspace', 'tasks', 'prompt_lab']
+        existing = [p for p in employee_paths if (workspace / p).exists()]
+        subprocess.run(['git', 'add', '-A', '--', *existing], cwd=workspace, check=True, capture_output=True, text=True)
         subprocess.run(
             ['git', 'commit', '-m', 'test: isolated workspace seed'],
             cwd=workspace,

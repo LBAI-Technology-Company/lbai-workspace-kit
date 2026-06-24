@@ -33,6 +33,8 @@ MANAGED_FILES = [
     Path('workspace_dashboard.html'),
 ]
 EMPLOYEE_ARTIFACT_DIRS = [Path('role_workspace'), Path('tasks'), Path('prompt_lab')]
+# Updated locally by update-kit but must stay in Git for ignore rules to protect template paths.
+GIT_TRACKED_EMPLOYEE_FILES = {'.gitignore'}
 REQUIRED_SOURCE_PATHS = [Path('.cursor'), Path('lbai_system')]
 KIT_TEMPLATE_DIR = Path('workspace_template')
 TEMP_NAMES = {'.DS_Store', '__pycache__'}
@@ -104,6 +106,7 @@ def print_employee_artifact_note(root: Path):
     print_list('employee_artifact_changes_not_in_kit_update:', items)
     if items:
         print('employee_artifact_policy: /lbai-update-kit does not stage role_workspace/, tasks/, or prompt_lab/. Sync role/task content through /lbai-add-evidence or /lbai-finish-task when appropriate.')
+        print('template_git_policy: workflow kit template files stay local; GitHub sync is limited to employee artifacts.')
 
 
 def source_from_arg(value: str | None) -> str:
@@ -664,24 +667,42 @@ def git_has_staged_changes(root: Path) -> bool:
     return result.returncode == 1
 
 
-def stage_managed(root: Path) -> tuple[bool, str]:
-    paths = [rel(p) for p in MANAGED_DIRS + MANAGED_FILES] + ['.lbai/workspace.json']
-    result = run_git(root, ['add', '-A', '-f', '--', *paths])
-    if result.returncode != 0:
-        return False, (result.stdout + result.stderr).strip()
-    return True, ''
+def managed_paths_to_untrack() -> list[str]:
+    paths = [
+        rel(p)
+        for p in MANAGED_DIRS + MANAGED_FILES
+        if rel(p) not in GIT_TRACKED_EMPLOYEE_FILES
+    ]
+    paths.append('.lbai')
+    return paths
 
 
-def commit_managed(root: Path, message: str) -> tuple[bool, str]:
-    ok, detail = stage_managed(root)
-    if not ok:
-        return False, f'git add failed: {detail}'
+def migrate_stop_tracking_managed_paths(root: Path, *, push: bool = True) -> tuple[str, str]:
+    """One-time cleanup: remove workflow kit template paths from Git index."""
+    if not (root / '.git').exists():
+        return 'SKIPPED', 'not a git repository'
+    listed = run_git(root, ['ls-files', '--', *managed_paths_to_untrack()])
+    if listed.returncode != 0:
+        return 'BLOCKED', (listed.stdout + listed.stderr).strip()
+    tracked = [line.strip() for line in listed.stdout.splitlines() if line.strip()]
+    if not tracked:
+        return 'SKIPPED', 'workflow kit template was not tracked in git'
+    rm = run_git(root, ['rm', '-r', '--cached', '--ignore-unmatch', '--', *managed_paths_to_untrack()])
+    if rm.returncode != 0:
+        return 'BLOCKED', f'git rm --cached failed: {(rm.stdout + rm.stderr).strip()}'
     if not git_has_staged_changes(root):
-        return True, 'No managed changes to commit'
-    result = run_git(root, ['commit', '-m', message])
-    if result.returncode != 0:
-        return False, f'git commit failed: {(result.stdout + result.stderr).strip()}'
-    return True, message
+        return 'SKIPPED', 'no index changes after untrack'
+    commit = run_git(root, ['commit', '-m', 'chore(lbai): stop tracking workflow kit template'])
+    if commit.returncode != 0:
+        return 'BLOCKED', f'git commit failed: {(commit.stdout + commit.stderr).strip()}'
+    if not push:
+        return 'COMMITTED', 'stopped tracking workflow kit template locally'
+    if not git_remote_available(root) or not git_upstream_available(root):
+        return 'COMMITTED', 'stopped tracking locally; push skipped because remote/upstream is missing'
+    push_ok, push_detail = push_current(root)
+    if not push_ok:
+        return 'PUSH_FAILED', push_detail
+    return 'PUSHED', 'stopped tracking workflow kit template on remote'
 
 
 def push_current(root: Path) -> tuple[bool, str]:
@@ -771,22 +792,6 @@ def main():
         print('- 覆盖升级: discard local changes in the listed workflow files and continue updating')
         print('- 暂不升级: keep local changes and stop')
         return 1
-
-    if not args.no_commit and not args.no_push:
-        if not git_remote_available(root):
-            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: MISSING_GITHUB_REMOTE', '无', '配置 GitHub remote 后重新运行 /lbai-update-kit。')
-            print('kit_update_status: BLOCKED')
-            print('commit_readiness: BLOCKED')
-            print('git_status: BLOCKED')
-            print('reason: MISSING_GITHUB_REMOTE: no Git remote configured')
-            return 1
-        if not git_upstream_available(root):
-            print_contract_summary('BLOCKED', 'BLOCKED', 'BLOCKED', before_version, [], 'blocked_or_failed: MISSING_GIT_UPSTREAM', '无', '设置当前分支 upstream 后重新运行 /lbai-update-kit。')
-            print('kit_update_status: BLOCKED')
-            print('commit_readiness: BLOCKED')
-            print('git_status: BLOCKED')
-            print('reason: MISSING_GIT_UPSTREAM: current branch has no upstream')
-            return 1
 
     with tempfile.TemporaryDirectory(prefix='lbai-kit-update-') as temp_name:
         source_root, source_label, source_version = materialize_source(source, Path(temp_name))
@@ -883,114 +888,43 @@ def main():
                 False,
             )
 
+        def finish_kit_update(kit_status: str, changed_files: list[str]) -> int:
+            apply_core_update()
+            if not args.no_commit:
+                migrate_stop_tracking_managed_paths(root, push=not args.no_push)
+            git_status = 'LOCAL_ONLY'
+            github_sync = '模版仅本地更新，不同步 GitHub'
+            print_contract_summary(
+                kit_status,
+                'READY',
+                git_status,
+                after_version,
+                changed_files,
+                github_sync,
+                '无',
+                '无',
+            )
+            print(f'kit_update_status: {kit_status}')
+            print('commit_readiness: READY')
+            print(f'git_status: {git_status}')
+            print(f'workspace_root: {root}')
+            print(f'source: {source_label}')
+            if kit_status == 'UPDATED':
+                print(f'previous_version: {before_version}')
+            print(f'workspace_kit_version: {after_version}')
+            print(f'github_sync: {github_sync}')
+            print(f'cli_core_update: {core_update_status}')
+            print(f'cli_core_detail: {core_update_detail}')
+            if pre_dirty and overwrite_managed:
+                print_list('overwritten_local_changes:', pre_dirty)
+            print_list('updated_paths:', changed_files)
+            print_employee_artifact_note(root)
+            return 0
+
         if not changed_files:
-            apply_core_update()
-            print_contract_summary('NO_CHANGES', 'READY', 'NO_CHANGES', after_version, [], 'completed: no managed workflow changes', '无', '无')
-            print('kit_update_status: NO_CHANGES')
-            print('commit_readiness: READY')
-            print('git_status: NO_CHANGES')
-            print(f'workspace_root: {root}')
-            print(f'source: {source_label}')
-            print(f'workspace_kit_version: {after_version}')
-            print(f'cli_core_update: {core_update_status}')
-            print(f'cli_core_detail: {core_update_detail}')
-            print_list('updated_paths:', [])
-            print_employee_artifact_note(root)
-            return 0
+            return finish_kit_update('NO_CHANGES', [])
 
-        if args.no_commit:
-            apply_core_update()
-            print_contract_summary('UPDATED', 'READY', 'COMMIT_SKIPPED', after_version, changed_files, 'skipped: --no-commit', '无', '如需同步到 GitHub，请提交并推送这些 workflow 更新。')
-            print('kit_update_status: UPDATED')
-            print('commit_readiness: READY')
-            print('git_status: COMMIT_SKIPPED')
-            print(f'workspace_root: {root}')
-            print(f'source: {source_label}')
-            print(f'previous_version: {before_version}')
-            print(f'workspace_kit_version: {after_version}')
-            print(f'cli_core_update: {core_update_status}')
-            print(f'cli_core_detail: {core_update_detail}')
-            if pre_dirty and overwrite_managed:
-                print_list('overwritten_local_changes:', pre_dirty)
-            print_list('updated_paths:', changed_files)
-            print_employee_artifact_note(root)
-            return 0
-
-        message = f'chore(lbai): update workflow kit to {source_version}'
-        commit_ok, commit_detail = commit_managed(root, message)
-        if not commit_ok:
-            core_update_status, core_update_detail = skip_pending_core_update(
-                core_update_status,
-                core_update_detail,
-                'git commit failed after workspace sync',
-            )
-            print_contract_summary('UPDATED', 'BLOCKED', 'BLOCKED', after_version, changed_files, f'blocked_or_failed: {commit_detail}', '无', '处理本地 Git 提交失败后重试 /lbai-update-kit。')
-            print('kit_update_status: UPDATED')
-            print('commit_readiness: BLOCKED')
-            print('git_status: BLOCKED')
-            print(f'reason: {commit_detail}')
-            print(f'cli_core_update: {core_update_status}')
-            print(f'cli_core_detail: {core_update_detail}')
-            print_list('updated_paths:', changed_files)
-            print_employee_artifact_note(root)
-            return 1
-
-        if args.no_push:
-            apply_core_update()
-            print_contract_summary('UPDATED', 'READY', 'COMMITTED', after_version, changed_files, 'skipped: --no-push', '无', '之后需要 push 到 private GitHub。')
-            print('kit_update_status: UPDATED')
-            print('commit_readiness: READY')
-            print('git_status: COMMITTED')
-            print(f'workspace_root: {root}')
-            print(f'source: {source_label}')
-            print(f'previous_version: {before_version}')
-            print(f'workspace_kit_version: {after_version}')
-            print(f'commit_message: {commit_detail}')
-            print('github_sync: skipped_by_flag')
-            print(f'cli_core_update: {core_update_status}')
-            print(f'cli_core_detail: {core_update_detail}')
-            if pre_dirty and overwrite_managed:
-                print_list('overwritten_local_changes:', pre_dirty)
-            print_list('updated_paths:', changed_files)
-            print_employee_artifact_note(root)
-            return 0
-
-        push_ok, push_detail = push_current(root)
-        if not push_ok:
-            core_update_status, core_update_detail = skip_pending_core_update(
-                core_update_status,
-                core_update_detail,
-                'git push failed after workspace sync',
-            )
-            print_contract_summary('UPDATED', 'READY', 'PUSH_FAILED', after_version, changed_files, f'blocked_or_failed: {push_detail}', '无', 'workspace 已更新但 CLI 未更新；修复 push 后重试 /lbai-update-kit。')
-            print('kit_update_status: UPDATED')
-            print('commit_readiness: READY')
-            print('git_status: PUSH_FAILED')
-            print(f'reason: {push_detail}')
-            print(f'cli_core_update: {core_update_status}')
-            print(f'cli_core_detail: {core_update_detail}')
-            print_list('updated_paths:', changed_files)
-            print_employee_artifact_note(root)
-            return 3
-
-        apply_core_update()
-        print_contract_summary('UPDATED', 'READY', 'PUSHED', after_version, changed_files, 'completed', '无', '可以继续使用最新工作流。')
-        print('kit_update_status: UPDATED')
-        print('commit_readiness: READY')
-        print('git_status: PUSHED')
-        print(f'workspace_root: {root}')
-        print(f'source: {source_label}')
-        print(f'previous_version: {before_version}')
-        print(f'workspace_kit_version: {after_version}')
-        print(f'commit_message: {commit_detail}')
-        print('github_sync: completed')
-        print(f'cli_core_update: {core_update_status}')
-        print(f'cli_core_detail: {core_update_detail}')
-        if pre_dirty and overwrite_managed:
-            print_list('overwritten_local_changes:', pre_dirty)
-        print_list('updated_paths:', changed_files)
-        print_employee_artifact_note(root)
-        return 0
+        return finish_kit_update('UPDATED', changed_files)
     finally:
         if core_staging_dir and core_staging_dir.exists():
             remove_path(core_staging_dir)

@@ -31,6 +31,8 @@ Commit and push safe task artifacts to the private GitHub artifact ledger.
 
 Do not stage company workflow files, other task folders, root `role_workspace/world_model/`, secrets, or unrelated local files.
 
+Workflow kit template paths (`lbai_system/`, `.cursor/`, etc.) must stay out of Git; they are listed in `.gitignore` and updated locally by `/lbai-update-kit` only.
+
 ## Output Status
 
 - `PUSHED`

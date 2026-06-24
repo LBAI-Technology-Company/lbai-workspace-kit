@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.26
+
+- **Template-local Git policy**: workflow kit files (`lbai_system/`, `.cursor/`, `.agents/`, etc.) stay on disk only; GitHub sync is limited to employee artifacts (`tasks/`, `role_workspace/`, `prompt_lab/`, `.gitignore`).
+- **`/lbai-update-kit` simplified**: always reports `git_status: LOCAL_ONLY` on success; legacy Git index cleanup is best-effort and non-blocking.
+- **`lbai init-workspace`**: first commit/push stages employee data only (`GIT_TRACKED_PATHS`).
+- Add `workspace_template/.gitignore` rules to prevent accidental template commits; add `tests/integration/test_git_sync_boundary.py`.
+- Update employee docs, command contract, and Codex update-kit skill for single-device default.
+
 ## 1.4.25
 
 - Capture employee/user conversation at `/lbai-finish-task` into `task_conversation.md` (redacted, synced with the task folder on GitHub push).

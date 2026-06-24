@@ -195,11 +195,13 @@ class TestPromptSchemaInventory:
         assert module.kit_template_root(source_root) == source_root / 'workspace_template'
         assert module.package_root_from_source(source_root / 'workspace_template') == source_root
 
-    def test_managed_git_stage_forces_ignored_paths(self):
-        text = (template_root() / 'lbai_system' / 'tools' / 'update_kit.py').read_text(encoding='utf-8')
+    def test_employee_git_paths_on_init(self):
         cli_text = (kit_root() / 'lbai_core' / 'lbai' / 'cli.py').read_text(encoding='utf-8')
-        assert "['add', '-A', '-f', '--', *paths]" in text
-        assert "['git', 'add', '-f', '--', *stage_paths]" in cli_text
+        update_text = (template_root() / 'lbai_system' / 'tools' / 'update_kit.py').read_text(encoding='utf-8')
+        assert 'GIT_TRACKED_PATHS' in cli_text
+        assert "['git', 'add', '-A', '--', *stage_paths]" in cli_text
+        assert 'migrate_stop_tracking_managed_paths' in update_text
+        assert 'commit_managed' not in update_text
 
 
 class TestBootstrapInIsolatedWorkspace:

@@ -18,3 +18,12 @@ lbai-workspace-kit-*.tar.gz
 *.log
 prompt_lab/runs/
 prompt_lab/finalized_reports/
+
+# LBAI workflow kit (local only — /lbai-update-kit updates disk, not GitHub)
+/AGENTS.md
+/README.md
+/.cursor/
+/.agents/
+/lbai_system/
+/workspace_dashboard.html
+/.lbai/

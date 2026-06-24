@@ -108,7 +108,7 @@ lbai init-workspace \
   --path ~/LBAI/lbai-workspace-<name>
 ```
 
-`init-workspace` 会 clone（如需要）、注入 `workspace_template/`、创建 Cursor/Codex 适配文件、首次 commit/push，并运行 `lbai doctor`。
+`init-workspace` 会 clone（如需要）、注入 `workspace_template/` 到**本地**、创建 Cursor/Codex 适配文件、首次 commit/push **员工数据**（不含工作流模版），并运行 `lbai doctor`。
 
 **重要：用 Cursor 打开 init 输出的 `cursor_open` 目录**（含 `.cursor/commands/` 的那一层），不是外层父目录。
 
@@ -142,7 +142,7 @@ lbai init-workspace \
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
 ```
 
-换电脑：clone 同一 private repo → 重装 lbai → `lbai doctor` → 用 Cursor/Codex 打开仓库根目录。
+换电脑 / 多端：本插件默认**单端使用**（同一台电脑上的 Cursor/Codex + 本地工作区）。GitHub 仅保存任务与资料；工作流模版（`lbai_system/`、`.cursor/` 等）在本地由 `/lbai-update-kit` 维护，不依赖 Git 同步。
 
 ---
 
@@ -158,7 +158,7 @@ lbai init-workspace \
 | `/lbai-new-task` | 创建正式任务 |
 | `/lbai-execute-task` | 执行任务，生成交付物 |
 | `/lbai-finish-task` | 收尾、检查、同步 GitHub |
-| `/lbai-update-kit` | 升级公司工作流模板 |
+| `/lbai-update-kit` | 升级公司工作流模板（**仅本地**，不 push 模版） |
 | `/lbai-self-iterate` | Prompt Lab 实验（管理员向） |
 
 Codex 命令面板名称对照见 [Codex 插件文档](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md#日常入口)。
@@ -219,10 +219,11 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 | 资料（OKF） | `/lbai-add-evidence` push 成功后 | 后端异步入库，可检索 |
 | 任务包 | `/lbai-finish-task` push 成功后 | 含 scope、plan、output、finish_review、**task_conversation.md**（员工对话摘要）等 |
 | 任务台账 | 同上 | `TASK_LEDGER_v1.md` |
+| 工作流模版 | **不上 GitHub** | `lbai_system/`、`.cursor/` 等仅本地；由 `/lbai-update-kit` 更新 |
 
 **包含：** 任务契约与交付物、收尾审查（gaps / overclaim）、员工侧对话摘要、已归档 OKF 资料。
 
-**不包含：** AI 助手全文回复；create/execute 阶段未 finish 的中间态；仅存在于聊天、未落盘的内容；finish 或 push 失败时可能仅留本地。
+**不包含：** 公司 workflow 模版；AI 助手全文回复；create/execute 阶段未 finish 的中间态；仅存在于聊天、未落盘的内容；finish 或 push 失败时可能仅留本地。
 
 敏感信息在落盘时会脱敏；sync 被 BLOCK 时服务端可能看不到对应数据。
 
