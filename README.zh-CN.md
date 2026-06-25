@@ -56,13 +56,17 @@ lbai auth doctor            # 确认 auth_status: READY
 lbai auth backend-login     # 可选：后端知识检索 API Key
 ```
 
-### 2.4 初始化工作区
+### 2.4 绑定 GitHub 工作区
+
+安装脚本会自动创建 `~/.lbai/workspace`，此时尚未绑定 GitHub。
 
 ```bash
-lbai init-workspace
+lbai bind-github
 ```
 
-输入管理员提供的 **private GitHub 仓库 URL**，选择本地目录。成功后注册 active workspace（`~/.lbai/config.json`）。
+粘贴管理员提供的 **private GitHub 仓库 URL**。远端若已有 LBAI 数据则恢复个人仓库；空仓库则本地 seed 模板并 push 员工数据。成功后注册 active workspace（`~/.lbai/config.json`）。
+
+需自定义本地路径时（可选）：`lbai init-workspace --repo-url <url> --path <目录>`。
 
 ### 2.5 Codex 插件
 
@@ -70,13 +74,13 @@ lbai init-workspace
 
 ### 2.6 打开工作区并完成岗位配置
 
-1. 用 Cursor 或 Codex 打开 init 输出的 **`cursor_open`** 目录（含 `.cursor/commands/`）。
-2. 运行 **`/lbai-init`**（Codex：**LBAI Role Setup**）填写岗位信息。
+1. 用 Cursor 或 Codex 打开工作区根目录（含 `.cursor/commands/`；`init-workspace` 时见输出的 **`cursor_open`** 路径）。
+2. **Cursor**：运行 **`/lbai-role-setup`**；**Codex**：**LBAI Role Setup**。
 
 ### Day-1 速查
 
 ```text
-安装 CLI → github auth → init-workspace → 打开工作区 → /lbai-init
+安装 CLI → github auth → bind-github → 打开工作区 → /lbai-role-setup
 日常：/lbai-new-task → /lbai-execute-task → /lbai-finish-task
 资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
 ```
@@ -89,7 +93,7 @@ lbai init-workspace
 
 | Cursor | Codex 命令面板 | 用途 |
 |--------|----------------|------|
-| `/lbai-init` | LBAI Role Setup | 岗位记忆 |
+| `/lbai-role-setup` | LBAI Role Setup | 岗位记忆 |
 | `/lbai-add-evidence` | LBAI Add Evidence | 归档资料 |
 | `/lbai-search-artifacts` | LBAI Search Artifacts | 后端知识检索 |
 | `/lbai-new-task` | LBAI New Task | 创建任务 |

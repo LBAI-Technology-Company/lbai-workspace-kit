@@ -46,7 +46,7 @@ tasks/            任务记录与交付物
 | Python 3.10+ | 安装脚本会检查；缺失时尝试自动安装 |
 | 网络 | 需能访问 GitHub |
 
-安装后本机命令：`~/.lbai/bin/lbai`（Windows：`%USERPROFILE%\.lbai\bin\lbai.cmd`）。
+安装路径：`~/.lbai/bin/lbai`（Windows：`%USERPROFILE%\.lbai\bin\lbai.cmd`）
 
 ### 2.2 安装 lbai CLI
 
@@ -90,17 +90,28 @@ lbai auth backend-login
 
 按提示粘贴后端 API Key（只保存在本机，不写入 Git 仓库）。完成后 `lbai auth doctor` 应显示 `backend_api_key_available: yes`。
 
-### 2.5 初始化工作区
+### 2.5 绑定 GitHub 工作区
+
+安装脚本会自动创建公用工作区 `~/.lbai/workspace`（Windows：`%USERPROFILE%\.lbai\workspace`）。此时**尚未**绑定 GitHub，也**不会**复制企业模板。
 
 向管理员索取 **private GitHub 仓库地址**，然后：
 
 ```bash
-lbai init-workspace
+lbai bind-github
 ```
 
-按提示输入 repo URL；Mac / Windows 会弹出文件夹选择窗口，取消则默认保存在当前目录下的仓库同名文件夹。
+按提示粘贴 repo URL；工作区路径默认为 `~/.lbai/workspace`，无需再选目录。
 
-也可一次性指定路径：
+绑定后会先检查远端仓库：
+
+- **已是 LBAI 工作区**：clone/pull 个人仓库，**不会**用安装器模板覆盖已有岗位/任务数据
+- **空仓库或仅有 GitHub boilerplate**：本地注入 `workspace_template/`（仅本地），首次 commit/push **员工数据**（不含 `lbai_system/`、`.cursor/` 等工作流模版）
+
+完成后注册 active workspace（`~/.lbai/config.json`），并运行 `lbai auth doctor` 确认 `github_repo_status: BOUND`。
+
+**Codex**：绑定后可在**任意 Codex 项目**中使用 **LBAI …** 命令，数据写入 active workspace。
+
+**Cursor 或需自定义本地路径时**（可选）：
 
 ```bash
 lbai init-workspace \
@@ -108,9 +119,9 @@ lbai init-workspace \
   --path ~/LBAI/lbai-workspace-<name>
 ```
 
-`init-workspace` 会 clone（如需要）、注入 `workspace_template/` 到**本地**、创建 Cursor/Codex 适配文件、首次 commit/push **员工数据**（不含工作流模版），并运行 `lbai doctor`。
+交互运行 `lbai init-workspace` 时，Mac / Windows 会弹出文件夹选择窗口；取消则默认保存在当前目录下的 `<仓库名>/` 子文件夹。
 
-**重要：用 Cursor 打开 init 输出的 `cursor_open` 目录**（含 `.cursor/commands/` 的那一层），不是外层父目录。
+**Cursor 用户**：请打开输出中的 **`cursor_open`** 目录（含 `.cursor/commands/`），不要只打开外层父目录。
 
 ### 2.6 安装 Codex 插件（Codex 用户）
 
@@ -122,11 +133,8 @@ lbai init-workspace \
 
 在 Cursor 或 Codex 中打开工作区后运行：
 
-```text
-/lbai-init
-```
-
-（Codex：**LBAI Role Setup**）
+- **Cursor**：`/lbai-role-setup`
+- **Codex**：命令面板 **LBAI Role Setup**
 
 填写用户姓名、岗位名称、主要职责、对话习惯。写入 `role_workspace/world_model/`，不自动创建业务任务。
 
@@ -135,9 +143,9 @@ lbai init-workspace \
 ```text
 1. 安装 lbai CLI
 2. lbai github auth token  →  lbai auth doctor
-3. lbai init-workspace（输入 private repo URL）
-4. Cursor/Codex 打开 cursor_open 目录
-5. /lbai-init（岗位问答）
+3. lbai bind-github（粘贴 private repo URL）
+4. Cursor 打开 cursor_open 目录；Codex 任意项目即可
+5. /lbai-role-setup（Cursor）或 LBAI Role Setup（Codex）
 6. 日常：/lbai-new-task → /lbai-execute-task → /lbai-finish-task
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
 ```
@@ -152,7 +160,7 @@ lbai init-workspace \
 
 | 命令 | 用途 |
 |------|------|
-| `/lbai-init` | 首次或更新岗位记忆 |
+| `/lbai-role-setup` | 首次或更新岗位记忆 |
 | `/lbai-add-evidence` | 归档会议记录、反馈、草稿等资料（不自动建任务） |
 | `/lbai-search-artifacts` | 查询后端知识服务（只读） |
 | `/lbai-new-task` | 创建正式任务 |
@@ -231,7 +239,7 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 
 | 命令 | AI 负责 | 代码负责 |
 |------|---------|----------|
-| `/lbai-init` | 整理岗位问答 JSON | 写入 `role_workspace/` |
+| `/lbai-role-setup` | 整理岗位问答 JSON | 写入 `role_workspace/` |
 | `/lbai-add-evidence` | 资料元数据 JSON | OKF 落盘、脱敏、git |
 | `/lbai-search-artifacts` | 后端 query plan | 调用知识 API |
 | `/lbai-new-task` | 任务 intake JSON | 创建 `tasks/<folder>/` |
@@ -240,7 +248,7 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 
 无 AI enrichment 时相关命令返回 **BLOCKED**，无规则 fallback。
 
-### 3.7 岗位初始化（`/lbai-init`）
+### 3.7 岗位初始化（`/lbai-role-setup`）
 
 会问：用户姓名、岗位名称、主要职责、对话习惯。保存到 `role_workspace/world_model/`（含 `ROLE_PROFILE_v1.json`）。岗位职责变化时可再次运行。
 
