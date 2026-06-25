@@ -17,6 +17,7 @@ Files updated (plugin_version / installer / __version__ / workspaceKitVersion):
     workspace_template/.lbai/workspace.json
     plugins/lbai-workspace/compatibility.json
     plugins/lbai-workspace/.codex-plugin/plugin.json
+    cursor_plugin/manifest.json
     install.sh
     install.ps1
     plugins/lbai-workspace/skills/*/SKILL.md   (--plugin-version only)
@@ -46,6 +47,7 @@ WORKSPACE_JSON = ROOT / '.lbai' / 'workspace.json'
 TEMPLATE_WORKSPACE_JSON = ROOT / 'workspace_template' / '.lbai' / 'workspace.json'
 COMPATIBILITY_JSON = ROOT / 'plugins' / 'lbai-workspace' / 'compatibility.json'
 PLUGIN_JSON = ROOT / 'plugins' / 'lbai-workspace' / '.codex-plugin' / 'plugin.json'
+CURSOR_MANIFEST = ROOT / 'cursor_plugin' / 'manifest.json'
 INSTALL_SH = ROOT / 'install.sh'
 INSTALL_PS1 = ROOT / 'install.ps1'
 SKILLS_DIR = ROOT / 'plugins' / 'lbai-workspace' / 'skills'
@@ -139,6 +141,8 @@ def collect_alignment() -> list[tuple[str, str]]:
     rows.append(('compatibility.json plugin_version', compat.get('plugin_version', 'MISSING')))
     plugin = json.loads(PLUGIN_JSON.read_text(encoding='utf-8'))
     rows.append(('plugin.json version', plugin.get('version', 'MISSING')))
+    cursor = json.loads(CURSOR_MANIFEST.read_text(encoding='utf-8'))
+    rows.append(('cursor_plugin/manifest.json version', cursor.get('version', 'MISSING')))
     sh = re.search(r'INSTALLER_VERSION="([^"]*)"', INSTALL_SH.read_text(encoding='utf-8'))
     rows.append(('install.sh INSTALLER_VERSION', sh.group(1) if sh else 'MISSING'))
     ps1 = re.search(r'\$InstallerVersion = "([^"]*)"', INSTALL_PS1.read_text(encoding='utf-8'))
@@ -167,6 +171,8 @@ def apply_bump(version: str) -> int:
         changed.append(str(COMPATIBILITY_JSON.relative_to(ROOT)))
     if bump_json_field(PLUGIN_JSON, 'version', version):
         changed.append(str(PLUGIN_JSON.relative_to(ROOT)))
+    if bump_json_field(CURSOR_MANIFEST, 'version', version):
+        changed.append(str(CURSOR_MANIFEST.relative_to(ROOT)))
     if bump_install_sh(version):
         changed.append(str(INSTALL_SH.relative_to(ROOT)))
     if bump_install_ps1(version):

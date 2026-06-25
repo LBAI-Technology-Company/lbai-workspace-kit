@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.0
+
+- **Cursor MCP server**: add `cursor_plugin/` (stdlib MCP server + 9 tools + manifest) — eight LBAI workflows plus `lbai_doctor` available as MCP tools in any Cursor project via global `~/.cursor/mcp.json` registration.
+- **Installer auto-registration**: `install.sh` / `install.ps1` now run `ensure_cursor_mcp()` to upsert `lbai-workspace` into `~/.cursor/mcp.json`; new `LBAI_SKIP_CURSOR_MCP` env flag; summary table gains Cursor MCP row.
+- **Doctor integration**: `cursor_mcp` check added to `lbai doctor --json` checks (advisory, non-blocking); new `lbai_system/tools/check_cursor_mcp.py`.
+- **Version sync**: `cursor_plugin/manifest.json` version field tracked by `scripts/bump_version.py` and verified in `tests/quality/test_cursor_mcp.py`.
+- **Docs**: new `docs/CURSOR_MCP_SETUP.md`; README §2.7 plus Day-1 quickstart updated; AGENTS.md Cursor MCP adapter section; ROADMAP Stage 3 marked delivered.
+- **Tests**: `tests/quality/test_cursor_mcp.py`, `tests/unit/test_mcp_json_merge.py`, and `test_cli_doctor_json_includes_cursor_mcp_check`.
+
 ## 1.4.26
 
 - **Template-local Git policy**: workflow kit files (`lbai_system/`, `.cursor/`, `.agents/`, etc.) stay on disk only; GitHub sync is limited to employee artifacts (`tasks/`, `role_workspace/`, `prompt_lab/`, `.gitignore`).

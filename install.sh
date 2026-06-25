@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.4.26"
+INSTALLER_VERSION="1.5.0"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -88,6 +88,7 @@ print_install_summary() {
   summary_line "Codex CLI" "$ST_CODEX_CLI"
   summary_line "Codex marketplace" "$ST_CODEX_MP"
   summary_line "Codex 插件 (lbai-workspace)" "$ST_CODEX_PLUGIN"
+  summary_line "Cursor MCP server (lbai-workspace)" "$ST_CURSOR_MCP"
   summary_line "公用工作区 (active_workspace)" "$ST_WORKSPACE"
   summary_line "后端登录 (可选)" "$ST_BACKEND"
   info "=================================="
@@ -314,7 +315,7 @@ ensure_prerequisites() {
       ensure_prerequisites_linux
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      fail "Windows 请改用 PowerShell 安装命令：irm https://github.com/$REPO/releases/latest/download/install.ps1 | iex"
+      fail "Windows 请改用 PowerShell 安装命令：irm https://github.com/$REPO/releases/latest/download/install-bootstrap.ps1 | iex"
       ;;
     *)
       fail "当前系统暂不支持自动安装，请手动安装 Git 和 Python 3.10+。"
@@ -612,6 +613,100 @@ ensure_codex_plugin() {
   return 0
 }
 
+ensure_cursor_mcp() {
+  step "配置 Cursor MCP server (lbai-workspace)"
+
+  if [ "${LBAI_SKIP_CURSOR_MCP:-}" = "1" ]; then
+    info "跳过 Cursor MCP 配置（LBAI_SKIP_CURSOR_MCP=1）。"
+    set_st CURSOR_MCP SKIPPED "LBAI_SKIP_CURSOR_MCP=1"
+    step_done
+    return 0
+  fi
+
+  # kit root + venv python are mandatory; bail cleanly if the CLI step failed.
+  kit_root="${LBAI_KIT_ROOT:-$INSTALL_DIR}"
+  mcp_script="$kit_root/cursor_plugin/mcp_server.py"
+  venv_python="$VENV_DIR/bin/python"
+  if [ ! -f "$mcp_script" ] || [ ! -x "$venv_python" ]; then
+    info "WARNING: 缺少 cursor_plugin/mcp_server.py 或 venv python，跳过 Cursor MCP 配置。"
+    set_st CURSOR_MCP FAILED "缺少 mcp_server.py 或 venv python"
+    step_done
+    return 0
+  fi
+
+  cursor_dir="$HOME/.cursor"
+  mcp_json="$cursor_dir/mcp.json"
+  if [ ! -d "$cursor_dir" ]; then
+    info "WARNING: 未检测到 ~/.cursor 目录，跳过 Cursor MCP 配置。"
+    info "  请先安装 Cursor 桌面 App，然后重新运行 install.sh。"
+    set_st CURSOR_MCP SKIPPED "Cursor 未安装（~/.cursor 不存在）"
+    step_done
+    return 0
+  fi
+
+  # Idempotent upsert: preserve any other mcpServers entries.
+  tmp_json="$(mktemp)"
+  ok=0
+  if [ -f "$mcp_json" ]; then
+    if "$venv_python" - "$mcp_json" "$tmp_json" "$kit_root" "$venv_python" <<'PYEOF'
+import json, sys
+src_path, out_path, kit_root, venv_python = sys.argv[1:5]
+try:
+    with open(src_path, encoding='utf-8') as fh:
+        data = json.load(fh)
+    if not isinstance(data, dict):
+        data = {}
+except (FileNotFoundError, json.JSONDecodeError):
+    data = {}
+servers = data.setdefault('mcpServers', {})
+if not isinstance(servers, dict):
+    servers = {}
+    data['mcpServers'] = servers
+servers['lbai-workspace'] = {
+    'command': venv_python,
+    'args': [kit_root + '/cursor_plugin/mcp_server.py'],
+    'env': {'PYTHONPATH': kit_root + '/lbai_core'},
+}
+with open(out_path, 'w', encoding='utf-8') as fh:
+    json.dump(data, fh, ensure_ascii=False, indent=2)
+    fh.write('\n')
+PYEOF
+    then
+      ok=1
+    fi
+  else
+    cat > "$tmp_json" <<EOF
+{
+  "mcpServers": {
+    "lbai-workspace": {
+      "command": "$venv_python",
+      "args": ["$kit_root/cursor_plugin/mcp_server.py"],
+      "env": { "PYTHONPATH": "$kit_root/lbai_core" }
+    }
+  }
+}
+EOF
+    ok=1
+  fi
+
+  if [ "$ok" = "1" ] && [ -s "$tmp_json" ]; then
+    mv "$tmp_json" "$mcp_json"
+    info "已写入 Cursor MCP 配置: $mcp_json"
+    info "  lbai-workspace -> $venv_python $mcp_script"
+    info "  请重启 Cursor，使 MCP server 在任意项目生效。"
+    set_st CURSOR_MCP OK "lbai-workspace @ ~/.cursor/mcp.json"
+  else
+    rm -f "$tmp_json"
+    if [ -f "$mcp_json" ]; then
+      info "WARNING: Cursor MCP 合并失败，原有 ~/.cursor/mcp.json 未改动。"
+    fi
+    info "WARNING: Cursor MCP 配置失败。请检查 ~/.cursor/mcp.json 是否为合法 JSON。"
+    set_st CURSOR_MCP FAILED "mcp.json 合并/写入失败"
+  fi
+  step_done
+  return 0
+}
+
 ensure_shared_workspace() {
   step "创建/更新公用工作区 (~/.lbai/workspace)"
   if [ "${LBAI_SKIP_WORKSPACE_INIT:-}" = "1" ]; then
@@ -858,6 +953,7 @@ step_done
 ensure_shell_path
 ensure_codex_cli
 ensure_codex_plugin
+ensure_cursor_mcp
 ensure_shared_workspace
 
 set_st PYDEPS OK "jsonschema 等 ($VENV_DIR)"

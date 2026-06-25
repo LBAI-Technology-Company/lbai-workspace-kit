@@ -68,6 +68,30 @@ def test_cli_doctor_json_contract(tmp_path):
     assert report['doctor_status'] == 'READY'
 
 
+def test_cli_doctor_json_includes_cursor_mcp_check(tmp_path):
+    """Verify cursor_mcp appears in doctor checks (advisory, does not gate READY)."""
+    workspace = create_isolated_workspace(tmp_path)
+    result = run_cli(
+        'doctor',
+        '--json',
+        '--path',
+        str(workspace),
+        '--plugin-version',
+        '1.4.26',
+        '--min-workspace-version',
+        '1.4.1',
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = json.loads(result.stdout)
+    assert 'checks' in report, 'doctor JSON must include checks dict'
+    assert 'cursor_mcp' in report['checks'], 'doctor checks must include cursor_mcp'
+    assert report['checks']['cursor_mcp']['status'] in {'READY', 'BLOCKED'}
+    # Advisory — does not prevent READY
+    assert report['doctor_status'] == 'READY'
+    assert report['checks']['bootstrap']['status'] == 'READY'
+    assert report['checks']['codex_adapter']['status'] == 'READY'
+
+
 def test_cli_doctor_json_reports_workspace_update(tmp_path):
     workspace = create_isolated_workspace(tmp_path)
     metadata_path = workspace / '.lbai' / 'workspace.json'

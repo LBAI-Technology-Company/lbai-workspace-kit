@@ -37,20 +37,22 @@ Constraint:
 
 Codex adapter remains thin. It must not duplicate business workflow logic.
 
-## Stage 3: Cursor Extension
+## Stage 3: Cursor Extension ✅ (delivered via global MCP server, v1.5.0)
 
 Goal: improve Cursor native UI.
 
 Deliverables:
 
-- Cursor or VS Code extension
-- Command palette actions
-- Workspace health status
-- One-click doctor/update-kit
+- ✅ Global MCP server (`cursor_plugin/mcp_server.py`) registered in `~/.cursor/mcp.json` — available in any Cursor project
+- ✅ 9 MCP tools: eight LBAI workflows + health check (`lbai_doctor`)
+- ✅ Installer auto-registration (`install.sh` / `install.ps1`) with `LBAI_SKIP_CURSOR_MCP` flag
+- ✅ `lbai doctor --json` includes advisory `cursor_mcp` check
+- ✅ `docs/CURSOR_MCP_SETUP.md` (manual install, troubleshooting, naming table)
+- ✅ Version sync: `cursor_plugin/manifest.json` tracked by `scripts/bump_version.py`
 
 Constraint:
 
-Cursor extension remains thin. It calls `lbai_core`.
+MCP server remains thin. Each tool shells out to the `lbai` CLI — it does not duplicate business workflow logic, enrichment prompts, or workspace management.
 
 ## Later Options
 

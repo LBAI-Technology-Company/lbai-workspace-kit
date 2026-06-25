@@ -1328,8 +1328,14 @@ def doctor_report(args: argparse.Namespace) -> dict:
         ('bootstrap', [*python_cmd(), 'lbai_system/tools/bootstrap_check.py']),
         ('codex_adapter', [*python_cmd(), 'lbai_system/tools/check_codex_adapter.py']),
         ('cursor_commands', [*python_cmd(), 'lbai_system/tools/check_cursor_commands.py']),
+        # cursor_mcp inspects the global ~/.cursor/mcp.json, not project files.
+        ('cursor_mcp', [*python_cmd(), 'lbai_system/tools/check_cursor_mcp.py']),
     ]
     checks_ok = True
+    # Advisory checks report status but never gate doctor_status: they cover
+    # optional global integrations (e.g. the Cursor MCP server), whose absence
+    # does not make the workspace invalid for CLI/Codex workflows.
+    advisory_checks = {'cursor_mcp'}
     for name, cmd in checks:
         result = capture(cmd, cwd=root)
         passed = result.returncode == 0
@@ -1339,7 +1345,8 @@ def doctor_report(args: argparse.Namespace) -> dict:
             'status': 'READY' if passed else 'BLOCKED',
             'returncode': result.returncode,
         }
-        checks_ok = checks_ok and passed
+        if name not in advisory_checks:
+            checks_ok = checks_ok and passed
 
     require_backend = bool(getattr(args, 'require_backend', False))
     backend_ok = not require_backend or report['knowledge_service']['status'] == 'READY'

@@ -68,6 +68,22 @@ This Codex adapter is project-local. Thin project-local command adapter files ma
 
 The optional enterprise Codex plugin `lbai-workspace` exposes the same workflows through eight command-palette entries: **LBAI Role Setup**, **LBAI New Task**, **LBAI Add Evidence**, **LBAI Search Artifacts**, **LBAI Execute Task**, **LBAI Finish Task**, **LBAI Update Kit**, and **LBAI Self Iterate**. You can also reference skills as `$lbai-role-setup`, `$lbai-new-task`, `$lbai-self-iterate`, and so on. See `docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md` for the full mapping to `/lbai-*` Cursor commands. After `lbai bind-github` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
 
+## Cursor MCP adapter
+
+The LBAI MCP server (`cursor_plugin/mcp_server.py`) exposes the same eight workflows plus a health-check tool as MCP tools. The installer registers it globally in `~/.cursor/mcp.json` so that `lbai_*` tools are available in any Cursor project without per-project configuration.
+
+When a Cursor agent invokes an `lbai_*` tool, the MCP server shells out to the `lbai` CLI subcommand. The CLI resolves the active workspace from `~/.lbai/config.json` and routes reads/writes there — mirroring how Codex plugin commands route to the same registered workspace. Each MCP tool is a thin wrapper; the shared command contract (`lbai_system/runner_contracts/lbai_command_contract_v1.md`) remains the single source of truth for command behavior.
+
+The MCP server does not bundle or cache enrichment prompts, schemas, role memory, credentials, or workspace templates. Tools that require AI enrichment accept an `enrichment_json` argument; the Cursor agent generates it from the matching `lbai_system/schemas/*_schema_v1.json` before invocation, following the same contract as Codex skills.
+
+- Global registration: `~/.cursor/mcp.json` → `mcpServers.lbai-workspace` with the venv Python and `cursor_plugin/mcp_server.py` as entrypoint.
+- Health check: `lbai doctor --json` includes a `cursor_mcp` check (advisory, non-blocking).
+- Manual reference: `docs/CURSOR_MCP_SETUP.md`.
+- Entrypoints:
+  - `lbai_role_setup`, `lbai_new_task`, `lbai_add_evidence`, `lbai_search_artifacts`, `lbai_execute_task`, `lbai_finish_task`, `lbai_update_kit`, `lbai_self_iterate`, `lbai_doctor`.
+
+Project-local Cursor commands (`.cursor/commands/lbai-*.md`) remain available as a fallback when the workspace folder is opened directly in Cursor.
+
 For first-time setup or later role changes, employees may use:
 
 ```text

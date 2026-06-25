@@ -45,7 +45,16 @@ source ~/.zshrc
 Windows（PowerShell，完成后重新打开终端）：
 
 ```powershell
-irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+若中文显示乱码，改用上面这条命令（不要用 `install.ps1 | iex`）。也可手动执行：
+
+```powershell
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$bytes = (New-Object Net.WebClient).DownloadData("https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1")
+iex ([Text.Encoding]::UTF8.GetString($bytes))
 ```
 
 ### 2.3 登录与认证
@@ -72,7 +81,11 @@ lbai bind-github
 
 `install.sh` 通常会配置 Codex marketplace 并安装 **`lbai-workspace`** 插件。手动安装、命令对照与故障排查：[Codex 插件文档](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)。
 
-### 2.6 打开工作区并完成岗位配置
+### 2.6 Cursor MCP（Cursor 用户）
+
+安装器会自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server。**重启 Cursor** 后，在任意项目中 agent 工具列表即可看到 `lbai_*` 工具。跳过：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。详见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
+
+### 2.7 打开工作区并完成岗位配置
 
 1. 用 Cursor 或 Codex 打开工作区根目录（含 `.cursor/commands/`；`init-workspace` 时见输出的 **`cursor_open`** 路径）。
 2. **Cursor**：运行 **`/lbai-role-setup`**；**Codex**：**LBAI Role Setup**。

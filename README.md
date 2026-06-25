@@ -60,7 +60,16 @@ source ~/.zshrc
 Windows（PowerShell，完成后请**重新打开**终端）：
 
 ```powershell
-irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+若中文乱码，请使用 `install-bootstrap.ps1`（勿用 `install.ps1 | iex`）。手动方式：
+
+```powershell
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$bytes = (New-Object Net.WebClient).DownloadData("https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1")
+iex ([Text.Encoding]::UTF8.GetString($bytes))
 ```
 
 安装的是**最新 Release**（`@latest`），不是 main 开发分支。
@@ -129,7 +138,13 @@ lbai init-workspace \
 
 插件安装后，在 Codex **命令面板**选择 **LBAI Role Setup**、**LBAI New Task** 等 8 个命令；数据写入本机注册的 active workspace（`~/.lbai/config.json`）。
 
-### 2.7 首次岗位配置
+### 2.7 安装 Cursor MCP（Cursor 用户）
+
+运行 `install.sh` / `install.ps1` 后，安装器会检测 Cursor 并自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server。注册后**重启 Cursor**，在任意项目中 agent 工具列表即可看到 `lbai_*` 工具；数据写入 registered active workspace（`~/.lbai/config.json`）。
+
+跳过自动安装：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。手动安装或排查见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
+
+### 2.8 首次岗位配置
 
 在 Cursor 或 Codex 中打开工作区后运行：
 
@@ -144,7 +159,7 @@ lbai init-workspace \
 1. 安装 lbai CLI
 2. lbai github auth token  →  lbai auth doctor
 3. lbai bind-github（粘贴 private repo URL）
-4. Cursor 打开 cursor_open 目录；Codex 任意项目即可
+4. Cursor 打开 cursor_open 目录（或重启 Cursor 使用 MCP tools）；Codex 任意项目即可
 5. /lbai-role-setup（Cursor）或 LBAI Role Setup（Codex）
 6. 日常：/lbai-new-task → /lbai-execute-task → /lbai-finish-task
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
@@ -279,6 +294,7 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 ### 常见问题
 
 - **Cursor 看不到 `/lbai-*`**：确认打开的是工作区根目录（含 `.cursor/commands/`），Reload Window。
+- **Cursor agent 看不到 `lbai_*` 工具**：确认安装器已注册 MCP server（`~/.cursor/mcp.json` 含 `lbai-workspace` 条目），重启 Cursor。详见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
 - **终端 `lbai new-task` BLOCKED**：请在 Cursor/Codex 里用 `/lbai-new-task`。
 - **push 失败**：`lbai auth doctor` → 检查 Token、remote、upstream；任务数据仍在本地。
 

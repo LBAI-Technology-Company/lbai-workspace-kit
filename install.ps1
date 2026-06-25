@@ -1,7 +1,38 @@
 $ErrorActionPreference = "Stop"
 
+function Ensure-ConsoleUtf8 {
+    if ($env:LBAI_INSTALL_UTF8 -eq "0") {
+        return
+    }
+    try {
+        if ($PSVersionTable.PSVersion.Major -lt 6) {
+            chcp 65001 | Out-Null
+        }
+        [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+        $OutputEncoding = [System.Text.Encoding]::UTF8
+    } catch {
+        # Some hosts cannot switch code page; continue with best effort.
+    }
+}
+
+function Get-RemoteUtf8Text([string]$Url, [int]$TimeoutSec = 120) {
+    $response = Invoke-WebRequest -UseBasicParsing -Uri $Url -TimeoutSec $TimeoutSec
+    $stream = $response.RawContentStream
+    if (-not $stream) {
+        Fail "could not download $Url"
+    }
+    $ms = New-Object System.IO.MemoryStream
+    if ($stream.CanSeek) {
+        $stream.Position = 0
+    }
+    $stream.CopyTo($ms)
+    return [System.Text.Encoding]::UTF8.GetString($ms.ToArray())
+}
+
+Ensure-ConsoleUtf8
+
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.4.26"
+$InstallerVersion = "1.5.0"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -14,7 +45,7 @@ $PathMarker = "# LBAI Workspace Kit CLI"
 $CodexPluginMarketplace = "lbai-internal"
 $InstallStatus = @{}
 $InstallStep = 0
-$InstallStepsTotal = 12
+$InstallStepsTotal = 13
 
 function Write-Info($Message) {
     Write-Host $Message
@@ -65,6 +96,7 @@ function Write-InstallSummary {
     Write-SummaryLine "Codex CLI" "CodexCli"
     Write-SummaryLine "Codex marketplace" "CodexMarketplace"
     Write-SummaryLine "Codex 插件 (lbai-workspace)" "CodexPlugin"
+    Write-SummaryLine "Cursor MCP server (lbai-workspace)" "CursorMcp"
     Write-SummaryLine "公用工作区 (active_workspace)" "Workspace"
     Write-SummaryLine "后端登录 (可选)" "Backend"
     Write-Info "=================================="
@@ -184,7 +216,7 @@ function Bootstrap-LatestInstaller {
         "https://raw.githubusercontent.com/$Repo/$tag/install.ps1"
     )) {
         try {
-            $script = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 120).Content
+            $script = Get-RemoteUtf8Text -Url $url -TimeoutSec 120
             if ($script -notmatch 'Write-InstallSummary') {
                 Write-Info "  尝试下载安装脚本: $url"
                 continue
@@ -529,6 +561,62 @@ function Ensure-CodexPlugin {
     Set-InstallStatus "CodexPlugin" "FAILED" "插件安装失败，见上方手动命令"
 }
 
+function Ensure-CursorMcp {
+    Write-Step "配置 Cursor MCP server (lbai-workspace)"
+
+    if ($env:LBAI_SKIP_CURSOR_MCP -eq "1") {
+        Write-Info "跳过 Cursor MCP 配置（LBAI_SKIP_CURSOR_MCP=1）。"
+        Set-InstallStatus "CursorMcp" "SKIPPED" "LBAI_SKIP_CURSOR_MCP=1"
+        return
+    }
+
+    $kitRoot = if ($env:LBAI_KIT_ROOT) { $env:LBAI_KIT_ROOT } else { $InstallDir }
+    $mcpScript = Join-Path $kitRoot "cursor_plugin\mcp_server.py"
+    $venvPython = Join-Path $VenvDir "Scripts\python.exe"
+    if (-not (Test-Path $mcpScript) -or -not (Test-Path $venvPython)) {
+        Write-Info "WARNING: 缺少 cursor_plugin\mcp_server.py 或 venv python，跳过 Cursor MCP 配置。"
+        Set-InstallStatus "CursorMcp" "FAILED" "缺少 mcp_server.py 或 venv python"
+        return
+    }
+
+    $cursorDir = Join-Path $HOME ".cursor"
+    $mcpJson = Join-Path $cursorDir "mcp.json"
+    if (-not (Test-Path $cursorDir)) {
+        Write-Info "WARNING: 未检测到 ~\.cursor 目录，跳过 Cursor MCP 配置。"
+        Write-Info "  请先安装 Cursor 桌面 App，然后重新运行 install.ps1。"
+        Set-InstallStatus "CursorMcp" "SKIPPED" "Cursor 未安装（~\.cursor 不存在）"
+        return
+    }
+
+    # Idempotent upsert: preserve any other mcpServers entries.
+    try {
+        $data = @{}
+        if (Test-Path $mcpJson) {
+            $data = Get-Content -Raw $mcpJson | ConvertFrom-Json -AsHashtable -ErrorAction Stop
+            if (-not $data) { $data = @{} }
+        }
+        if (-not $data.ContainsKey('mcpServers') -or $data['mcpServers'] -isnot [hashtable]) {
+            $data['mcpServers'] = @{}
+        }
+        $data['mcpServers']['lbai-workspace'] = @{
+            command = $venvPython
+            args    = @($mcpScript)
+            env     = @{ PYTHONPATH = (Join-Path $kitRoot 'lbai_core') }
+        }
+        $json = $data | ConvertTo-Json -Depth 3 -Compress:$false
+        # Ensure trailing newline (PowerShell 5 fallback: expand-compress cycle).
+        Set-Content -Path $mcpJson -Value $(if (-not $json.EndsWith("`n")) { $json + "`n" } else { $json }) -Encoding UTF8 -NoNewline
+        Write-Info "已写入 Cursor MCP 配置: $mcpJson"
+        Write-Info "  lbai-workspace -> $venvPython $mcpScript"
+        Write-Info "  请重启 Cursor，使 MCP server 在任意项目生效。"
+        Set-InstallStatus "CursorMcp" "OK" "lbai-workspace @ ~\.cursor\mcp.json"
+    } catch {
+        Write-Info "WARNING: Cursor MCP 配置写入失败。请手动合并 ~\.cursor\mcp.json。"
+        Write-Info "  错误: $($_.Exception.Message)"
+        Set-InstallStatus "CursorMcp" "FAILED" "mcp.json 写入失败"
+    }
+}
+
 function Ensure-SharedWorkspace {
     Write-Step "创建/更新公用工作区 (~/.lbai/workspace)"
     if ($env:LBAI_SKIP_WORKSPACE_INIT -eq "1") {
@@ -579,6 +667,7 @@ Write-StepDone
 Ensure-UserPath
 Ensure-CodexCli
 Ensure-CodexPlugin -ReleaseTag $releaseTag
+Ensure-CursorMcp
 Ensure-SharedWorkspace
 Set-InstallStatus "PyDeps" "OK" "jsonschema 等 ($VenvDir)"
 

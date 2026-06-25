@@ -49,18 +49,18 @@ codex plugin add lbai-workspace@lbai-internal
 
 安装 `lbai-workspace` 插件后，Codex 命令面板会展示 8 个 LBAI 命令。选中后会注入对应 skill；也可用自然语言描述同一动作。
 
-| Codex 命令面板 | Skill ID | Cursor 命令 |
-|---|---|---|
-| **LBAI Role Setup** | `lbai-init` | `/lbai-init` |
-| **LBAI New Task** | `lbai-new-task` | `/lbai-new-task` |
-| **LBAI Add Evidence** | `lbai-add-evidence` | `/lbai-add-evidence` |
-| **LBAI Search Artifacts** | `lbai-search-artifacts` | `/lbai-search-artifacts` |
-| **LBAI Execute Task** | `lbai-execute-task` | `/lbai-execute-task` |
-| **LBAI Finish Task** | `lbai-finish-task` | `/lbai-finish-task` |
-| **LBAI Update Kit** | `lbai-update-kit` | `/lbai-update-kit` |
-| **LBAI Self Iterate** | `lbai-self-iterate` | `/lbai-self-iterate` |
+| Codex 命令面板 | Skill ID | Cursor 命令 | Cursor MCP tool |
+|---|---|---|---|
+| **LBAI Role Setup** | `lbai-init` | `/lbai-init` | `lbai_role_setup` |
+| **LBAI New Task** | `lbai-new-task` | `/lbai-new-task` | `lbai_new_task` |
+| **LBAI Add Evidence** | `lbai-add-evidence` | `/lbai-add-evidence` | `lbai_add_evidence` |
+| **LBAI Search Artifacts** | `lbai-search-artifacts` | `/lbai-search-artifacts` | `lbai_search_artifacts` |
+| **LBAI Execute Task** | `lbai-execute-task` | `/lbai-execute-task` | `lbai_execute_task` |
+| **LBAI Finish Task** | `lbai-finish-task` | `/lbai-finish-task` | `lbai_finish_task` |
+| **LBAI Update Kit** | `lbai-update-kit` | `/lbai-update-kit` | `lbai_update_kit` |
+| **LBAI Self Iterate** | `lbai-self-iterate` | `/lbai-self-iterate` | `lbai_self_iterate` |
 
-Cursor 继续使用 `.cursor/commands/` 里的 `/lbai-*` 斜杠命令，行为与上表 Cursor 列一致。
+Cursor 继续使用 `.cursor/commands/` 里的 `/lbai-*` 斜杠命令，或使用全局 MCP server 提供的 `lbai_*` 工具（详见 [Cursor MCP 文档](CURSOR_MCP_SETUP.md)）。两种入口均路由到 registered active workspace（`~/.lbai/config.json`）。
 
 如果你在某个 LBAI 工作区项目里打开了 Codex，项目本地的 `$lbai-*` 或 `/lbai-*` 兼容入口仍然可用；全局插件命令会把读写路由到 registered active workspace（`~/.lbai/config.json`）。
 

@@ -1,0 +1,31 @@
+{
+  "name": "lbai-workspace",
+  "version": "1.5.0",
+  "description": "Enterprise role-workspace workflows for evidence-aware, auditable office work in Cursor via MCP.",
+  "author": {
+    "name": "LBAI Technology Company",
+    "url": "https://github.com/LBAI-Technology-Company"
+  },
+  "homepage": "https://github.com/LBAI-Technology-Company/lbai-workspace-kit",
+  "repository": "https://github.com/LBAI-Technology-Company/lbai-workspace-kit",
+  "license": "Proprietary",
+  "keywords": [
+    "enterprise",
+    "productivity",
+    "evidence",
+    "workflow",
+    "role-memory"
+  ],
+  "entrypoint": "./mcp_server.py",
+  "transport": "stdio",
+  "interface": {
+    "displayName": "LBAI Workspace",
+    "shortDescription": "Evidence-aware enterprise work in Cursor (MCP)",
+    "longDescription": "Run LBAI role setup, evidence capture, knowledge search, formal task execution, safe task completion, workflow updates, and Prompt Lab experiments from any Cursor project. The LBAI CLI manages authentication, workspace initialization, versioning, and Git synchronization; this MCP server exposes the eight LBAI workflows plus a health-check tool.",
+    "developerName": "LBAI Technology Company",
+    "category": "Productivity",
+    "brandColor": "#155EEF",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png"
+  }
+}
