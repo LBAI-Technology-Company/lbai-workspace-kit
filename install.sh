@@ -49,8 +49,9 @@ set_st() {
     PATH) ST_PATH="${2}|${3}" ;;
     CODEX_CLI) ST_CODEX_CLI="${2}|${3}" ;;
     CODEX_MP) ST_CODEX_MP="${2}|${3}" ;;
-    CODEX_PLUGIN) ST_CODEX_PLUGIN="${2}|${3}" ;;
-    BACKEND) ST_BACKEND="${2}|${3}" ;;
+	    CODEX_PLUGIN) ST_CODEX_PLUGIN="${2}|${3}" ;;
+	    CURSOR_MCP) ST_CURSOR_MCP="${2}|${3}" ;;
+	    BACKEND) ST_BACKEND="${2}|${3}" ;;
     WORKSPACE) ST_WORKSPACE="${2}|${3}" ;;
   esac
 }
