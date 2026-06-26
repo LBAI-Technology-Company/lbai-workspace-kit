@@ -136,6 +136,9 @@ class TestPromptSchemaInventory:
         assert 'ensure_codex_plugin' in install_sh
         assert '[步骤' in install_sh
         assert 'ensure_shared_workspace' in install_sh
+        assert 'ensure_global_cursor_commands' in install_sh
+        assert 'LBAI_SKIP_CURSOR_COMMANDS' in install_sh
+        assert 'Cursor 全局斜杠命令' in install_sh
         assert 'Write-Step' in install_ps1
         assert 'workspace ensure' in install_sh
         assert 'print_install_summary' in install_sh
@@ -160,6 +163,9 @@ class TestPromptSchemaInventory:
         assert 'Ensure-CodexCli' in install_ps1
         assert 'Ensure-CodexPlugin' in install_ps1
         assert 'Ensure-SharedWorkspace' in install_ps1
+        assert 'Ensure-CursorCommands' in install_ps1
+        assert 'LBAI_SKIP_CURSOR_COMMANDS' in install_ps1
+        assert 'Cursor 全局斜杠命令' in install_ps1
         assert 'Write-InstallSummary' in install_ps1
         assert '安装结果汇总' in install_ps1
         assert 'Bootstrap-LatestInstaller' in install_ps1

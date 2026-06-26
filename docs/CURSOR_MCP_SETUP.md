@@ -17,7 +17,7 @@ lbai github auth token
 lbai auth backend-login   # 可选，用于知识搜索
 ```
 
-安装器 (`install.sh` / `install.ps1`) 会自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server。全局注册后，在 Cursor 中打开任意项目，agent 工具列表中即可看到 `lbai_*` 工具；任务、证据和台账都会路由到 registered active workspace（`~/.lbai/config.json`）。
+安装器 (`install.sh` / `install.ps1`) 会自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server，并将八个 `/lbai-*` 斜杠命令复制到 `~/.cursor/commands/`。全局注册后，在 Cursor 中打开任意项目，agent 工具列表中即可看到 `lbai_*` 工具，Agent 输入 `/lbai` 即可使用斜杠命令；任务、证据和台账都会路由到 registered active workspace（`~/.lbai/config.json`）。
 
 如需手动安装或排查，将以下块合并到 `~/.cursor/mcp.json`（不存在则新建）：
 
@@ -36,10 +36,11 @@ lbai auth backend-login   # 可选，用于知识搜索
 - `<venv-python>`：安装器 venv 中的 Python（通常 `~/.lbai/venv/bin/python3`，Windows 上为 `~\.lbai\venv\Scripts\python.exe`）。
 - `<kit>`：lbai-workspace-kit 源码根目录（通常 `~/.lbai/kit`）。
 
-写入后重启 Cursor，使 MCP server 生效。跳过自动安装：
+写入后重启 Cursor，使 MCP server 与全局斜杠命令生效。跳过自动安装：
 
 ```text
-LBAI_SKIP_CURSOR_MCP=1 install.sh
+LBAI_SKIP_CURSOR_MCP=1 install.sh          # 跳过 MCP
+LBAI_SKIP_CURSOR_COMMANDS=1 install.sh     # 跳过 ~/.cursor/commands/ 斜杠命令
 ```
 
 ## 日常入口

@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.5.1"
+INSTALLER_VERSION="1.5.2"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -19,6 +19,7 @@ ST_CODEX_CLI=""
 ST_CODEX_MP=""
 ST_CODEX_PLUGIN=""
 ST_CURSOR_MCP=""
+ST_CURSOR_COMMANDS=""
 ST_BACKEND=""
 ST_WORKSPACE=""
 
@@ -27,7 +28,7 @@ info() {
 }
 
 INSTALL_STEP=0
-INSTALL_STEPS_TOTAL=12
+INSTALL_STEPS_TOTAL=13
 
 step() {
   INSTALL_STEP=$((INSTALL_STEP + 1))
@@ -51,6 +52,7 @@ set_st() {
     CODEX_MP) ST_CODEX_MP="${2}|${3}" ;;
 	    CODEX_PLUGIN) ST_CODEX_PLUGIN="${2}|${3}" ;;
 	    CURSOR_MCP) ST_CURSOR_MCP="${2}|${3}" ;;
+	    CURSOR_COMMANDS) ST_CURSOR_COMMANDS="${2}|${3}" ;;
 	    BACKEND) ST_BACKEND="${2}|${3}" ;;
     WORKSPACE) ST_WORKSPACE="${2}|${3}" ;;
   esac
@@ -91,10 +93,11 @@ print_install_summary() {
   summary_line "Codex marketplace" "$ST_CODEX_MP"
   summary_line "Codex 插件 (lbai-workspace)" "$ST_CODEX_PLUGIN"
   summary_line "Cursor MCP server (lbai-workspace)" "$ST_CURSOR_MCP"
+  summary_line "Cursor 全局斜杠命令 (/lbai-*)" "$ST_CURSOR_COMMANDS"
   summary_line "公用工作区 (active_workspace)" "$ST_WORKSPACE"
   summary_line "后端登录 (可选)" "$ST_BACKEND"
   info "=================================="
-  info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、~/.lbai/workspace 公用工作区。"
+  info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、Cursor MCP/斜杠命令、~/.lbai/workspace 公用工作区。"
 }
 
 fail() {
@@ -709,6 +712,47 @@ EOF
   return 0
 }
 
+ensure_global_cursor_commands() {
+  step "安装 Cursor 全局斜杠命令 (~/.cursor/commands/)"
+
+  if [ "${LBAI_SKIP_CURSOR_COMMANDS:-}" = "1" ]; then
+    info "跳过 Cursor 全局斜杠命令（LBAI_SKIP_CURSOR_COMMANDS=1）。"
+    set_st CURSOR_COMMANDS SKIPPED "LBAI_SKIP_CURSOR_COMMANDS=1"
+    step_done
+    return 0
+  fi
+
+  kit_root="${LBAI_KIT_ROOT:-$INSTALL_DIR}"
+  src_dir="$kit_root/.cursor/commands"
+  dst_dir="$HOME/.cursor/commands"
+
+  if [ ! -d "$src_dir" ]; then
+    info "WARNING: 缺少 $src_dir，跳过 Cursor 全局斜杠命令。"
+    set_st CURSOR_COMMANDS FAILED "缺少 .cursor/commands 源目录"
+    step_done
+    return 0
+  fi
+
+  mkdir -p "$dst_dir"
+  copied=0
+  for src in "$src_dir"/lbai-*.md; do
+    [ -f "$src" ] || continue
+    cp "$src" "$dst_dir/$(basename "$src")"
+    copied=$((copied + 1))
+  done
+
+  if [ "$copied" -gt 0 ]; then
+    info "已安装 Cursor 全局斜杠命令: $dst_dir ($copied 个 lbai-*.md)"
+    info "  请重启 Cursor，在 Agent 中输入 /lbai 即可使用。"
+    set_st CURSOR_COMMANDS OK "$copied 个命令 @ ~/.cursor/commands/"
+  else
+    info "WARNING: 未找到 lbai-*.md 命令文件，跳过 Cursor 全局斜杠命令。"
+    set_st CURSOR_COMMANDS FAILED "缺少 lbai-*.md 命令文件"
+  fi
+  step_done
+  return 0
+}
+
 ensure_shared_workspace() {
   step "创建/更新公用工作区 (~/.lbai/workspace)"
   if [ "${LBAI_SKIP_WORKSPACE_INIT:-}" = "1" ]; then
@@ -956,6 +1000,7 @@ ensure_shell_path
 ensure_codex_cli
 ensure_codex_plugin
 ensure_cursor_mcp
+ensure_global_cursor_commands
 ensure_shared_workspace
 
 set_st PYDEPS OK "jsonschema 等 ($VENV_DIR)"

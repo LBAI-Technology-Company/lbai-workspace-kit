@@ -32,7 +32,7 @@ function Get-RemoteUtf8Text([string]$Url, [int]$TimeoutSec = 120) {
 Ensure-ConsoleUtf8
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.5.1"
+$InstallerVersion = "1.5.2"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -45,7 +45,7 @@ $PathMarker = "# LBAI Workspace Kit CLI"
 $CodexPluginMarketplace = "lbai-internal"
 $InstallStatus = @{}
 $InstallStep = 0
-$InstallStepsTotal = 13
+$InstallStepsTotal = 14
 
 function Write-Info($Message) {
     Write-Host $Message
@@ -97,10 +97,11 @@ function Write-InstallSummary {
     Write-SummaryLine "Codex marketplace" "CodexMarketplace"
     Write-SummaryLine "Codex 插件 (lbai-workspace)" "CodexPlugin"
     Write-SummaryLine "Cursor MCP server (lbai-workspace)" "CursorMcp"
+    Write-SummaryLine "Cursor 全局斜杠命令 (/lbai-*)" "CursorCommands"
     Write-SummaryLine "公用工作区 (active_workspace)" "Workspace"
     Write-SummaryLine "后端登录 (可选)" "Backend"
     Write-Info "=================================="
-    Write-Info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、~/.lbai/workspace 公用工作区。"
+    Write-Info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、Cursor MCP/斜杠命令、~/.lbai/workspace 公用工作区。"
 }
 
 function Fail($Message) {
@@ -617,6 +618,43 @@ function Ensure-CursorMcp {
     }
 }
 
+function Ensure-CursorCommands {
+    Write-Step "安装 Cursor 全局斜杠命令 (~/.cursor/commands/)"
+
+    if ($env:LBAI_SKIP_CURSOR_COMMANDS -eq "1") {
+        Write-Info "跳过 Cursor 全局斜杠命令（LBAI_SKIP_CURSOR_COMMANDS=1）。"
+        Set-InstallStatus "CursorCommands" "SKIPPED" "LBAI_SKIP_CURSOR_COMMANDS=1"
+        return
+    }
+
+    $kitRoot = if ($env:LBAI_KIT_ROOT) { $env:LBAI_KIT_ROOT } else { $InstallDir }
+    $srcDir = Join-Path $kitRoot ".cursor\commands"
+    $dstDir = Join-Path $HOME ".cursor\commands"
+
+    if (-not (Test-Path $srcDir)) {
+        Write-Info "WARNING: 缺少 $srcDir，跳过 Cursor 全局斜杠命令。"
+        Set-InstallStatus "CursorCommands" "FAILED" "缺少 .cursor\commands 源目录"
+        return
+    }
+
+    $sources = @(Get-ChildItem -Path $srcDir -Filter 'lbai-*.md' -File -ErrorAction SilentlyContinue)
+    if ($sources.Count -eq 0) {
+        Write-Info "WARNING: 未找到 lbai-*.md 命令文件，跳过 Cursor 全局斜杠命令。"
+        Set-InstallStatus "CursorCommands" "FAILED" "缺少 lbai-*.md 命令文件"
+        return
+    }
+
+    New-Item -ItemType Directory -Force -Path $dstDir | Out-Null
+    foreach ($src in $sources) {
+        Copy-Item -Path $src.FullName -Destination (Join-Path $dstDir $src.Name) -Force
+    }
+
+    $count = $sources.Count
+    Write-Info "已安装 Cursor 全局斜杠命令: $dstDir ($count 个 lbai-*.md)"
+    Write-Info "  请重启 Cursor，在 Agent 中输入 /lbai 即可使用。"
+    Set-InstallStatus "CursorCommands" "OK" "$count 个命令 @ ~\.cursor\commands\"
+}
+
 function Ensure-SharedWorkspace {
     Write-Step "创建/更新公用工作区 (~/.lbai/workspace)"
     if ($env:LBAI_SKIP_WORKSPACE_INIT -eq "1") {
@@ -668,6 +706,7 @@ Ensure-UserPath
 Ensure-CodexCli
 Ensure-CodexPlugin -ReleaseTag $releaseTag
 Ensure-CursorMcp
+Ensure-CursorCommands
 Ensure-SharedWorkspace
 Set-InstallStatus "PyDeps" "OK" "jsonschema 等 ($VenvDir)"
 

@@ -85,7 +85,7 @@ lbai bind-github
 
 LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `lbai_*` 工具，与 Codex 插件路由到同一 active workspace。
 
-**Cursor（自动）** — 安装器写入 `~/.cursor/mcp.json`，**重启 Cursor** 后在任意项目可用。跳过：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。
+**Cursor（自动）** — 安装器写入 `~/.cursor/mcp.json`，并将 `/lbai-*` 斜杠命令安装到 `~/.cursor/commands/`（任意项目可用）。**重启 Cursor** 后在任意项目可用。跳过 MCP：`LBAI_SKIP_CURSOR_MCP=1`；跳过全局斜杠命令：`LBAI_SKIP_CURSOR_COMMANDS=1`。
 
 **其他 MCP 客户端（手动）** — 将同一 server 配置块合并到对应配置文件：
 

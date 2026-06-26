@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.2
+
+- **Installer**: `install.sh` / `install.ps1` now copy eight `/lbai-*` slash commands to `~/.cursor/commands/` on every install (idempotent overwrite), so `/lbai` works in any Cursor project without opening the employee workspace root.
+- **Skip flag**: `LBAI_SKIP_CURSOR_COMMANDS=1` to opt out; install summary table adds a Cursor global commands row.
+- **Docs**: README and `docs/CURSOR_MCP_SETUP.md` updated for auto-installed global slash commands.
+
 ## 1.5.1
 
 - **Windows UTF-8 bootstrap**: add `install-bootstrap.ps1` release asset so `irm … | iex` decodes `install.ps1` as UTF-8 on Chinese Windows; document manual UTF-8 fallback in install docs and employee FAQ.
