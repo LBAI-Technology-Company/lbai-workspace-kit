@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.3
+
+- **Release tooling**: add `scripts/publish_release_assets.sh` to upload `install.sh`, `install.ps1`, and `install-bootstrap.ps1` to GitHub Releases (fixes `releases/latest/download/install.sh` 404 when assets are missing).
+- **Docs**: Codex plugin release checklist now requires running the publish script after `gh release create`.
+
 ## 1.5.2
 
 - **Installer**: `install.sh` / `install.ps1` now copy eight `/lbai-*` slash commands to `~/.cursor/commands/` on every install (idempotent overwrite), so `/lbai` works in any Cursor project without opening the employee workspace root.

@@ -110,3 +110,11 @@ lbai update-kit
 - 兼容版本测试
 
 使用固定 release tag 进行内部试点，不允许员工直接安装未经验证的 `main`。
+
+创建 GitHub Release 后，必须上传员工安装脚本，否则 `releases/latest/download/install.sh` 会 404：
+
+```bash
+bash scripts/publish_release_assets.sh vX.Y.Z
+```
+
+上传 `install.sh`、`install.ps1`、`install-bootstrap.ps1` 三个文件。
