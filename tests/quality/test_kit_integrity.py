@@ -113,6 +113,17 @@ class TestPromptSchemaInventory:
             text = (template_root() / rel).read_text(encoding='utf-8')
             assert 'prepare_execute_task.py' in text, f'{rel} should call prepare_execute_task.py'
 
+    def test_finish_task_adapter_mentions_auto_execute(self):
+        for rel in (
+            '.cursor/commands/lbai-finish-task.md',
+            'lbai_system/cursor/commands/lbai-finish-task.md',
+            '.agents/skills/lbai-finish-task/SKILL.md',
+            'lbai_system/cursor/skills/lbai-finish-task/SKILL.md',
+        ):
+            text = (template_root() / rel).read_text(encoding='utf-8')
+            assert 'check_task_delivery.py' in text, f'{rel} should mention check_task_delivery.py'
+            assert 'auto-execute' in text.lower() or 'auto_execute' in text, f'{rel} should mention auto-execute'
+
     def test_pipe_install_does_not_misdetect_current_directory(self):
         text = (kit_root() / 'install.sh').read_text(encoding='utf-8')
         assert 'detect_script_dir()' in text

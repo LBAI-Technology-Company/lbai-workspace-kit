@@ -32,7 +32,7 @@ function Get-RemoteUtf8Text([string]$Url, [int]$TimeoutSec = 120) {
 Ensure-ConsoleUtf8
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.5.3"
+$InstallerVersion = "1.5.4"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {

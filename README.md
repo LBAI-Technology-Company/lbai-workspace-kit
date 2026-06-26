@@ -189,7 +189,7 @@ LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `
 3. lbai bind-github（粘贴 private repo URL）
 4. Cursor 打开 cursor_open 目录（或重启 Cursor / 其他 MCP 客户端加载 `lbai_*` 工具）；Codex 任意项目即可
 5. /lbai-role-setup（Cursor）或 LBAI Role Setup（Codex）
-6. 日常：/lbai-new-task → /lbai-execute-task → /lbai-finish-task
+6. 日常：/lbai-new-task → /lbai-finish-task（finish 会在需要时自动生成交付物）
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
 ```
 
@@ -207,8 +207,8 @@ LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `
 | `/lbai-add-evidence` | 归档会议记录、反馈、草稿等资料（不自动建任务） |
 | `/lbai-search-artifacts` | 查询后端知识服务（只读） |
 | `/lbai-new-task` | 创建正式任务 |
-| `/lbai-execute-task` | 执行任务，生成交付物 |
-| `/lbai-finish-task` | 收尾、检查、同步 GitHub |
+| `/lbai-finish-task` | 交付（按需）、审稿、检查、同步 GitHub |
+| `/lbai-execute-task` | **高级/调试：** 只重生成交付物，不同步 |
 | `/lbai-update-kit` | 升级公司工作流模板（**仅本地**，不 push 模版） |
 | `/lbai-self-iterate` | Prompt Lab 实验（管理员向） |
 
@@ -216,7 +216,7 @@ Codex 命令面板名称对照见 [Codex 插件文档](docs/CODEX_PLUGIN_INTERNA
 
 终端仅建议：`lbai doctor`、`lbai update-kit`（与 `/lbai-update-kit` 相同底层）。
 
-### 3.2 任务主链：建档 → 执行 → 收尾
+### 3.2 任务主链：建档 → 结束
 
 **第一步：创建任务**
 
@@ -226,26 +226,20 @@ Codex 命令面板名称对照见 [Codex 插件文档](docs/CODEX_PLUGIN_INTERNA
 
 会评估已知信息、必要缺口（`missing_inputs.md`）和推荐补充；缺 blocking 信息时状态为 `BLOCKED`，需先补齐。
 
-**第二步：补充与执行**
+**第二步：补充并在对话中讨论**
 
 - 普通说明、偏好、决策：在对话框补充，保存为任务本地输入。
 - 会议记录、邮件、研究资料等：用 `/lbai-add-evidence` 独立归档，再在任务对话说明补充了哪项。
 
-缺口补齐后：
-
-```text
-/lbai-execute-task
-```
-
-生成 `execution_plan.md` 和 `task_output.md`。
-
-**第三步：收尾并同步**
+**第三步：结束并同步**
 
 ```text
 /lbai-finish-task
 ```
 
-检查交付物、更新台账、hygiene 检查；通过后 push **当前任务文件夹** + `role_workspace/ledgers/TASK_LEDGER_v1.md`。输出 `git_status: PUSHED` 表示已同步。
+若 `task_output.md` 尚未生成，finish 会先自动生成交付物（`execution_plan.md` + `task_output.md`），再检查交付物、更新台账、hygiene 检查；通过后 push **当前任务文件夹** + `role_workspace/ledgers/TASK_LEDGER_v1.md`。输出 `git_status: PUSHED` 表示已同步。
+
+高级/调试：只用 `/lbai-execute-task` 重生成交付物，不同步。
 
 ### 3.3 保存资料（`/lbai-add-evidence`）
 
@@ -286,8 +280,8 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 | `/lbai-add-evidence` | 资料元数据 JSON | OKF 落盘、脱敏、git |
 | `/lbai-search-artifacts` | 后端 query plan | 调用知识 API |
 | `/lbai-new-task` | 任务 intake JSON | 创建 `tasks/<folder>/` |
-| `/lbai-execute-task` | 执行计划与交付物 | Agent 写 artifact |
-| `/lbai-finish-task` | 收尾审查 + 对话提取 JSON | 审查落盘、hygiene、git push |
+| `/lbai-finish-task` | auto-execute（按需）+ 收尾审查 + 对话提取 JSON | 审查落盘、hygiene、git push |
+| `/lbai-execute-task` | 执行计划与交付物（高级/调试） | Agent 写 artifact，不同步 |
 
 无 AI enrichment 时相关命令返回 **BLOCKED**，无规则 fallback。
 

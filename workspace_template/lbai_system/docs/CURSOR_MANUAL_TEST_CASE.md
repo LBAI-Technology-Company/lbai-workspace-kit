@@ -6,11 +6,10 @@
 /lbai-new-task
 /lbai-add-evidence
 /lbai-search-artifacts
-/lbai-execute-task
 /lbai-finish-task
 ```
 
-如果是第一次配置员工工作区，可以先运行 `/lbai-init` 完成岗位设定。本测试重点验证 evidence 归档、历史 artifact 查询和日常任务三命令。
+如果是第一次配置员工工作区，可以先运行 `/lbai-init` 完成岗位设定。本测试重点验证 evidence 归档、历史 artifact 查询和日常任务两命令（`/lbai-new-task` → `/lbai-finish-task`）。高级调试可用 `/lbai-execute-task`。
 
 测试对象是一个办公室文职人员常见任务：整理内部会议纪要和行动项。
 
@@ -137,7 +136,7 @@ role_workspace/knowledge/log.md
 
 ### 预期状态
 
-保存 evidence 后，任务不应因为 `/lbai-add-evidence` 自动消除缺口。任务是否可执行仍由 `/lbai-new-task` 或 `/lbai-execute-task` 根据本地 `missing_inputs.md` 判断。
+保存 evidence 后，任务不应因为 `/lbai-add-evidence` 自动消除缺口。任务是否可继续仍由 `/lbai-new-task` 或 `/lbai-finish-task` 根据本地 `missing_inputs.md` 判断。
 
 ```text
 BLOCKED 或 OPEN，取决于任务本地 missing_inputs 判断
@@ -158,7 +157,7 @@ backend_ingestion_status: PENDING_BACKEND_SYNC 或 NOT_SYNCED
 - Cursor 自动保存 evidence，不要求员工手动建文件
 - 资料写入 `role_workspace/knowledge/references/`，并更新 `index.md` 与 `log.md`
 - 当前任务的 `missing_inputs.md`、`task_scope.md`、`task_ledger.md`、`gap_record.md` 不会被 `/lbai-add-evidence` 自动改写
-- 后续 `/lbai-execute-task` 仍会本地判断 missing inputs；如需历史资料，先显式运行 `/lbai-search-artifacts` 查看后端结果，搜索结果不写入本地 `retrieved_context.md/json`
+- 后续 `/lbai-finish-task` 仍会本地判断 missing inputs，并在需要时 auto-execute；如需历史资料，先显式运行 `/lbai-search-artifacts` 查看后端结果，搜索结果不写入本地 `retrieved_context.md/json`
 
 ---
 
@@ -328,7 +327,7 @@ role_workspace/ledgers/TASK_LEDGER_v1.md
 
 ### 情况 2：Cursor 让员工自己创建模板
 
-说明三命令流程没有生效。
+说明两命令流程（new → finish）没有生效。
 
 期望行为是：Cursor 自己创建任务文件，不让员工手动填模板。
 

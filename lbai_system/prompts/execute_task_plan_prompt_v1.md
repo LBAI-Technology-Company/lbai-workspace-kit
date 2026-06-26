@@ -1,6 +1,6 @@
 # LBAI Execute Task Plan Prompt v1
 
-Use in **Cursor** or **Codex desktop app** at the start of `/lbai-execute-task`. No separate Python tool.
+Use in **Cursor** or **Codex desktop app** at the start of `/lbai-execute-task`, or during the **auto-execute phase** inside `/lbai-finish-task`. No separate Python tool.
 
 ## Purpose
 
@@ -12,7 +12,7 @@ Before writing `task_output.md`, produce and **save** a short execution plan to 
 2. Write `tasks/<task_folder>/execution_plan.md` using the plan template below.
 3. Only then write `tasks/<task_folder>/task_output.md` aligned with the plan and `task_slot.md`.
 
-Do not skip step 2. `/lbai-finish-task` may compare output against the plan when present.
+Do not skip step 2. `/lbai-finish-task` may compare output against the plan during finish review.
 
 ## Read first
 

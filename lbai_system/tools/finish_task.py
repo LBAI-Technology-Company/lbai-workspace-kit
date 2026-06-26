@@ -9,7 +9,7 @@ from pathlib import Path
 sys.dont_write_bytecode = True
 
 from enrichment_utils import load_json_file, resolve_enrichment_path, validate_with_schema
-from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, prompt_lab_isolated_mode, read_text, redact_sensitive, review_required, set_markdown_field, task_status, unresolved_missing_inputs, workspace_root
+from task_utils import REQUIRED_TASK_FILES, LEADER_REVIEW_REMINDER, is_task_dir, markdown_field, prompt_lab_isolated_mode, read_text, redact_sensitive, review_required, set_markdown_field, task_output_delivery_reasons, task_status, unresolved_missing_inputs, workspace_root
 
 
 TASK_CONVERSATION_FILE = 'task_conversation.md'
@@ -19,6 +19,10 @@ ENRICHMENT_VERSION = 'finish_review_enrichment_v1'
 BLOCKED_MESSAGE = (
     'AI finish review required (--enrichment). Use Cursor or Codex desktop app; '
     'see lbai_system/prompts/finish_review_enrichment_prompt_v1.md'
+)
+DELIVERY_BLOCKED_MESSAGE = (
+    'task_output.md is not ready. Run /lbai-finish-task in Cursor or Codex so the agent '
+    'auto-executes delivery first, or use /lbai-execute-task for delivery only.'
 )
 
 
@@ -365,6 +369,27 @@ def main():
         print('task_status: BLOCKED')
         print('commit_readiness: BLOCKED')
         print('reason: task_folder must be an existing task under tasks/ with task_scope.md and task_ledger.md')
+        return 1
+
+    missing_inputs = unresolved_missing_inputs(task_dir)
+    if missing_inputs:
+        print('task_status: BLOCKED')
+        print('commit_readiness: BLOCKED')
+        print('auto_execute: BLOCKED')
+        print('reason: unresolved missing inputs')
+        print('missing_inputs:')
+        for item in missing_inputs:
+            print(f'- {item}')
+        print('next_step: 在对话补充缺失决策后运行 /lbai-finish-task（会先 archive_input 再自动交付）。')
+        return 1
+
+    delivery_reasons = task_output_delivery_reasons(task_dir)
+    if delivery_reasons:
+        print('task_status: BLOCKED')
+        print('commit_readiness: BLOCKED')
+        print('auto_execute: BLOCKED')
+        print('reason: ' + '; '.join(delivery_reasons))
+        print(f'next_step: {DELIVERY_BLOCKED_MESSAGE}')
         return 1
 
     enrichment_path = resolve_enrichment_path(root, args.enrichment)

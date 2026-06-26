@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.4
+
+- **Two-command task lifecycle**: `/lbai-finish-task` auto-runs delivery when `task_output.md` is not ready; employees normally use `/lbai-new-task` → `/lbai-finish-task` only.
+- **`check_task_delivery.py`**: new tool reports `auto_execute_needed` before finish review.
+- **`finish_task.py` gate**: blocks finish when `task_output.md` is missing or unresolved `missing_inputs` remain.
+- **`resolve_current_task.py`**: `finish` resolves OPEN/BLOCKED tasks without requiring `task_output.md` first.
+- **Docs/adapters**: execute-task marked advanced/debug; contract, MCP, Codex plugin, FAQ, and manual test docs updated.
+- **Tests**: `tests/integration/test_finish_delivery.py` covers resolve, delivery check, and finish gate.
+
 ## 1.5.3
 
 - **Release tooling**: add `scripts/publish_release_assets.sh` to upload `install.sh`, `install.ps1`, and `install-bootstrap.ps1` to GitHub Releases (fixes `releases/latest/download/install.sh` 404 when assets are missing).

@@ -7,11 +7,12 @@ alwaysApply: true
 
 You are inside an LBAI role workspace. This rule is a project-scoped base prompt and applies only inside this repository. Minimize employee learning cost.
 
-For daily task work, the employee mainly needs the task lifecycle commands:
+For daily task work, the employee mainly needs:
 
 - `/lbai-new-task`
-- `/lbai-execute-task`
 - `/lbai-finish-task`
+
+`/lbai-finish-task` auto-runs delivery when `task_output.md` is not ready. Keep `/lbai-execute-task` for advanced/debug delivery-only regeneration without sync.
 
 For saving source material or reference knowledge without creating a task, the employee may use:
 

@@ -14,13 +14,16 @@ When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI wo
 ```text
 /lbai-role-setup
 /lbai-new-task
+/lbai-finish-task
 /lbai-add-evidence
 /lbai-search-artifacts
-/lbai-execute-task
-/lbai-finish-task
 /lbai-update-kit
 /lbai-self-iterate
 ```
+
+Daily task work is **two commands**: `/lbai-new-task` then `/lbai-finish-task`. Finish auto-runs delivery when `task_output.md` is not ready.
+
+Advanced/debug only: `/lbai-execute-task` regenerates deliverables without finishing or syncing.
 
 Remind them: run these in the **Codex desktop app** with this workspace folder open—not in a bare terminal.
 
@@ -65,11 +68,14 @@ Supported employee-facing commands:
 /lbai-add-evidence
 /lbai-search-artifacts
 /lbai-new-task
-/lbai-execute-task
 /lbai-finish-task
 /lbai-update-kit
 /lbai-self-iterate
 ```
+
+Daily task work: `/lbai-new-task` → `/lbai-finish-task`. Finish auto-runs delivery when needed.
+
+Advanced/debug: `/lbai-execute-task` regenerates deliverables without sync.
 
 Codex can execute these commands when the user types them or describes them in natural language. Use the **Codex desktop app only** (not Codex CLI).
 
@@ -81,8 +87,8 @@ Codex can execute these commands when the user types them or describes them in n
 | `/lbai-add-evidence` | `evidence_enrichment_prompt_v1.md` | `add_evidence.py --enrichment` |
 | `/lbai-search-artifacts` | `backend_search_query_plan_prompt_v1.md` | backend search query plan via `search_artifacts.py --enrichment`; backend-only, display-only when backend is unavailable or has no matches |
 | `/lbai-new-task` | `task_intake_enrichment_prompt_v1.md` | `new_task.py --enrichment` |
-| `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | write `execution_plan.md` + `task_output.md` |
-| `/lbai-finish-task` | `finish_review_enrichment_prompt_v1.md` | `finish_task.py --enrichment` |
+| `/lbai-finish-task` | `execute_task_plan_prompt_v1.md` + `finish_review_enrichment_prompt_v1.md` | auto-execute when needed, then `finish_task.py --enrichment` |
+| `/lbai-execute-task` | `execute_task_plan_prompt_v1.md` | write `execution_plan.md` + `task_output.md` (advanced/debug) |
 | `/lbai-self-iterate` | Prompt Lab generated scenarios/evaluations | `prompt_lab/prompt_lab.py` |
 
 `/lbai-update-kit` remains code-only via `update_kit.py`.

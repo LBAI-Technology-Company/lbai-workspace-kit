@@ -10,8 +10,8 @@ This repo is an LBAI enterprise role workspace for employee office work.
 | `/lbai-new-task` | Start a formal task |
 | `/lbai-add-evidence` | Capture meeting notes, feedback, or source material |
 | `/lbai-search-artifacts` | Find prior tasks, evidence, or references |
-| `/lbai-execute-task` | Execute the current task and write deliverables |
-| `/lbai-finish-task` | Finish, hygiene-check, and sync to GitHub |
+| `/lbai-finish-task` | Deliver (when needed), review, hygiene-check, and sync to GitHub |
+| `/lbai-execute-task` | **Advanced:** regenerate deliverables without finishing or syncing |
 | `/lbai-update-kit` | Update company-maintained workflow files |
 | `/lbai-self-iterate` | Run Prompt Lab self-iteration experiments for prompt improvement |
 
@@ -47,15 +47,16 @@ For regular work and workflow updates, employees only need to know:
 
 ```text
 /lbai-new-task
+/lbai-finish-task
 /lbai-add-evidence
 /lbai-search-artifacts
-/lbai-execute-task
-/lbai-finish-task
 /lbai-update-kit
 /lbai-self-iterate
 ```
 
-The three task lifecycle commands are `/lbai-new-task`, `/lbai-execute-task`, and `/lbai-finish-task`; they may be used without arguments when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
+The normal task lifecycle is **two commands**: `/lbai-new-task` then `/lbai-finish-task`. Finish auto-runs delivery when `task_output.md` is not ready, so employees do not need to run `/lbai-execute-task` in daily work. Keep `/lbai-execute-task` for debugging or regenerating deliverables without sync.
+
+Arguments are optional when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
 
 ## Codex project adapter
 
@@ -67,6 +68,22 @@ When this repository is opened in Codex, the same employee-facing commands are s
 This Codex adapter is project-local. Thin project-local command adapter files may live under `.agents/skills/`, but current Codex usage should still rely on `/lbai-*` commands and the `lbai_system/codex/skills/lbai-workflow/SKILL.md` project adapter. The `.agents/skills/` files must point back to `lbai_system/runner_contracts/lbai_command_contract_v1.md` and must not duplicate command logic. Do not install, copy, or write these skills to `~/.codex/skills/`, and do not make them affect other Codex projects. The shared command contract is the source of truth for command behavior; Cursor and Codex adapters should stay thin.
 
 The optional enterprise Codex plugin `lbai-workspace` exposes the same workflows through eight command-palette entries: **LBAI Role Setup**, **LBAI New Task**, **LBAI Add Evidence**, **LBAI Search Artifacts**, **LBAI Execute Task**, **LBAI Finish Task**, **LBAI Update Kit**, and **LBAI Self Iterate**. You can also reference skills as `$lbai-role-setup`, `$lbai-new-task`, `$lbai-self-iterate`, and so on. See `docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md` for the full mapping to `/lbai-*` Cursor commands. After `lbai bind-github` or `lbai workspace set`, commands route to the registered active workspace in `~/.lbai/config.json`, so they work from any Codex project while task and evidence data stay in one unified workspace.
+
+## Cursor MCP adapter
+
+The LBAI MCP server (`cursor_plugin/mcp_server.py`) exposes the same eight workflows plus a health-check tool as MCP tools. The installer registers it globally in `~/.cursor/mcp.json` so that `lbai_*` tools are available in any Cursor project without per-project configuration.
+
+When a Cursor agent invokes an `lbai_*` tool, the MCP server shells out to the `lbai` CLI subcommand. The CLI resolves the active workspace from `~/.lbai/config.json` and routes reads/writes there — mirroring how Codex plugin commands route to the same registered workspace. Each MCP tool is a thin wrapper; the shared command contract (`lbai_system/runner_contracts/lbai_command_contract_v1.md`) remains the single source of truth for command behavior.
+
+The MCP server does not bundle or cache enrichment prompts, schemas, role memory, credentials, or workspace templates. Tools that require AI enrichment accept an `enrichment_json` argument; the Cursor agent generates it from the matching `lbai_system/schemas/*_schema_v1.json` before invocation, following the same contract as Codex skills.
+
+- Global registration: `~/.cursor/mcp.json` → `mcpServers.lbai-workspace` with the venv Python and `cursor_plugin/mcp_server.py` as entrypoint.
+- Health check: `lbai doctor --json` includes a `cursor_mcp` check (advisory, non-blocking).
+- Manual reference: `docs/CURSOR_MCP_SETUP.md`.
+- Entrypoints:
+  - `lbai_role_setup`, `lbai_new_task`, `lbai_add_evidence`, `lbai_search_artifacts`, `lbai_execute_task`, `lbai_finish_task`, `lbai_update_kit`, `lbai_self_iterate`, `lbai_doctor`.
+
+Project-local Cursor commands (`.cursor/commands/lbai-*.md`) remain available as a fallback when the workspace folder is opened directly in Cursor.
 
 For first-time setup or later role changes, employees may use:
 

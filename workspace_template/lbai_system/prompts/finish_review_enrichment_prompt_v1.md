@@ -2,9 +2,12 @@
 
 Use in **Cursor** or **Codex desktop app** for `/lbai-finish-task`. No rule-based fallback.
 
+`/lbai-finish-task` may already have run the auto-execute phase (delivery) before this prompt. Finish review always starts from the current `task_output.md` on disk.
+
 ## Flow
 
-1. Read:
+1. If auto-execute just ran, note `auto_execute: RUN` in the employee-facing response; otherwise `auto_execute: SKIPPED`.
+2. Read:
    - `tasks/<task_folder>/task_scope.md`
    - `tasks/<task_folder>/task_output.md`
    - `tasks/<task_folder>/execution_plan.md` if present

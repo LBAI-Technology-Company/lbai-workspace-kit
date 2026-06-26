@@ -144,7 +144,7 @@ def main():
     print('')
     print('## 推荐文件（非阻断）')
     for m in recommended_missing:
-        print(f'- 缺少 {m}（/lbai-execute-task 应先写 execution_plan.md）')
+        print(f'- 缺少 {m}（/lbai-finish-task 会先 auto-execute 写 execution_plan.md，或先用 /lbai-execute-task）')
     if not recommended_missing:
         print('- 无')
     print('')

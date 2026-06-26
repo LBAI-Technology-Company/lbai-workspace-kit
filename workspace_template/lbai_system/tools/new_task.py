@@ -577,10 +577,10 @@ UNKNOWN
 NOT_SYNCED
 
 ## next_dependency
-{'Missing input from employee' if missing_inputs else 'Run /lbai-execute-task'}
+{'Missing input from employee' if missing_inputs else 'Run /lbai-finish-task'}
 
 ## next_step
-{next_step_for_missing(str(task_dir.relative_to(ROOT))) if missing_inputs else f'Run /lbai-execute-task {task_dir.relative_to(ROOT)}.'}
+{next_step_for_missing(str(task_dir.relative_to(ROOT))) if missing_inputs else f'Run /lbai-finish-task {task_dir.relative_to(ROOT)}.'}
 """, ROOT)
 
     (task_dir / 'task_intake_enrichment.json').write_text(
@@ -602,7 +602,7 @@ NOT_SYNCED
         write_if_missing(
             task_dir / 'recommended_inputs.md',
             '# Recommended Inputs\n\n'
-            'These inputs improve quality but do not block /lbai-execute-task.\n\n'
+            'These inputs improve quality but do not block /lbai-finish-task.\n\n'
             + '\n'.join(f'- {item}\n' for item in recommended_inputs)
             + '\n',
             ROOT,
@@ -628,7 +628,7 @@ NOT_SYNCED
     else:
         if recommended_inputs:
             print('RECOMMENDED ' + '; '.join(recommended_inputs))
-        print(f'NEXT_STEP /lbai-execute-task {task_dir.relative_to(ROOT)}')
+        print(f'NEXT_STEP /lbai-finish-task {task_dir.relative_to(ROOT)}')
 
 
 if __name__ == '__main__':

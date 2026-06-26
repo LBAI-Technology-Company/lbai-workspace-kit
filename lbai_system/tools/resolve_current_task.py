@@ -24,7 +24,10 @@ def candidates(root: Path, command: str) -> list[Path]:
     if command == 'execute':
         return [p for p in dirs if task_status(p) == 'OPEN']
     if command == 'finish':
-        return [p for p in dirs if (p / 'task_output.md').exists() or task_status(p) == 'COMPLETED']
+        active = [p for p in dirs if task_status(p) in {'OPEN', 'BLOCKED'}]
+        if active:
+            return active
+        return [p for p in dirs if (p / 'task_output.md').exists()]
     return dirs
 
 

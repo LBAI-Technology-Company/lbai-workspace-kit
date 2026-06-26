@@ -1,6 +1,6 @@
 ---
 name: lbai-execute-task
-description: Execute the current LBAI task contract; write execution_plan.md and task_output.md. Use when the user types /lbai-execute-task.
+description: Advanced/debug LBAI delivery only. Regenerate execution_plan.md and task_output.md without finishing or syncing. Employees normally use /lbai-finish-task instead.
 ---
 
 Read `AGENTS.md` and execute `/lbai-execute-task` per `lbai_system/runner_contracts/lbai_command_contract_v1.md`. Tools: `lbai_system/tools/`.

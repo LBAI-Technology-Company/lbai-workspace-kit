@@ -307,6 +307,31 @@ def task_status(task_dir: Path) -> str:
     return 'OPEN'
 
 
+MIN_TASK_OUTPUT_CHARS = 80
+
+
+def is_placeholder_task_output(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped:
+        return True
+    if stripped.startswith('# Task Output') and len(stripped) < MIN_TASK_OUTPUT_CHARS:
+        return True
+    return False
+
+
+def task_output_delivery_reasons(task_dir: Path) -> list[str]:
+    output_path = task_dir / 'task_output.md'
+    if not output_path.exists():
+        return ['task_output.md missing']
+    if is_placeholder_task_output(read_text(output_path)):
+        return ['task_output.md is empty or placeholder']
+    return []
+
+
+def task_needs_auto_execute(task_dir: Path) -> bool:
+    return bool(task_output_delivery_reasons(task_dir))
+
+
 def review_required(task_path: Path) -> bool:
     combined = f"{read_text(task_path / 'task_scope.md')}\n{read_text(task_path / 'task_ledger.md')}".lower()
     if re.search(r'review_needed\s*\ntrue', combined) or re.search(r'review_needed\s*[:=]\s*true', combined):

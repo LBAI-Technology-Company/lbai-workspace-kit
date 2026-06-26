@@ -33,8 +33,8 @@ For every conversation in this workspace:
    - `/lbai-add-evidence` for saving evidence or reference material without auto-creating a task.
    - `/lbai-search-artifacts` for read-only search across prior evidence, references, and task outputs.
    - `/lbai-new-task` for formal task intake.
-   - `/lbai-execute-task` for task execution.
-   - `/lbai-finish-task` for task finish, hygiene check, and private GitHub sync.
+   - `/lbai-finish-task` for delivery (when needed), finish review, hygiene check, and private GitHub sync.
+   - `/lbai-execute-task` for advanced/debug delivery-only regeneration without sync.
    - `/lbai-update-kit` for company workflow template updates.
    - `/lbai-self-iterate` for Prompt Lab experiments under `prompt_lab/`.
 5. Formal work belongs under `tasks/`; role memory belongs under `role_workspace/`; Prompt Lab experiments belong under `prompt_lab/`; company-maintained workflow machinery belongs under `lbai_system/`.
@@ -80,8 +80,8 @@ Employee-facing commands:
 - `/lbai-add-evidence` for saving evidence or reference material without auto-creating a task
 - `/lbai-search-artifacts` for read-only search across prior evidence, references, and task outputs
 - `/lbai-new-task` for task intake
-- `/lbai-execute-task` for task execution
-- `/lbai-finish-task` for task finish, pre-commit check, and private GitHub sync
+- `/lbai-finish-task` for delivery (when needed), finish review, pre-commit check, and private GitHub sync
+- `/lbai-execute-task` for advanced/debug delivery-only regeneration without sync
 - `/lbai-update-kit` for updating company-maintained workflow files without touching employee role memory or tasks
 - `/lbai-self-iterate` for Prompt Lab self-iteration without changing formal prompts
 

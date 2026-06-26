@@ -124,10 +124,13 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "lbai_finish_task",
         "description": (
-            "Finish an LBAI task, run the hygiene check, and sync safe artifacts to the private GitHub "
-            "repo. Corresponds to /lbai-finish-task and Codex 'LBAI Finish Task'. Generate enrichment_json "
-            "per lbai_system/schemas/finish_review_enrichment_schema_v1.json. Requires employee_conversation_turns. "
-            "If task_slug is omitted, the current completed task is auto-resolved from the workspace task ledger."
+            "Finish an LBAI task, auto-running delivery when task_output.md is not ready, then run the "
+            "hygiene check and sync safe artifacts to the private GitHub repo. Corresponds to "
+            "/lbai-finish-task and Codex 'LBAI Finish Task'. Before calling this tool, run the auto-execute "
+            "phase when needed (check_task_delivery.py → prepare_execute_task → write execution_plan.md + "
+            "task_output.md). Generate enrichment_json per "
+            "lbai_system/schemas/finish_review_enrichment_schema_v1.json. Requires employee_conversation_turns. "
+            "If task_slug is omitted, the current task is auto-resolved from the workspace task ledger."
         ),
         "cli": ["finish-task"],
         "requires_enrichment": True,
@@ -137,7 +140,7 @@ TOOLS: list[dict[str, Any]] = [
                 "enrichment_json": _ENRICHMENT_SCHEMA,
                 "task_slug": {
                     "type": "string",
-                    "description": "Optional task folder name under tasks/. Omit to auto-resolve the current completed task.",
+                    "description": "Optional task folder name under tasks/. Omit to auto-resolve the current OPEN or BLOCKED task (or latest task with task_output.md).",
                 },
             },
             "required": ["enrichment_json"],

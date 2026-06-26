@@ -132,7 +132,7 @@ def main() -> int:
     print(f'detail: {detail}')
     print(
         'next_step: 在 Cursor 或 Codex 桌面 App 中读取 execution_plan.md，'
-        '按 task_output_sections 写入 task_output.md；确认 task_output.md 已生成后运行 /lbai-finish-task。'
+        '按 task_output_sections 写入 task_output.md；完成后运行 /lbai-finish-task。'
     )
     return 0
 

@@ -52,6 +52,17 @@ Adapters must read this contract, then call or follow the listed tools. Do not i
 - During normal task work, do not edit `.cursor/`, `lbai_system/`, `AGENTS.md`, `README.md`, or `workspace_dashboard.html`.
 - Do not modify `role_workspace/` or `tasks/` during `/lbai-update-kit`.
 
+## Employee task lifecycle (two commands)
+
+For daily task work, employees mainly need:
+
+1. `/lbai-new-task` — start a formal task
+2. `/lbai-finish-task` — deliver, review, and sync
+
+`/lbai-finish-task` **auto-runs the delivery phase** (the same work as `/lbai-execute-task`) when `task_output.md` is missing, empty, or still a placeholder. Employees do not need to run `/lbai-execute-task` in the normal flow.
+
+Keep `/lbai-execute-task` for debugging, regenerating deliverables without sync, or splitting delivery from finish.
+
 ## /lbai-role-setup
 
 Initialize or update the employee's role memory. Cursor slash command `/lbai-role-setup`; Codex palette **LBAI Role Setup**. Legacy alias: `/lbai-init` (same behavior).
@@ -236,6 +247,8 @@ results:
 
 ## /lbai-execute-task
 
+**Advanced / debug command.** Employees normally use `/lbai-finish-task`, which auto-runs delivery when `task_output.md` is not ready. Use this command to regenerate `execution_plan.md` and `task_output.md` without finishing or syncing.
+
 Execute an existing task contract without working outside `task_slot.md`.
 
 Prompt (agent plan, no JSON tool):
@@ -274,18 +287,21 @@ leader_review_reminder: <reminder or None>
 - <files>
 还缺：
 - <missing item or 无>
-下一步：<exact command or exact input request>
+下一步：交付物已生成时运行 /lbai-finish-task；若仍 BLOCKED，先在对话补齐缺失输入。
 ```
 
 ## /lbai-finish-task
 
-Finish a task, run hygiene checks, update ledgers, and sync safe artifacts to the private GitHub upstream.
+Deliver (when needed), finish, run hygiene checks, update ledgers, and sync safe artifacts to the private GitHub upstream.
+
+This is the **normal end-to-end task command** for employees. It auto-runs the delivery phase when deliverables are not ready.
 
 Supported runtimes: **Cursor** and **Codex desktop app** only. No rule-based fallback for finish review.
 
-Prompt and schema:
+Prompts and schema:
 
 ```text
+lbai_system/prompts/execute_task_plan_prompt_v1.md
 lbai_system/prompts/finish_review_enrichment_prompt_v1.md
 lbai_system/schemas/finish_review_enrichment_schema_v1.json
 ```
@@ -294,27 +310,41 @@ Tools:
 
 ```text
 lbai_system/tools/resolve_current_task.py finish
+lbai_system/tools/check_task_delivery.py <task_folder>
+lbai_system/tools/archive_input.py <task_folder> --resolves "<exact missing input>"
+lbai_system/tools/prepare_execute_task.py <task_folder>
 lbai_system/tools/finish_task.py <task_folder> --enrichment <json_path>
+/lbai-add-evidence for reusable/source evidence only
 ```
 
 Behavior:
 
 1. If input is empty, resolve the task with `resolve_current_task.py finish`.
-2. Read task scope, task output, linked evidence, and the current task conversation; produce finish review enrichment JSON including `employee_conversation_turns`.
-3. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, `task_conversation.md`, runs hygiene check, updates ledgers, and syncs when allowed.
-4. If `finish_verdict` is `BLOCK_FINISH`, set `commit_readiness: BLOCKED` even when files exist.
-5. If task status is not `BLOCKED` and commit readiness is `READY`, auto git add/commit/push scoped artifacts.
+2. **Archive chat clarifications first.** If the employee provided direct clarifications, decisions, preferences, or lightweight context in the current conversation, save them as task-local input via `archive_input.py --resolves "<exact missing input>"` before delivery checks.
+3. Run `check_task_delivery.py <task_folder>`.
+4. **Auto-execute phase (when needed).** Run auto-execute only when `check_task_delivery.py` reports `auto_execute_needed: true` **and** `prepare_execute_task.py` reports `execute_status: READY` after missing inputs are closed:
+   - Run `prepare_execute_task.py <task_folder>`.
+   - Read `lbai_system/prompts/execute_task_plan_prompt_v1.md`, `task_scope.md`, `task_slot.md`, `task_ledger.md`, linked evidence briefs, and role context files.
+   - Write `execution_plan.md` and `task_output.md` aligned with `task_slot.md`, with facts/assumptions/sources separated.
+   - If `check_task_delivery.py` or `prepare_execute_task.py` reports `BLOCKED`, return `auto_execute: BLOCKED` and do **not** call `finish_task.py`.
+5. **Finish review phase.** Read task scope, `task_output.md`, `execution_plan.md` (if present), linked evidence, `missing_inputs.md`, and the current task conversation (employee/user messages only). Produce finish review enrichment JSON including `employee_conversation_turns`.
+6. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, `task_conversation.md`, runs hygiene check, updates ledgers, and syncs when allowed.
+7. If `finish_verdict` is `BLOCK_FINISH`, set `commit_readiness: BLOCKED` even when files exist.
+8. If task status is not `BLOCKED` and commit readiness is `READY`, auto git add/commit/push scoped artifacts.
 
 Response format:
 
 ```text
 任务收尾完成：<task_folder>
+auto_execute: <RUN | SKIPPED | BLOCKED>
 task_status: <COMPLETED | BLOCKED>
 leader_review_reminder: <reminder or None>
 commit_readiness: <READY | BLOCKED | NEEDS_MANUAL_CHECK>
 git_status: <COMMITTED | PUSHED | PUSH_FAILED | BLOCKED>
-已更新：
+已生成/更新：
 - <files>
+还缺：
+- <missing item or 无>
 阻断原因：<reason or 无>
 GitHub 同步：
 <completed | blocked_or_failed + detail>

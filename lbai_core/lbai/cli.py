@@ -1561,7 +1561,7 @@ def execute_task(_args: argparse.Namespace, extra: list[str]) -> int:
     result = run([*python_cmd(), 'lbai_system/tools/prepare_execute_task.py', task], cwd=root)
     if result.returncode != 0:
         return result.returncode
-    print('model_handoff: open this workspace in Codex or Cursor and run /lbai-execute-task so the model can write task_output.md from execution_plan.md.')
+    print('model_handoff: open this workspace in Codex or Cursor and run /lbai-finish-task (auto-delivers) or /lbai-execute-task to write task_output.md from execution_plan.md.')
     if rest:
         print(f'ignored_extra_args: {" ".join(rest)}')
     return 0

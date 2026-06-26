@@ -10,8 +10,8 @@ This repo is an LBAI enterprise role workspace for employee office work.
 | `/lbai-new-task` | Start a formal task |
 | `/lbai-add-evidence` | Capture meeting notes, feedback, or source material |
 | `/lbai-search-artifacts` | Find prior tasks, evidence, or references |
-| `/lbai-execute-task` | Execute the current task and write deliverables |
-| `/lbai-finish-task` | Finish, hygiene-check, and sync to GitHub |
+| `/lbai-finish-task` | Deliver (when needed), review, hygiene-check, and sync to GitHub |
+| `/lbai-execute-task` | **Advanced:** regenerate deliverables without finishing or syncing |
 | `/lbai-update-kit` | Update company-maintained workflow files |
 | `/lbai-self-iterate` | Run Prompt Lab self-iteration experiments for prompt improvement |
 
@@ -47,15 +47,16 @@ For regular work and workflow updates, employees only need to know:
 
 ```text
 /lbai-new-task
+/lbai-finish-task
 /lbai-add-evidence
 /lbai-search-artifacts
-/lbai-execute-task
-/lbai-finish-task
 /lbai-update-kit
 /lbai-self-iterate
 ```
 
-The three task lifecycle commands are `/lbai-new-task`, `/lbai-execute-task`, and `/lbai-finish-task`; they may be used without arguments when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
+The normal task lifecycle is **two commands**: `/lbai-new-task` then `/lbai-finish-task`. Finish auto-runs delivery when `task_output.md` is not ready, so employees do not need to run `/lbai-execute-task` in daily work. Keep `/lbai-execute-task` for debugging or regenerating deliverables without sync.
+
+Arguments are optional when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
 
 ## Codex project adapter
 

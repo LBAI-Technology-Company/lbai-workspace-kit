@@ -1,17 +1,20 @@
 ---
-description: LBAI three-command task lifecycle
+description: LBAI two-command employee task lifecycle
 alwaysApply: true
 ---
 
-# LBAI Three-Command Task Lifecycle
+# LBAI Two-Command Task Lifecycle
 
 Canonical command source: `lbai_system/runner_contracts/lbai_command_contract_v1.md`.
 
 For daily task work, employees mainly need these commands:
 
-1. `/lbai-new-task`
-2. `/lbai-execute-task`
-3. `/lbai-finish-task`
+1. `/lbai-new-task` — start
+2. `/lbai-finish-task` — deliver (when needed), review, and sync
+
+`/lbai-finish-task` auto-runs the delivery phase when `task_output.md` is missing or not ready. Employees do not need to run `/lbai-execute-task` in the normal flow.
+
+Keep `/lbai-execute-task` for debugging, regenerating deliverables without sync, or splitting delivery from finish.
 
 For saving evidence or reference knowledge without creating a task, use `/lbai-add-evidence`.
 

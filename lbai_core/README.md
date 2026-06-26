@@ -25,11 +25,10 @@ AI desktop workflow commands are exposed as `/lbai-*` commands in Cursor and the
 /lbai-add-evidence
 /lbai-search-artifacts
 /lbai-new-task
-/lbai-execute-task
 /lbai-finish-task
 ```
 
-These workflows are routed through `lbai_system/tools/`, but commands that need AI-generated enrichment JSON should be launched from Cursor or the Codex desktop app. There is no rule-based fallback.
+Daily task work is `/lbai-new-task` then `/lbai-finish-task`. Use `/lbai-execute-task` only for advanced/debug delivery without sync.
 
 ## MVP Command Boundaries
 

@@ -160,9 +160,9 @@ NOT_CONVERTED
     print(f'REDACTED {"true" if findings else "false"}')
     print(f'STATUS {status}')
     if status == 'OPEN':
-        print(f'NEXT_STEP /lbai-execute-task {task_dir.relative_to(root)}')
+        print(f'NEXT_STEP /lbai-finish-task {task_dir.relative_to(root)}')
     else:
-        print('NEXT_STEP 请确认剩余缺失输入；资料齐全后再运行 /lbai-execute-task。')
+        print('NEXT_STEP 请确认剩余缺失输入；资料齐全后再运行 /lbai-finish-task。')
     return 0
 
 

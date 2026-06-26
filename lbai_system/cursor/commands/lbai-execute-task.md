@@ -6,6 +6,8 @@ Task folder:
 
 {{input}}
 
+> **Advanced / debug command.** Employees normally use `/lbai-finish-task`, which auto-runs delivery when `task_output.md` is not ready. Use this command to regenerate deliverables without finishing or syncing.
+
 ## Required behavior
 
 Read `lbai_system/runner_contracts/lbai_command_contract_v1.md` and execute the `/lbai-execute-task` section.

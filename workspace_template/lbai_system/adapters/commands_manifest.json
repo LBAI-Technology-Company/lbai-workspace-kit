@@ -72,7 +72,10 @@
       "schema": "finish_review_enrichment_schema_v1.json",
       "requires_enrichment": true,
       "mutates": true,
-      "backend_required": false
+      "backend_required": false,
+      "auto_execute_delivery": true,
+      "delivery_prompt": "execute_task_plan_prompt_v1.md",
+      "delivery_check_tool": "check_task_delivery.py"
     },
     {
       "name": "lbai-update-kit.md",
