@@ -103,6 +103,27 @@ lbai auth doctor
 
 **做法**：在工作区运行 `lbai serve-dashboard`，用浏览器打开 `http://127.0.0.1:8765/workspace_dashboard.html`。
 
+## Windows 安装时中文乱码
+
+PowerShell 用 `irm install.ps1 | iex` 时，可能把 UTF-8 安装脚本按系统默认编码解析，步骤提示会显示成乱码（安装本身通常仍可继续）。
+
+**推荐**（下一版起）：
+
+```powershell
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+**当前 v1.4.26 可立即使用**：
+
+```powershell
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$bytes = (New-Object Net.WebClient).DownloadData("https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1")
+iex ([Text.Encoding]::UTF8.GetString($bytes))
+```
+
+安装完成后重新打开 PowerShell，再运行 `lbai auth doctor`。
+
 ## 换电脑怎么恢复
 
 1. 重新安装：`curl ... install.sh | sh` 或 Windows 的 `install.ps1`。

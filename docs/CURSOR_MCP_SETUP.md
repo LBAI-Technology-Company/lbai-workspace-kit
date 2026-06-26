@@ -1,5 +1,7 @@
 # LBAI Cursor MCP 服务器
 
+> **其他 AI 工具**（Claude Desktop、Windsurf、Cline、VS Code MCP 等）使用同一套 stdio server 配置块，仅配置文件路径不同。详见 [MCP 通用配置文档](MCP_SETUP.md)。
+
 ## 职责边界
 
 `lbai-workspace` MCP server 负责 Cursor 中的工具发现和命令转发。每个 MCP tool 都是对现有 `lbai` CLI 子命令的薄封装。`lbai` CLI 继续负责 GitHub/后端认证、工作区初始化、模板升级、检查、版本对齐和 Git 同步。

@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1
+
+- **Windows UTF-8 bootstrap**: add `install-bootstrap.ps1` release asset so `irm … | iex` decodes `install.ps1` as UTF-8 on Chinese Windows; document manual UTF-8 fallback in install docs and employee FAQ.
+- **MCP docs**: add `docs/MCP_SETUP.md` for Claude Desktop, Windsurf, Cline, VS Code MCP, and other stdio clients; expand README MCP section and cross-link from `docs/CURSOR_MCP_SETUP.md`.
+- **Installer hardening**: `install.ps1` gains `Ensure-ConsoleUtf8` / `Get-RemoteUtf8Text` helpers (integrity tests updated).
+- **Tests**: fix doctor JSON smoke test to assert installed CLI version; fix remote workspace inspect test after template-local `.gitignore` policy.
+
 ## 1.5.0
 
 - **Cursor MCP server**: add `cursor_plugin/` (stdlib MCP server + 9 tools + manifest) — eight LBAI workflows plus `lbai_doctor` available as MCP tools in any Cursor project via global `~/.cursor/mcp.json` registration.

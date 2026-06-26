@@ -44,26 +44,28 @@ def test_cli_doctor_on_isolated_workspace(tmp_path):
 
 def test_cli_doctor_json_contract(tmp_path):
     workspace = create_isolated_workspace(tmp_path)
+    kit_version = (kit_root() / 'VERSION').read_text(encoding='utf-8').strip()
+    plugin_version = '1.4.25'
     result = run_cli(
         'doctor',
         '--json',
         '--path',
         str(workspace),
         '--plugin-version',
-        '1.4.25',
+        plugin_version,
         '--min-workspace-version',
         '1.4.1',
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_doctor_v1'
-    assert report['cli_version'] == '1.4.25'
-    assert report['workspace_kit_version'] == '1.4.25'
+    assert report['cli_version'] == kit_version
+    assert report['workspace_kit_version'] == kit_version
     assert report['workspace_valid'] is True
     assert report['required_files']['status'] == 'READY'
     assert report['git']['origin_configured'] is True
     assert report['git']['upstream_configured'] is True
-    assert report['plugin_version'] == '1.4.25'
+    assert report['plugin_version'] == plugin_version
     assert report['compatibility']['status'] == 'READY'
     assert report['doctor_status'] == 'READY'
 

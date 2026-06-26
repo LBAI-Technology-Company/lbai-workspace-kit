@@ -9,7 +9,7 @@ LBAI 是面向员工的 AI 办公工作区：在 Cursor 或 Codex 里用 `/lbai-
 - **有边界**：公司 guardrail、review 提醒、来源与缺口检查，减少幻觉和越权表述。
 - **可追溯**：任务文件夹、台账、OKF 资料库，方便复盘和交接。
 - **可同步**：资料与已完成任务自动 push 到 private GitHub，后端可入库检索。
-- **双入口**：Cursor 用 `/lbai-*`；Codex 用 **LBAI …** 命令面板（见 [Codex 插件文档](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)）。
+- **多入口**：Cursor 用 `/lbai-*` 或 MCP `lbai_*`；Codex 用 **LBAI …** 命令面板；其他 MCP 客户端（Claude Desktop、Windsurf、Cline 等）手动加载同一 server（见 [MCP 配置文档](docs/MCP_SETUP.md)）。
 
 > 业务命令请在 **Cursor 或 Codex 桌面 App** 里触发，不要在终端裸跑 `lbai new-task` 等（会缺少 AI enrichment 而 BLOCKED）。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -138,11 +138,39 @@ lbai init-workspace \
 
 插件安装后，在 Codex **命令面板**选择 **LBAI Role Setup**、**LBAI New Task** 等 8 个命令；数据写入本机注册的 active workspace（`~/.lbai/config.json`）。
 
-### 2.7 安装 Cursor MCP（Cursor 用户）
+### 2.7 MCP 接入（Cursor 及其他 AI 工具）
 
-运行 `install.sh` / `install.ps1` 后，安装器会检测 Cursor 并自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server。注册后**重启 Cursor**，在任意项目中 agent 工具列表即可看到 `lbai_*` 工具；数据写入 registered active workspace（`~/.lbai/config.json`）。
+LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `lbai_*` 工具；数据写入 registered active workspace（`~/.lbai/config.json`），与 Codex 插件相同。
 
-跳过自动安装：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。手动安装或排查见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
+**Cursor（自动）** — 运行 `install.sh` / `install.ps1` 后，安装器检测 Cursor 并写入 `~/.cursor/mcp.json`。**重启 Cursor** 后在任意项目可用。跳过：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。
+
+**其他 MCP 客户端（手动）** — 将同一 server 配置块合并到对应配置文件：
+
+| AI 工具 | 配置文件 |
+|---------|----------|
+| Claude Desktop | macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`<br>Windows: `%APPDATA%\Claude\claude_desktop_config.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| Cline（VS Code） | `.../globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` |
+| VS Code 原生 MCP | 项目级 `.vscode/mcp.json` |
+
+通用配置块（路径按本机替换）：
+
+```json
+{
+  "mcpServers": {
+    "lbai-workspace": {
+      "command": "<venv-python>",
+      "args": ["<kit>/cursor_plugin/mcp_server.py"],
+      "env": { "PYTHONPATH": "<kit>/lbai_core" }
+    }
+  }
+}
+```
+
+- macOS：`<venv-python>` = `~/.lbai/venv/bin/python3`，`<kit>` = `~/.lbai/kit`
+- Windows：`<venv-python>` = `%USERPROFILE%\.lbai\venv\Scripts\python.exe`
+
+完整说明：[MCP 配置文档](docs/MCP_SETUP.md) · Cursor 专项：[Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)
 
 ### 2.8 首次岗位配置
 
@@ -159,7 +187,7 @@ lbai init-workspace \
 1. 安装 lbai CLI
 2. lbai github auth token  →  lbai auth doctor
 3. lbai bind-github（粘贴 private repo URL）
-4. Cursor 打开 cursor_open 目录（或重启 Cursor 使用 MCP tools）；Codex 任意项目即可
+4. Cursor 打开 cursor_open 目录（或重启 Cursor / 其他 MCP 客户端加载 `lbai_*` 工具）；Codex 任意项目即可
 5. /lbai-role-setup（Cursor）或 LBAI Role Setup（Codex）
 6. 日常：/lbai-new-task → /lbai-execute-task → /lbai-finish-task
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
@@ -294,8 +322,8 @@ role_workspace/knowledge/references/YYYY_MM_DD_<source_type>_<short_hash>.md
 ### 常见问题
 
 - **Cursor 看不到 `/lbai-*`**：确认打开的是工作区根目录（含 `.cursor/commands/`），Reload Window。
-- **Cursor agent 看不到 `lbai_*` 工具**：确认安装器已注册 MCP server（`~/.cursor/mcp.json` 含 `lbai-workspace` 条目），重启 Cursor。详见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
+- **Cursor agent 看不到 `lbai_*` 工具**：确认 `~/.cursor/mcp.json` 含 `lbai-workspace` 条目，重启 Cursor。其他 MCP 客户端见 [MCP 配置文档](docs/MCP_SETUP.md)。
 - **终端 `lbai new-task` BLOCKED**：请在 Cursor/Codex 里用 `/lbai-new-task`。
 - **push 失败**：`lbai auth doctor` → 检查 Token、remote、upstream；任务数据仍在本地。
 
-更多见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)、[安装流程](docs/INSTALL_AND_INIT_FLOW.md)、[架构说明](docs/ARCHITECTURE.md)。
+更多见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)、[安装流程](docs/INSTALL_AND_INIT_FLOW.md)、[MCP 配置](docs/MCP_SETUP.md)、[架构说明](docs/ARCHITECTURE.md)。

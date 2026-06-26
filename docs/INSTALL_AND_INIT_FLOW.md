@@ -25,13 +25,24 @@ curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-w
 Windows (PowerShell):
 
 ```powershell
-irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
+irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
 ```
+
+Use `install-bootstrap.ps1` instead of `install.ps1 | iex` to avoid mojibake on Chinese Windows consoles.
 
 ghproxy mirror:
 
 ```powershell
-irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
+irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+Manual UTF-8 install (if bootstrap asset is unavailable):
+
+```powershell
+chcp 65001 | Out-Null
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$bytes = (New-Object Net.WebClient).DownloadData("https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1")
+iex ([Text.Encoding]::UTF8.GetString($bytes))
 ```
 
 Close and reopen PowerShell after install, then run:
@@ -163,8 +174,8 @@ lbai init-workspace --path ~/LBAI/lbai-workspace-zhangsan
    source ~/.zshrc
 
    Windows PowerShell:
-   irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.ps1 | iex
-   （安装后请关闭并重新打开 PowerShell）
+   irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+   （安装后请关闭并重新打开 PowerShell；若中文乱码勿用 install.ps1 | iex）
 
    国内网络 GitHub 较慢时，可在 URL 前加 ghproxy：
    curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh

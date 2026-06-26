@@ -9,7 +9,7 @@ LBAI Workspace Kit 是员工 AI 办公工作区的**安装包与工作流模板*
 - 聊天工作 → 结构化任务与资料，可复盘、可交接。
 - 公司 guardrail、缺口检查、review 提醒，降低幻觉与越权风险。
 - 资料与已完成任务 push 到 private GitHub，后端可异步索引。
-- Cursor（`/lbai-*`）与 Codex（**LBAI …** 插件命令）共用同一套契约。
+- Cursor（`/lbai-*` 或 MCP `lbai_*`）、Codex（**LBAI …** 插件）及其他 MCP 客户端共用同一套契约。
 
 > 业务命令请在 Cursor / Codex 桌面 App 中触发，不要裸跑 `lbai new-task` 等。详见 [员工 FAQ](docs/EMPLOYEE_FAQ.zh-CN.md)。
 
@@ -81,9 +81,39 @@ lbai bind-github
 
 `install.sh` 通常会配置 Codex marketplace 并安装 **`lbai-workspace`** 插件。手动安装、命令对照与故障排查：[Codex 插件文档](docs/CODEX_PLUGIN_INTERNAL_MARKETPLACE.md)。
 
-### 2.6 Cursor MCP（Cursor 用户）
+### 2.6 MCP 接入（Cursor 及其他 AI 工具）
 
-安装器会自动在 `~/.cursor/mcp.json` 中注册 `lbai-workspace` MCP server。**重启 Cursor** 后，在任意项目中 agent 工具列表即可看到 `lbai_*` 工具。跳过：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。详见 [Cursor MCP 文档](docs/CURSOR_MCP_SETUP.md)。
+LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `lbai_*` 工具，与 Codex 插件路由到同一 active workspace。
+
+**Cursor（自动）** — 安装器写入 `~/.cursor/mcp.json`，**重启 Cursor** 后在任意项目可用。跳过：`LBAI_SKIP_CURSOR_MCP=1 install.sh`。
+
+**其他 MCP 客户端（手动）** — 将同一 server 配置块合并到对应配置文件：
+
+| AI 工具 | 配置文件 |
+|---------|----------|
+| Claude Desktop | macOS: `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` |
+| Cline（VS Code） | `.../globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` |
+| VS Code 原生 MCP | 项目级 `.vscode/mcp.json` |
+
+通用配置块（路径按本机替换 `<venv-python>`、`~/.lbai/kit`）：
+
+```json
+{
+  "mcpServers": {
+    "lbai-workspace": {
+      "command": "<venv-python>",
+      "args": ["<kit>/cursor_plugin/mcp_server.py"],
+      "env": { "PYTHONPATH": "<kit>/lbai_core" }
+    }
+  }
+}
+```
+
+- macOS 默认：`<venv-python>` = `~/.lbai/venv/bin/python3`，`<kit>` = `~/.lbai/kit`
+- Windows 默认：`<venv-python>` = `%USERPROFILE%\.lbai\venv\Scripts\python.exe`
+
+完整路径表、工具对照与故障排查：[MCP 配置文档](docs/MCP_SETUP.md) · [Cursor 专项](docs/CURSOR_MCP_SETUP.md)
 
 ### 2.7 打开工作区并完成岗位配置
 
@@ -104,16 +134,16 @@ lbai bind-github
 
 ### 3.1 员工命令
 
-| Cursor | Codex 命令面板 | 用途 |
-|--------|----------------|------|
-| `/lbai-role-setup` | LBAI Role Setup | 岗位记忆 |
-| `/lbai-add-evidence` | LBAI Add Evidence | 归档资料 |
-| `/lbai-search-artifacts` | LBAI Search Artifacts | 后端知识检索 |
-| `/lbai-new-task` | LBAI New Task | 创建任务 |
-| `/lbai-execute-task` | LBAI Execute Task | 执行任务 |
-| `/lbai-finish-task` | LBAI Finish Task | 收尾与 Git 同步 |
-| `/lbai-update-kit` | LBAI Update Kit | 升级公司模板（仅本地） |
-| `/lbai-self-iterate` | LBAI Self Iterate | Prompt Lab |
+| Cursor / MCP | Codex 命令面板 | 用途 |
+|--------------|----------------|------|
+| `/lbai-role-setup` / `lbai_role_setup` | LBAI Role Setup | 岗位记忆 |
+| `/lbai-add-evidence` / `lbai_add_evidence` | LBAI Add Evidence | 归档资料 |
+| `/lbai-search-artifacts` / `lbai_search_artifacts` | LBAI Search Artifacts | 后端知识检索 |
+| `/lbai-new-task` / `lbai_new_task` | LBAI New Task | 创建任务 |
+| `/lbai-execute-task` / `lbai_execute_task` | LBAI Execute Task | 执行任务 |
+| `/lbai-finish-task` / `lbai_finish_task` | LBAI Finish Task | 收尾与 Git 同步 |
+| `/lbai-update-kit` / `lbai_update_kit` | LBAI Update Kit | 升级公司模板（仅本地） |
+| `/lbai-self-iterate` / `lbai_self_iterate` | LBAI Self Iterate | Prompt Lab |
 
 ### 3.2 任务主链
 
@@ -168,4 +198,4 @@ lbai-workspace-kit/
 
 后续路线：Codex 插件体验增强、Cursor extension；业务逻辑仍由 `lbai_core` 统一提供。详见 [ROADMAP](docs/ROADMAP.md)。
 
-更多文档：[安装流程](docs/INSTALL_AND_INIT_FLOW.md) · [GitHub Token 策略](docs/GITHUB_TOKEN_POLICY.md) · [产品介绍](docs/LBAI_WORKSPACE_KIT_SERVICE_PRODUCT_INTRO.zh-CN.md)
+更多文档：[安装流程](docs/INSTALL_AND_INIT_FLOW.md) · [MCP 配置](docs/MCP_SETUP.md) · [GitHub Token 策略](docs/GITHUB_TOKEN_POLICY.md) · [产品介绍](docs/LBAI_WORKSPACE_KIT_SERVICE_PRODUCT_INTRO.zh-CN.md)

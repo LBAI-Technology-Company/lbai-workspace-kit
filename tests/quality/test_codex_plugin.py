@@ -104,5 +104,5 @@ def test_plugin_preflight_uses_machine_readable_cli():
     assert result.returncode == 0, result.stdout + result.stderr
     report = json.loads(result.stdout)
     assert report['schema_version'] == 'lbai_plugin_preflight_v1'
-    assert report['plugin_version'] == '1.5.0'
+    assert report['plugin_version'] == (ROOT / 'VERSION').read_text(encoding='utf-8').strip()
     assert report['preflight_status'] == 'READY'

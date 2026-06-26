@@ -163,6 +163,8 @@ class TestPromptSchemaInventory:
         assert 'Write-InstallSummary' in install_ps1
         assert '安装结果汇总' in install_ps1
         assert 'Bootstrap-LatestInstaller' in install_ps1
+        assert 'Ensure-ConsoleUtf8' in install_ps1
+        assert 'Get-RemoteUtf8Text' in install_ps1
         assert 'InstallerVersion' in install_ps1
         assert 'Install-CodexViaGithubBinary' in install_ps1
         assert 'Install-CodexViaNpm' in install_ps1

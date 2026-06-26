@@ -47,7 +47,16 @@ def test_inspect_remote_repo_states(tmp_path: Path):
     git(lbai_work, 'init', '-b', 'main')
     git(lbai_work, 'config', 'user.email', 'lbai-test@example.com')
     git(lbai_work, 'config', 'user.name', 'LBAI Test')
+    # Template .gitignore excludes managed kit paths; force-add markers so the
+    # remote looks like a restored personal LBAI workspace, not a seedable repo.
     git(lbai_work, 'add', '-A')
+    git(
+        lbai_work,
+        'add',
+        '-f',
+        'AGENTS.md',
+        'lbai_system/runner_contracts/lbai_command_contract_v1.md',
+    )
     git(lbai_work, 'commit', '-m', 'seed lbai workspace')
     bare2 = tmp_path / 'lbai-remote.git'
     git(tmp_path, 'init', '--bare', str(bare2))
