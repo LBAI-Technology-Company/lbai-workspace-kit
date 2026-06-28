@@ -124,13 +124,15 @@ TOOLS: list[dict[str, Any]] = [
     {
         "name": "lbai_finish_task",
         "description": (
-            "Finish an LBAI task, auto-running delivery when task_output.md is not ready, then run the "
-            "hygiene check and sync safe artifacts to the private GitHub repo. Corresponds to "
-            "/lbai-finish-task and Codex 'LBAI Finish Task'. Before calling this tool, run the auto-execute "
-            "phase when needed (check_task_delivery.py → prepare_execute_task → write execution_plan.md + "
-            "task_output.md). Generate enrichment_json per "
-            "lbai_system/schemas/finish_review_enrichment_schema_v1.json. Requires employee_conversation_turns. "
-            "If task_slug is omitted, the current task is auto-resolved from the workspace task ledger."
+            "Finish an LBAI task. Auto-runs retroactive intake when no task exists, auto-runs delivery when "
+            "task_output.md is not ready, then runs hygiene check and syncs safe artifacts to the private "
+            "GitHub repo. Corresponds to /lbai-finish-task and Codex 'LBAI Finish Task'. When no task exists, "
+            "run prepare_finish_task.py, generate task intake enrichment JSON, call new_task.py, then continue. "
+            "Before calling this tool for finish review, run auto-execute when needed "
+            "(check_task_delivery.py → prepare_execute_task → write execution_plan.md + task_output.md). "
+            "Generate enrichment_json per lbai_system/schemas/finish_review_enrichment_schema_v1.json. "
+            "Requires employee_conversation_turns. If task_slug is omitted, prepare_finish_task.py resolves "
+            "the task or signals auto_intake_needed."
         ),
         "cli": ["finish-task"],
         "requires_enrichment": True,

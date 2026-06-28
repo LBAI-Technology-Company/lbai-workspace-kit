@@ -189,7 +189,7 @@ LBAI 提供 stdio MCP server（`cursor_plugin/mcp_server.py`），暴露 9 个 `
 3. lbai bind-github（粘贴 private repo URL）
 4. Cursor 打开 cursor_open 目录（或重启 Cursor / 其他 MCP 客户端加载 `lbai_*` 工具）；Codex 任意项目即可
 5. /lbai-role-setup（Cursor）或 LBAI Role Setup（Codex）
-6. 日常：/lbai-new-task → /lbai-finish-task（finish 会在需要时自动生成交付物）
+6. 日常：/lbai-finish-task（无任务时会自动补建档、生成交付物并收尾；可选 /lbai-new-task 提前建档）
    资料：/lbai-add-evidence    搜索：/lbai-search-artifacts
 ```
 

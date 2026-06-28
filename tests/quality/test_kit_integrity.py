@@ -121,8 +121,10 @@ class TestPromptSchemaInventory:
             'lbai_system/cursor/skills/lbai-finish-task/SKILL.md',
         ):
             text = (template_root() / rel).read_text(encoding='utf-8')
+            assert 'prepare_finish_task.py' in text, f'{rel} should call prepare_finish_task.py'
             assert 'check_task_delivery.py' in text, f'{rel} should mention check_task_delivery.py'
             assert 'auto-execute' in text.lower() or 'auto_execute' in text, f'{rel} should mention auto-execute'
+            assert 'auto-intake' in text.lower() or 'auto_intake' in text, f'{rel} should mention auto-intake'
 
     def test_pipe_install_does_not_misdetect_current_directory(self):
         text = (kit_root() / 'install.sh').read_text(encoding='utf-8')
@@ -138,7 +140,7 @@ class TestPromptSchemaInventory:
         assert 'export LBAI_HOME="$LBAI_HOME"' in install_sh
         assert 'exec "$RUNTIME_PYTHON" -m lbai.cli "\\$@"' in install_sh
         assert 'Warning: could not install jsonschema' not in install_sh
-        assert 'fail "could not install Python dependencies' in install_sh
+        assert 'fail "Python 依赖安装失败' in install_sh
         assert 'RUNTIME_PYTHON="$(create_python_runtime)"' not in install_sh
         assert 'RUNTIME_PYTHON="$VENV_DIR/bin/python"' in install_sh
         assert 'pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null' in install_sh
@@ -153,7 +155,9 @@ class TestPromptSchemaInventory:
         assert 'Write-Step' in install_ps1
         assert 'workspace ensure' in install_sh
         assert 'print_install_summary' in install_sh
-        assert '安装结果汇总' in install_sh
+        assert 'print_install_verdict' in install_sh
+        assert '组件状态' in install_sh
+        assert '安装结果:' in install_sh
         assert 'bootstrap_latest_installer' in install_sh
         assert 'INSTALLER_VERSION' in install_sh
         assert 'install_codex_via_github_binary' in install_sh
@@ -169,7 +173,7 @@ class TestPromptSchemaInventory:
         assert 'set "LBAI_HOME=$LbaiHome"' in install_ps1
         assert '"$RuntimePython" -m lbai.cli %*' in install_ps1
         assert 'Warning: could not install jsonschema' not in install_ps1
-        assert 'Fail "could not install Python dependencies' in install_ps1
+        assert 'Fail "Python 依赖安装失败' in install_ps1
 
         assert 'Ensure-CodexCli' in install_ps1
         assert 'Ensure-CodexPlugin' in install_ps1
@@ -178,7 +182,9 @@ class TestPromptSchemaInventory:
         assert 'LBAI_SKIP_CURSOR_COMMANDS' in install_ps1
         assert 'Cursor 全局斜杠命令' in install_ps1
         assert 'Write-InstallSummary' in install_ps1
-        assert '安装结果汇总' in install_ps1
+        assert 'Write-InstallVerdict' in install_ps1
+        assert '组件状态' in install_ps1
+        assert '安装结果:' in install_ps1
         assert 'Bootstrap-LatestInstaller' in install_ps1
         assert 'Ensure-ConsoleUtf8' in install_ps1
         assert 'Get-RemoteUtf8Text' in install_ps1

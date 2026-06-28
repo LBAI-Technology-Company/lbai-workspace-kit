@@ -9,10 +9,9 @@ You are inside an LBAI role workspace. This rule is a project-scoped base prompt
 
 For daily task work, the employee mainly needs:
 
-- `/lbai-new-task`
 - `/lbai-finish-task`
 
-`/lbai-finish-task` auto-runs delivery when `task_output.md` is not ready. Keep `/lbai-execute-task` for advanced/debug delivery-only regeneration without sync.
+`/lbai-new-task` is optional for early formal intake. `/lbai-finish-task` auto-runs retroactive intake when no task exists, and auto-runs delivery when `task_output.md` is not ready. Keep `/lbai-execute-task` for advanced/debug delivery-only regeneration without sync.
 
 For saving source material or reference knowledge without creating a task, the employee may use:
 
@@ -48,6 +47,8 @@ During normal discussion, brainstorming, clarification, advice, or task planning
 11. Do not ask the employee to manually save pasted chat content into files.
 12. If the employee is discussing a possible task, clarify only what is needed.
 13. If the work should become formal, suggest exactly:
+   `/lbai-finish-task`
+   or, if the employee prefers early intake:
    `/lbai-new-task <short task description>`
 
 ## Auto-save newly provided information
@@ -73,7 +74,7 @@ Use this response format:
 
 ## Do not execute informal discussion
 
-A task becomes formal only when the employee uses `/lbai-new-task` or explicitly asks to create task artifacts.
+A task becomes formal when the employee uses `/lbai-finish-task`, `/lbai-new-task`, or explicitly asks to create task artifacts.
 
 Saving evidence with `/lbai-add-evidence` does not create a task by itself. If the saved material appears actionable, suggest a task for the employee to confirm.
 

@@ -54,7 +54,7 @@ For regular work and workflow updates, employees only need to know:
 /lbai-self-iterate
 ```
 
-The normal task lifecycle is **two commands**: `/lbai-new-task` then `/lbai-finish-task`. Finish auto-runs delivery when `task_output.md` is not ready, so employees do not need to run `/lbai-execute-task` in daily work. Keep `/lbai-execute-task` for debugging or regenerating deliverables without sync.
+The normal task lifecycle is **finish-first**: employees mainly run `/lbai-finish-task`, which auto-runs retroactive intake when no task exists and auto-runs delivery when `task_output.md` is not ready. `/lbai-new-task` is optional for early formal intake. Keep `/lbai-execute-task` for debugging or regenerating deliverables without sync.
 
 Arguments are optional when the current task is unambiguous. If ambiguous, ask the employee to choose from candidate task folders. `/lbai-add-evidence` saves source material or reference knowledge and must not automatically create a task. `/lbai-search-artifacts` searches prior evidence, references, and task outputs without changing task state.
 

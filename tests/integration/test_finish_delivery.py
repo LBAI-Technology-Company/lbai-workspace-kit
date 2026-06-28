@@ -8,6 +8,28 @@ from tests.helpers.tool_runner import enrichment_path, parse_task_folder, run_to
 pytestmark = pytest.mark.integration
 
 
+class TestPrepareFinishTask:
+    def test_signals_auto_intake_when_no_tasks(self, isolated_workspace):
+        result = run_tool(isolated_workspace, 'prepare_finish_task.py')
+        assert result.returncode == 0, result.output
+        assert 'resolution: none' in result.stdout
+        assert 'auto_intake_needed: true' in result.stdout
+        assert 'new_task.py' in result.stdout
+
+    def test_skips_auto_intake_for_open_task(self, isolated_workspace, fixtures):
+        created = run_tool(
+            isolated_workspace,
+            'new_task.py',
+            '--enrichment',
+            str(enrichment_path(fixtures, 'task_intake_open.json')),
+        )
+        task_rel = parse_task_folder(created.stdout)
+        result = run_tool(isolated_workspace, 'prepare_finish_task.py')
+        assert result.returncode == 0, result.output
+        assert 'auto_intake_needed: false' in result.stdout
+        assert task_rel in result.stdout
+
+
 class TestResolveCurrentTask:
     def test_finish_resolves_open_task_without_task_output(self, isolated_workspace, fixtures):
         created = run_tool(

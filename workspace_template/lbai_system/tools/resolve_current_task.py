@@ -49,8 +49,15 @@ def main():
 
     if not matches:
         print('RESOLUTION none')
-        print(f'NEXT_STEP 请先运行 /lbai-new-task 创建任务，或提供明确任务目录。')
-        return 2
+        if args.command == 'finish':
+            print('AUTO_INTAKE_NEEDED true')
+            print(
+                'NEXT_STEP 运行 prepare_finish_task.py 或按 /lbai-finish-task 契约补建任务：'
+                '从当前对话生成 task intake enrichment JSON → new_task.py --enrichment → 继续 finish 流程。'
+            )
+        else:
+            print(f'NEXT_STEP 请先运行 /lbai-new-task 创建任务，或提供明确任务目录。')
+        return 2 if args.command != 'finish' else 0
     if len(matches) == 1:
         print('RESOLUTION unique')
         print(f'TASK_FOLDER {matches[0].relative_to(root)}')

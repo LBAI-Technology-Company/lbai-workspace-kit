@@ -32,7 +32,7 @@ function Get-RemoteUtf8Text([string]$Url, [int]$TimeoutSec = 120) {
 Ensure-ConsoleUtf8
 
 $Repo = "LBAI-Technology-Company/lbai-workspace-kit"
-$InstallerVersion = "1.5.4"
+$InstallerVersion = "1.5.5"
 if ($env:LBAI_HOME) {
     $LbaiHome = $env:LBAI_HOME
 } else {
@@ -87,21 +87,59 @@ function Write-SummaryLine([string]$Label, [string]$Name) {
 
 function Write-InstallSummary {
     Write-Info ""
-    Write-Info "========== 安装结果汇总 =========="
-    Write-SummaryLine "Git" "Git"
-    Write-SummaryLine "Python 3.10+" "Python"
+    Write-Info "---------- 组件状态 ----------"
     Write-SummaryLine "LBAI CLI" "Lbai"
-    Write-SummaryLine "Python 依赖 (jsonschema)" "PyDeps"
-    Write-SummaryLine "用户 PATH (lbai)" "Path"
+    Write-SummaryLine "Python 依赖" "PyDeps"
+    Write-SummaryLine "用户 PATH" "Path"
+    Write-SummaryLine "公用工作区" "Workspace"
     Write-SummaryLine "Codex CLI" "CodexCli"
-    Write-SummaryLine "Codex marketplace" "CodexMarketplace"
-    Write-SummaryLine "Codex 插件 (lbai-workspace)" "CodexPlugin"
-    Write-SummaryLine "Cursor MCP server (lbai-workspace)" "CursorMcp"
-    Write-SummaryLine "Cursor 全局斜杠命令 (/lbai-*)" "CursorCommands"
-    Write-SummaryLine "公用工作区 (active_workspace)" "Workspace"
-    Write-SummaryLine "后端登录 (可选)" "Backend"
-    Write-Info "=================================="
-    Write-Info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、Cursor MCP/斜杠命令、~/.lbai/workspace 公用工作区。"
+    Write-SummaryLine "Codex 插件" "CodexPlugin"
+    Write-SummaryLine "Cursor MCP" "CursorMcp"
+    Write-SummaryLine "Cursor 斜杠命令" "CursorCommands"
+    Write-SummaryLine "后端登录（可选）" "Backend"
+    Write-Info "------------------------------"
+}
+
+function Test-CoreInstallFailed {
+    foreach ($name in @("Lbai", "PyDeps", "Workspace")) {
+        $entry = $InstallStatus[$name]
+        if ($entry -and $entry.State -eq "FAILED") {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Test-OptionalInstallIssues {
+    foreach ($name in @("Path", "CodexCli", "CodexPlugin", "CursorMcp", "CursorCommands")) {
+        $entry = $InstallStatus[$name]
+        if ($entry -and ($entry.State -eq "FAILED" -or $entry.State -eq "WARN")) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Write-InstallVerdict {
+    Write-Info ""
+    if (Test-CoreInstallFailed) {
+        Write-Info "安装结果: 失败"
+        Write-Info "核心组件未就绪，请查看上方 [失败] 项后重新运行 install.ps1"
+        return
+    }
+    if (Test-OptionalInstallIssues) {
+        Write-Info "安装结果: 成功（部分可选组件未就绪，不影响日常使用）"
+    } else {
+        Write-Info "安装结果: 成功"
+    }
+    Write-Info ""
+    Write-Info "请继续完成初始化："
+    Write-Info "  1. lbai github auth token   # 粘贴 Token；已有可直接回车"
+    Write-Info "  2. lbai bind-github         # 粘贴管理员给的私有仓库 URL"
+    Write-Info "  3. lbai auth doctor         # 确认「认证状态: 就绪」"
+    Write-Info ""
+    Write-Info "可选: lbai auth backend-login | 首次: /lbai-role-setup"
+    Write-Info "详细步骤: lbai setup-guide"
 }
 
 function Fail($Message) {
@@ -280,7 +318,7 @@ function Resolve-PythonCommand {
     if ($Quiet) {
         return $null
     }
-    Fail "Python 3.10+ is required"
+    Fail "需要 Python 3.10+"
 }
 
 function Install-KitFromRelease([string]$Tag) {
@@ -342,19 +380,18 @@ function New-PythonRuntime([string[]]$PythonCommand) {
     $pythonExe = $PythonCommand[0]
     & $pythonExe @pythonArgs -m venv $VenvDir | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Fail "could not create Python runtime at $VenvDir. Install Python venv support and rerun install.ps1."
+        Fail "无法创建 Python 虚拟环境 $VenvDir，请安装 venv 支持后重试"
     }
 
     $venvPython = Join-Path $VenvDir "Scripts\python.exe"
     if (-not (Test-Path $venvPython)) {
-        Fail "Python runtime was created but $venvPython was not found."
+        Fail "虚拟环境创建失败: 未找到 $venvPython"
     }
 
     $requirements = Join-Path $InstallDir "lbai_core\requirements.txt"
-    Write-Info "  正在安装 Python 依赖 (jsonschema)..."
     & $venvPython -m pip install --disable-pip-version-check -r $requirements | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Fail "could not install Python dependencies into $VenvDir. Check network or pip configuration, then rerun install.ps1."
+        Fail "Python 依赖安装失败，请检查网络后重试"
     }
 
     return $venvPython
@@ -472,10 +509,8 @@ function Ensure-CodexCli {
         return
     }
 
-    Write-Info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
-    Write-Info "  irm https://chatgpt.com/codex/install.ps1 | iex"
-    Write-Info "  npm install -g @openai/codex"
-    Set-InstallStatus "CodexCli" "FAILED" "自动安装失败，见上方手动命令"
+    Write-Info "警告: Codex CLI 未安装（可选），可稍后手动安装"
+    Set-InstallStatus "CodexCli" "FAILED" "自动安装失败"
 }
 
 function Invoke-Codex {
@@ -509,57 +544,47 @@ function Ensure-CodexPlugin {
     }
 
     if (-not (Test-CodexReady)) {
-        Write-Info "WARNING: codex 不可用，跳过 lbai-workspace 插件安装。"
-        Write-Info "  请关闭并重新打开 PowerShell，然后重新运行 install.ps1。"
+        Write-Info "警告: Codex 不可用，跳过插件（可选）"
         Set-InstallStatus "CodexMarketplace" "FAILED" "codex 不可用"
-        Set-InstallStatus "CodexPlugin" "FAILED" "codex 不可用，需先安装/配置 Codex CLI"
+        Set-InstallStatus "CodexPlugin" "FAILED" "codex 不可用"
         return
     }
 
     $pluginTag = if ($env:LBAI_PLUGIN_REF) { $env:LBAI_PLUGIN_REF } else { $ReleaseTag }
     if ([string]::IsNullOrWhiteSpace($pluginTag) -or $pluginTag -eq "local") {
-        Write-Info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
-        Set-InstallStatus "CodexMarketplace" "FAILED" "无法确定 release tag"
-        Set-InstallStatus "CodexPlugin" "FAILED" "无法确定 release tag"
+        Write-Info "警告: 无法确定插件版本，跳过 Codex 插件"
+        Set-InstallStatus "CodexMarketplace" "FAILED" "无 release tag"
+        Set-InstallStatus "CodexPlugin" "FAILED" "无 release tag"
         return
     }
 
-    Write-Info "正在配置 LBAI Codex 插件 marketplace ($pluginTag)..."
     $marketplaceOk = $false
     if ((Invoke-Codex plugin marketplace upgrade $CodexPluginMarketplace) -eq 0) {
         $marketplaceOk = $true
-        Write-Info "已升级 Codex marketplace: $CodexPluginMarketplace"
     } else {
         Invoke-Codex plugin marketplace remove $CodexPluginMarketplace | Out-Null
         if ((Invoke-Codex plugin marketplace add $Repo --ref $pluginTag) -eq 0) {
             $marketplaceOk = $true
-            Write-Info "已添加 Codex marketplace: $CodexPluginMarketplace"
         }
     }
 
     if (-not $marketplaceOk) {
-        Write-Info "WARNING: Codex marketplace 配置失败。请确认已登录 Codex 后手动运行："
-        Write-Info "  codex plugin marketplace add $Repo --ref $pluginTag"
-        Write-Info "  codex plugin add lbai-workspace@$CodexPluginMarketplace"
-        Set-InstallStatus "CodexMarketplace" "FAILED" "marketplace 配置失败，见上方手动命令"
-        Set-InstallStatus "CodexPlugin" "FAILED" "依赖 marketplace，未安装"
+        Write-Info "警告: Codex 插件 marketplace 配置失败（可选）"
+        Set-InstallStatus "CodexMarketplace" "FAILED" "marketplace 失败"
+        Set-InstallStatus "CodexPlugin" "FAILED" "未安装"
         return
     }
 
-    Set-InstallStatus "CodexMarketplace" "OK" "$CodexPluginMarketplace ($pluginTag)"
+    Set-InstallStatus "CodexMarketplace" "OK" $pluginTag
 
-    Write-Info "正在安装 lbai-workspace 插件..."
     Invoke-Codex plugin remove lbai-workspace | Out-Null
     if ((Invoke-Codex plugin add "lbai-workspace@$CodexPluginMarketplace") -eq 0) {
-        Write-Info "已安装 Codex 插件: lbai-workspace@$CodexPluginMarketplace"
-        Write-Info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
-        Set-InstallStatus "CodexPlugin" "OK" "lbai-workspace@$CodexPluginMarketplace"
+        Set-InstallStatus "CodexPlugin" "OK" "lbai-workspace"
         return
     }
 
-    Write-Info "WARNING: Codex 插件安装失败。请手动运行："
-    Write-Info "  codex plugin add lbai-workspace@$CodexPluginMarketplace"
-    Set-InstallStatus "CodexPlugin" "FAILED" "插件安装失败，见上方手动命令"
+    Write-Info "警告: Codex 插件安装失败（可选）"
+    Set-InstallStatus "CodexPlugin" "FAILED" "安装失败"
 }
 
 function Ensure-CursorMcp {
@@ -575,17 +600,16 @@ function Ensure-CursorMcp {
     $mcpScript = Join-Path $kitRoot "cursor_plugin\mcp_server.py"
     $venvPython = Join-Path $VenvDir "Scripts\python.exe"
     if (-not (Test-Path $mcpScript) -or -not (Test-Path $venvPython)) {
-        Write-Info "WARNING: 缺少 cursor_plugin\mcp_server.py 或 venv python，跳过 Cursor MCP 配置。"
-        Set-InstallStatus "CursorMcp" "FAILED" "缺少 mcp_server.py 或 venv python"
+        Write-Info "警告: 缺少 MCP 依赖，跳过 Cursor MCP（可选）"
+        Set-InstallStatus "CursorMcp" "FAILED" "缺少依赖"
         return
     }
 
     $cursorDir = Join-Path $HOME ".cursor"
     $mcpJson = Join-Path $cursorDir "mcp.json"
     if (-not (Test-Path $cursorDir)) {
-        Write-Info "WARNING: 未检测到 ~\.cursor 目录，跳过 Cursor MCP 配置。"
-        Write-Info "  请先安装 Cursor 桌面 App，然后重新运行 install.ps1。"
-        Set-InstallStatus "CursorMcp" "SKIPPED" "Cursor 未安装（~\.cursor 不存在）"
+        Write-Info "警告: 未检测到 Cursor，跳过 MCP 配置（可选）"
+        Set-InstallStatus "CursorMcp" "SKIPPED" "未安装 Cursor"
         return
     }
 
@@ -607,14 +631,10 @@ function Ensure-CursorMcp {
         $json = $data | ConvertTo-Json -Depth 3 -Compress:$false
         # Ensure trailing newline (PowerShell 5 fallback: expand-compress cycle).
         Set-Content -Path $mcpJson -Value $(if (-not $json.EndsWith("`n")) { $json + "`n" } else { $json }) -Encoding UTF8 -NoNewline
-        Write-Info "已写入 Cursor MCP 配置: $mcpJson"
-        Write-Info "  lbai-workspace -> $venvPython $mcpScript"
-        Write-Info "  请重启 Cursor，使 MCP server 在任意项目生效。"
-        Set-InstallStatus "CursorMcp" "OK" "lbai-workspace @ ~\.cursor\mcp.json"
+        Set-InstallStatus "CursorMcp" "OK" "已配置"
     } catch {
-        Write-Info "WARNING: Cursor MCP 配置写入失败。请手动合并 ~\.cursor\mcp.json。"
-        Write-Info "  错误: $($_.Exception.Message)"
-        Set-InstallStatus "CursorMcp" "FAILED" "mcp.json 写入失败"
+        Write-Info "警告: Cursor MCP 配置失败（可选）"
+        Set-InstallStatus "CursorMcp" "FAILED" "写入失败"
     }
 }
 
@@ -632,15 +652,15 @@ function Ensure-CursorCommands {
     $dstDir = Join-Path $HOME ".cursor\commands"
 
     if (-not (Test-Path $srcDir)) {
-        Write-Info "WARNING: 缺少 $srcDir，跳过 Cursor 全局斜杠命令。"
-        Set-InstallStatus "CursorCommands" "FAILED" "缺少 .cursor\commands 源目录"
+        Write-Info "警告: 缺少命令源目录，跳过 Cursor 斜杠命令"
+        Set-InstallStatus "CursorCommands" "FAILED" "缺少源目录"
         return
     }
 
     $sources = @(Get-ChildItem -Path $srcDir -Filter 'lbai-*.md' -File -ErrorAction SilentlyContinue)
     if ($sources.Count -eq 0) {
-        Write-Info "WARNING: 未找到 lbai-*.md 命令文件，跳过 Cursor 全局斜杠命令。"
-        Set-InstallStatus "CursorCommands" "FAILED" "缺少 lbai-*.md 命令文件"
+        Write-Info "警告: 未找到 lbai 命令文件"
+        Set-InstallStatus "CursorCommands" "FAILED" "无命令文件"
         return
     }
 
@@ -649,10 +669,7 @@ function Ensure-CursorCommands {
         Copy-Item -Path $src.FullName -Destination (Join-Path $dstDir $src.Name) -Force
     }
 
-    $count = $sources.Count
-    Write-Info "已安装 Cursor 全局斜杠命令: $dstDir ($count 个 lbai-*.md)"
-    Write-Info "  请重启 Cursor，在 Agent 中输入 /lbai 即可使用。"
-    Set-InstallStatus "CursorCommands" "OK" "$count 个命令 @ ~\.cursor\commands\"
+    Set-InstallStatus "CursorCommands" "OK" "$($sources.Count) 个命令"
 }
 
 function Ensure-SharedWorkspace {
@@ -666,28 +683,19 @@ function Ensure-SharedWorkspace {
     $output = & (Join-Path $BinDir "lbai.cmd") workspace ensure --quiet 2>&1 | Out-String
     if ($output -match 'workspace_ensure_status: (READY|PENDING_BIND)') {
         if ($output -match 'workspace_ensure_status: PENDING_BIND') {
-            if ($output -match '(?m)^workspace_path: (.+)$') {
-                $wsPath = $Matches[1].Trim()
-                Write-Info "  -> 工作区目录已创建: $wsPath"
-            } else {
-                Write-Info "  -> 工作区目录已创建: ~/.lbai/workspace"
-            }
-            Write-Info "  -> 下一步: lbai bind-github"
             Set-InstallStatus "Workspace" "OK" "待绑定"
             return
         }
         if ($output -match '(?m)^active_workspace: (.+)$') {
             $wsPath = $Matches[1].Trim()
-            Write-Info "  -> 工作区就绪: $wsPath"
             Set-InstallStatus "Workspace" "OK" $wsPath
         } else {
-            Write-Info "  -> 工作区就绪: ~/.lbai/workspace"
             Set-InstallStatus "Workspace" "OK" "~/.lbai/workspace"
         }
         return
     }
     Write-Info $output.TrimEnd()
-    Set-InstallStatus "Workspace" "FAILED" "公用工作区初始化失败"
+    Set-InstallStatus "Workspace" "FAILED" "初始化失败"
 }
 
 Ensure-Prerequisites
@@ -728,16 +736,9 @@ if (Test-Path $versionFile) {
     $kitVersion = (Get-Content $versionFile -Raw).Trim()
 }
 
-Set-InstallStatus "Lbai" "OK" "v$kitVersion ($(Join-Path $BinDir 'lbai.cmd'))"
-Write-Step "输出安装结果汇总"
+Set-InstallStatus "Lbai" "OK" "v$kitVersion"
+Write-Step "输出安装结果"
 Write-InstallSummary
-
-Write-Info "Release: $releaseTag"
+Write-InstallVerdict
 Write-Info ""
-& (Join-Path $BinDir "lbai.cmd") setup-guide
-if (-not (Test-CodexReady) -and ((Test-Command codex) -or (Test-Path (Join-Path $env:USERPROFILE ".local\bin\codex.exe")))) {
-    Write-Info ""
-    Write-Info "提示：Codex CLI 已安装但插件未就绪，重新打开 PowerShell 后重新运行 install.ps1"
-}
-Write-Info ""
-Write-Info "升级：重新运行 install.ps1    卸载：lbai uninstall"
+Write-Info "升级: 重新运行 install.ps1 | 卸载: lbai uninstall"

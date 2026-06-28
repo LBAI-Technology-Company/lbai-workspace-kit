@@ -1,18 +1,18 @@
 ---
-description: LBAI two-command employee task lifecycle
+description: LBAI finish-first employee task lifecycle
 alwaysApply: true
 ---
 
-# LBAI Two-Command Task Lifecycle
+# LBAI Finish-First Task Lifecycle
 
 Canonical command source: `lbai_system/runner_contracts/lbai_command_contract_v1.md`.
 
-For daily task work, employees mainly need these commands:
+For daily task work, employees mainly need:
 
-1. `/lbai-new-task` — start
-2. `/lbai-finish-task` — deliver (when needed), review, and sync
+1. `/lbai-finish-task` — retroactive intake (when needed), deliver, review, and sync
+2. `/lbai-new-task` — optional early intake when the employee wants a formal task folder before working
 
-`/lbai-finish-task` auto-runs the delivery phase when `task_output.md` is missing or not ready. Employees do not need to run `/lbai-execute-task` in the normal flow.
+`/lbai-finish-task` auto-runs retroactive intake when no task folder exists, and auto-runs delivery when `task_output.md` is missing or not ready. Employees do not need to run `/lbai-execute-task` in the normal flow.
 
 Keep `/lbai-execute-task` for debugging, regenerating deliverables without sync, or splitting delivery from finish.
 

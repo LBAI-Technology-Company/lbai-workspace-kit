@@ -21,7 +21,7 @@ When the user says **开始**, **怎么用**, **初始化**, or asks how LBAI wo
 /lbai-self-iterate
 ```
 
-Daily task work is **two commands**: `/lbai-new-task` then `/lbai-finish-task`. Finish auto-runs delivery when `task_output.md` is not ready.
+Daily task work is **finish-first**: `/lbai-finish-task` is the main command. It auto-runs retroactive intake when no task exists and auto-runs delivery when `task_output.md` is not ready. `/lbai-new-task` is optional.
 
 Advanced/debug only: `/lbai-execute-task` regenerates deliverables without finishing or syncing.
 
@@ -73,7 +73,7 @@ Supported employee-facing commands:
 /lbai-self-iterate
 ```
 
-Daily task work: `/lbai-new-task` → `/lbai-finish-task`. Finish auto-runs delivery when needed.
+Daily task work: `/lbai-finish-task` (main). Optional early intake: `/lbai-new-task`. Finish auto-runs retroactive intake and delivery when needed.
 
 Advanced/debug: `/lbai-execute-task` regenerates deliverables without sync.
 

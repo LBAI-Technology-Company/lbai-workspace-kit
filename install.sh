@@ -2,7 +2,7 @@
 set -eu
 
 REPO="LBAI-Technology-Company/lbai-workspace-kit"
-INSTALLER_VERSION="1.5.4"
+INSTALLER_VERSION="1.5.5"
 LBAI_HOME="${LBAI_HOME:-$HOME/.lbai}"
 INSTALL_DIR="$LBAI_HOME/kit"
 BIN_DIR="$LBAI_HOME/bin"
@@ -82,26 +82,64 @@ summary_line() {
 
 print_install_summary() {
   info ""
-  info "========== 安装结果汇总 =========="
-  summary_line "Git" "$ST_GIT"
-  summary_line "Python 3.10+" "$ST_PYTHON"
-  summary_line "curl" "$ST_CURL"
+  info "---------- 组件状态 ----------"
   summary_line "LBAI CLI" "$ST_LBAI"
-  summary_line "Python 依赖 (jsonschema)" "$ST_PYDEPS"
-  summary_line "Shell PATH (lbai)" "$ST_PATH"
+  summary_line "Python 依赖" "$ST_PYDEPS"
+  summary_line "Shell PATH" "$ST_PATH"
+  summary_line "公用工作区" "$ST_WORKSPACE"
   summary_line "Codex CLI" "$ST_CODEX_CLI"
-  summary_line "Codex marketplace" "$ST_CODEX_MP"
-  summary_line "Codex 插件 (lbai-workspace)" "$ST_CODEX_PLUGIN"
-  summary_line "Cursor MCP server (lbai-workspace)" "$ST_CURSOR_MCP"
-  summary_line "Cursor 全局斜杠命令 (/lbai-*)" "$ST_CURSOR_COMMANDS"
-  summary_line "公用工作区 (active_workspace)" "$ST_WORKSPACE"
-  summary_line "后端登录 (可选)" "$ST_BACKEND"
-  info "=================================="
-  info "已安装：LBAI CLI、Codex CLI、lbai-workspace 插件、Cursor MCP/斜杠命令、~/.lbai/workspace 公用工作区。"
+  summary_line "Codex 插件" "$ST_CODEX_PLUGIN"
+  summary_line "Cursor MCP" "$ST_CURSOR_MCP"
+  summary_line "Cursor 斜杠命令" "$ST_CURSOR_COMMANDS"
+  summary_line "后端登录（可选）" "$ST_BACKEND"
+  info "------------------------------"
+}
+
+core_install_failed() {
+  for st in "$ST_LBAI" "$ST_PYDEPS" "$ST_WORKSPACE"; do
+    state="${st%%|*}"
+    if [ "$state" = "FAILED" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+optional_install_issues() {
+  for st in "$ST_PATH" "$ST_CODEX_CLI" "$ST_CODEX_PLUGIN" "$ST_CURSOR_MCP" "$ST_CURSOR_COMMANDS"; do
+    state="${st%%|*}"
+    if [ "$state" = "FAILED" ] || [ "$state" = "WARN" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+print_install_verdict() {
+  info ""
+  if core_install_failed; then
+    info "安装结果: 失败"
+    info "核心组件未就绪，请查看上方 [失败] 项后重新运行 install.sh"
+    return 1
+  fi
+  if optional_install_issues; then
+    info "安装结果: 成功（部分可选组件未就绪，不影响日常使用）"
+  else
+    info "安装结果: 成功"
+  fi
+  info ""
+  info "请继续完成初始化："
+  info "  1. lbai github auth token   # 粘贴 Token；已有可直接回车"
+  info "  2. lbai bind-github         # 粘贴管理员给的私有仓库 URL"
+  info "  3. lbai auth doctor         # 确认「认证状态: 就绪」"
+  info ""
+  info "可选: lbai auth backend-login | 首次: /lbai-role-setup"
+  info "详细步骤: lbai setup-guide"
+  return 0
 }
 
 fail() {
-  printf 'ERROR: %s\n' "$*" >&2
+  printf '错误: %s\n' "$*" >&2
   exit 1
 }
 
@@ -159,7 +197,7 @@ fetch_latest_release_tag_soft() {
 resolve_latest_release_tag() {
   tag="$(fetch_latest_release_tag_soft || true)"
   if [ -z "$tag" ]; then
-    fail "could not resolve latest release for $REPO"
+    fail "无法获取 $REPO 最新 release，请检查网络"
   fi
   printf '%s\n' "$tag"
 }
@@ -335,11 +373,9 @@ ensure_prerequisites() {
   if ! have_cmd curl; then
     fail "未检测到 curl，无法下载安装包。"
   fi
-  set_st GIT OK "$(git --version 2>/dev/null | head -n 1)"
+  set_st GIT OK "$(git --version 2>/dev/null | head -n 1 | cut -d' ' -f1-3)"
   set_st PYTHON OK "$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
-  set_st CURL OK "$(curl --version 2>/dev/null | head -n 1 | cut -d' ' -f1-2)"
-  info "环境检查通过：$(git --version 2>/dev/null | head -n 1)"
-  info "环境检查通过：$($(resolve_python_bin) --version 2>/dev/null | head -n 1)"
+  set_st CURL OK "ok"
   step_done
 }
 
@@ -388,7 +424,7 @@ ensure_codex_local_bin_path() {
     printf '\n# Added by LBAI installer for Codex CLI\n'
     printf '%s\n' "$path_line"
   } >> "$profile"
-  info "Added Codex CLI to PATH in $profile"
+  info "已将 Codex CLI 加入 PATH: $profile"
 }
 
 codex_cli_available() {
@@ -397,7 +433,7 @@ codex_cli_available() {
 }
 
 install_codex_via_official_script() {
-  info "  尝试 OpenAI 官方安装脚本（可能较慢或超时）..."
+  info "  尝试官方安装脚本..."
   CODEX_NON_INTERACTIVE=1 curl -fsSL --connect-timeout 20 --max-time 300 "$CODEX_CLI_INSTALL_URL" | sh
 }
 
@@ -497,11 +533,8 @@ ensure_codex_cli() {
   elif install_codex_via_github_binary && codex_cli_available; then
     :
   else
-    info "WARNING: Codex CLI 自动安装失败。LBAI CLI 已安装，可稍后手动运行："
-    info "  curl -fsSL $CODEX_CLI_INSTALL_URL | sh"
-    info "  npm install -g @openai/codex"
-    info "  或从 https://github.com/openai/codex/releases 下载对应平台二进制到 ~/.local/bin"
-    set_st CODEX_CLI FAILED "自动安装失败，见上方手动命令"
+    info "警告: Codex CLI 未安装（可选），可稍后手动安装"
+    set_st CODEX_CLI FAILED "自动安装失败"
     step_done
     return 0
   fi
@@ -523,9 +556,8 @@ ensure_codex_cli() {
     return 0
   fi
 
-  info "WARNING: Codex CLI 安装脚本已执行，但未检测到 codex 命令。"
-  info "  请新开终端，或运行 source ~/.zprofile / source ~/.zshrc 后再试。"
-  set_st CODEX_CLI WARN "安装脚本已执行，当前终端未检测到 codex"
+  info "警告: Codex CLI 已安装，当前终端未生效，请新开终端"
+  set_st CODEX_CLI WARN "需新开终端"
   step_done
   return 0
 }
@@ -560,60 +592,50 @@ ensure_codex_plugin() {
   fi
 
   if ! codex_cli_ready; then
-    info "WARNING: codex 不可用，跳过 lbai-workspace 插件安装。"
-    info "  请先 source ~/.zprofile 或 ~/.zshrc，然后重新运行 install.sh。"
+    info "警告: Codex 不可用，跳过插件（可选）"
     set_st CODEX_MP FAILED "codex 不可用"
-    set_st CODEX_PLUGIN FAILED "codex 不可用，需先安装/配置 Codex CLI"
+    set_st CODEX_PLUGIN FAILED "codex 不可用"
     step_done
     return 0
   fi
 
   if [ -z "$plugin_tag" ] || [ "$plugin_tag" = "local" ]; then
-    info "WARNING: 无法确定插件 release tag，跳过 Codex 插件自动安装。"
-    set_st CODEX_MP FAILED "无法确定 release tag"
-    set_st CODEX_PLUGIN FAILED "无法确定 release tag"
+    info "警告: 无法确定插件版本，跳过 Codex 插件"
+    set_st CODEX_MP FAILED "无 release tag"
+    set_st CODEX_PLUGIN FAILED "无 release tag"
     step_done
     return 0
   fi
 
-  info "正在配置 LBAI Codex 插件 marketplace ($plugin_tag)..."
   marketplace_ok=0
   if run_codex plugin marketplace upgrade "$CODEX_PLUGIN_MARKETPLACE" >/dev/null 2>&1; then
     marketplace_ok=1
-    info "已升级 Codex marketplace: $CODEX_PLUGIN_MARKETPLACE"
   else
     run_codex plugin marketplace remove "$CODEX_PLUGIN_MARKETPLACE" >/dev/null 2>&1 || true
-    if run_codex plugin marketplace add "$REPO" --ref "$plugin_tag"; then
+    if run_codex plugin marketplace add "$REPO" --ref "$plugin_tag" >/dev/null 2>&1; then
       marketplace_ok=1
-      info "已添加 Codex marketplace: $CODEX_PLUGIN_MARKETPLACE"
     fi
   fi
 
   if [ "$marketplace_ok" -eq 0 ]; then
-    info "WARNING: Codex marketplace 配置失败。请确认已登录 Codex 后手动运行："
-    info "  codex plugin marketplace add $REPO --ref $plugin_tag"
-    info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
-    set_st CODEX_MP FAILED "marketplace 配置失败，见上方手动命令"
-    set_st CODEX_PLUGIN FAILED "依赖 marketplace，未安装"
+    info "警告: Codex 插件 marketplace 配置失败（可选）"
+    set_st CODEX_MP FAILED "marketplace 失败"
+    set_st CODEX_PLUGIN FAILED "未安装"
     step_done
     return 0
   fi
 
-  set_st CODEX_MP OK "$CODEX_PLUGIN_MARKETPLACE ($plugin_tag)"
+  set_st CODEX_MP OK "$plugin_tag"
 
-  info "  正在安装 lbai-workspace 插件..."
   run_codex plugin remove lbai-workspace >/dev/null 2>&1 || true
-  if run_codex plugin add "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"; then
-    info "已安装 Codex 插件: lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
-    info "请在 Codex 桌面 App 中开启新线程，使插件 Skills 生效。"
-    set_st CODEX_PLUGIN OK "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
+  if run_codex plugin add "lbai-workspace@$CODEX_PLUGIN_MARKETPLACE" >/dev/null 2>&1; then
+    set_st CODEX_PLUGIN OK "lbai-workspace"
     step_done
     return 0
   fi
 
-  info "WARNING: Codex 插件安装失败。请手动运行："
-  info "  codex plugin add lbai-workspace@$CODEX_PLUGIN_MARKETPLACE"
-  set_st CODEX_PLUGIN FAILED "插件安装失败，见上方手动命令"
+  info "警告: Codex 插件安装失败（可选）"
+  set_st CODEX_PLUGIN FAILED "安装失败"
   step_done
   return 0
 }
@@ -633,8 +655,8 @@ ensure_cursor_mcp() {
   mcp_script="$kit_root/cursor_plugin/mcp_server.py"
   venv_python="$VENV_DIR/bin/python"
   if [ ! -f "$mcp_script" ] || [ ! -x "$venv_python" ]; then
-    info "WARNING: 缺少 cursor_plugin/mcp_server.py 或 venv python，跳过 Cursor MCP 配置。"
-    set_st CURSOR_MCP FAILED "缺少 mcp_server.py 或 venv python"
+    info "警告: 缺少 MCP 依赖，跳过 Cursor MCP（可选）"
+    set_st CURSOR_MCP FAILED "缺少依赖"
     step_done
     return 0
   fi
@@ -642,9 +664,8 @@ ensure_cursor_mcp() {
   cursor_dir="$HOME/.cursor"
   mcp_json="$cursor_dir/mcp.json"
   if [ ! -d "$cursor_dir" ]; then
-    info "WARNING: 未检测到 ~/.cursor 目录，跳过 Cursor MCP 配置。"
-    info "  请先安装 Cursor 桌面 App，然后重新运行 install.sh。"
-    set_st CURSOR_MCP SKIPPED "Cursor 未安装（~/.cursor 不存在）"
+    info "警告: 未检测到 Cursor，跳过 MCP 配置（可选）"
+    set_st CURSOR_MCP SKIPPED "未安装 Cursor"
     step_done
     return 0
   fi
@@ -696,17 +717,11 @@ EOF
 
   if [ "$ok" = "1" ] && [ -s "$tmp_json" ]; then
     mv "$tmp_json" "$mcp_json"
-    info "已写入 Cursor MCP 配置: $mcp_json"
-    info "  lbai-workspace -> $venv_python $mcp_script"
-    info "  请重启 Cursor，使 MCP server 在任意项目生效。"
-    set_st CURSOR_MCP OK "lbai-workspace @ ~/.cursor/mcp.json"
+    set_st CURSOR_MCP OK "已配置"
   else
     rm -f "$tmp_json"
-    if [ -f "$mcp_json" ]; then
-      info "WARNING: Cursor MCP 合并失败，原有 ~/.cursor/mcp.json 未改动。"
-    fi
-    info "WARNING: Cursor MCP 配置失败。请检查 ~/.cursor/mcp.json 是否为合法 JSON。"
-    set_st CURSOR_MCP FAILED "mcp.json 合并/写入失败"
+    info "警告: Cursor MCP 配置失败（可选）"
+    set_st CURSOR_MCP FAILED "写入失败"
   fi
   step_done
   return 0
@@ -727,8 +742,8 @@ ensure_global_cursor_commands() {
   dst_dir="$HOME/.cursor/commands"
 
   if [ ! -d "$src_dir" ]; then
-    info "WARNING: 缺少 $src_dir，跳过 Cursor 全局斜杠命令。"
-    set_st CURSOR_COMMANDS FAILED "缺少 .cursor/commands 源目录"
+    info "警告: 缺少命令源目录，跳过 Cursor 斜杠命令"
+    set_st CURSOR_COMMANDS FAILED "缺少源目录"
     step_done
     return 0
   fi
@@ -742,12 +757,10 @@ ensure_global_cursor_commands() {
   done
 
   if [ "$copied" -gt 0 ]; then
-    info "已安装 Cursor 全局斜杠命令: $dst_dir ($copied 个 lbai-*.md)"
-    info "  请重启 Cursor，在 Agent 中输入 /lbai 即可使用。"
-    set_st CURSOR_COMMANDS OK "$copied 个命令 @ ~/.cursor/commands/"
+    set_st CURSOR_COMMANDS OK "${copied} 个命令"
   else
-    info "WARNING: 未找到 lbai-*.md 命令文件，跳过 Cursor 全局斜杠命令。"
-    set_st CURSOR_COMMANDS FAILED "缺少 lbai-*.md 命令文件"
+    info "警告: 未找到 lbai 命令文件"
+    set_st CURSOR_COMMANDS FAILED "无命令文件"
   fi
   step_done
   return 0
@@ -768,19 +781,13 @@ ensure_shared_workspace() {
     if printf '%s\n' "$workspace_output" | grep -q 'workspace_ensure_status: PENDING_BIND'; then
       pending_path="$(printf '%s\n' "$workspace_output" | sed -n 's/^workspace_path: //p' | head -n 1)"
       if [ -n "$pending_path" ]; then
-        info "  -> 工作区目录已创建: $pending_path"
-        info "  -> 下一步: lbai bind-github"
-        set_st WORKSPACE OK "待绑定: $pending_path"
+        set_st WORKSPACE OK "待绑定"
       else
-        info "  -> 工作区目录已创建: ~/.lbai/workspace"
-        info "  -> 下一步: lbai bind-github"
-        set_st WORKSPACE OK "待绑定: ~/.lbai/workspace"
+        set_st WORKSPACE OK "待绑定"
       fi
     elif [ -n "$ws_path" ]; then
-      info "  -> 工作区就绪: $ws_path"
       set_st WORKSPACE OK "$ws_path"
     else
-      info "  -> 工作区就绪: ~/.lbai/workspace"
       set_st WORKSPACE OK "~/.lbai/workspace"
     fi
     step_done
@@ -818,17 +825,16 @@ ensure_shell_path() {
   path_export="export PATH=\"$BIN_DIR:\$PATH\""
 
   if [ -z "$shell_rc" ]; then
-    info "Could not detect a shell rc file. Add lbai to PATH manually:"
+    info "未检测到 shell 配置文件，请手动加入 PATH:"
     info "  $path_export"
-    set_st PATH WARN "未检测到 shell 配置文件，需手动加入 PATH"
+    set_st PATH WARN "需手动配置 PATH"
     step_done
     return 0
   fi
 
   touch "$shell_rc"
   if grep -qF "$PATH_MARKER" "$shell_rc" 2>/dev/null || grep -qF "$BIN_DIR" "$shell_rc" 2>/dev/null; then
-    info "PATH already configured in $shell_rc"
-    set_st PATH OK "已配置 ($shell_rc)"
+    set_st PATH OK "已配置"
     step_done
     return 0
   fi
@@ -837,9 +843,8 @@ ensure_shell_path() {
     printf '\n%s\n' "$PATH_MARKER"
     printf '%s\n' "$path_export"
   } >> "$shell_rc"
-  info "Added lbai to PATH in $shell_rc"
-  info "Run: source $shell_rc"
-  set_st PATH OK "已写入 ($shell_rc)"
+  info "已写入 PATH，请运行: source $shell_rc"
+  set_st PATH OK "已写入"
   step_done
 }
 
@@ -857,20 +862,16 @@ create_python_runtime() {
   info "  正在创建 Python 虚拟环境: $VENV_DIR"
   rm -rf "$VENV_DIR"
   if ! "$PYTHON_BIN" -m venv "$VENV_DIR" >/dev/null 2>&1; then
-    fail "could not create Python runtime at $VENV_DIR. Install Python venv support and rerun install.sh."
+    fail "无法创建 Python 虚拟环境 $VENV_DIR，请安装 python3-venv 后重试"
   fi
 
   if [ ! -x "$venv_python" ]; then
-    fail "Python runtime was created but $venv_python is not executable"
+    fail "虚拟环境创建失败: $venv_python 不可执行"
   fi
 
-  info "  正在安装 Python 依赖 (jsonschema)..."
-  # pip 只需访问 PyPI (HTTPS)。用户 shell 可能设了 SOCKS 代理（all_proxy / ALL_PROXY
-  # 等），venv 又没装 pysocks，会导致 "Missing dependencies for SOCKS support"。
-  # 这里临时清掉代理环境变量，让 pip 直连，避免对 pysocks 的隐式依赖。
   if ! env -u http_proxy -u https_proxy -u all_proxy -u ALL_PROXY -u HTTP_PROXY -u HTTPS_PROXY \
       "$venv_python" -m pip install --disable-pip-version-check -r "$INSTALL_DIR/lbai_core/requirements.txt" >/dev/null; then
-    fail "could not install Python dependencies into $VENV_DIR. Check network or pip configuration, then rerun install.sh."
+    fail "Python 依赖安装失败，请检查网络后重试"
   fi
 }
 
@@ -944,14 +945,14 @@ download_and_install() {
     info "  正在解压安装包..."
     tar -xzf "$archive" -C "$tmp"
     src="$(find "$tmp" -maxdepth 1 -type d -name 'lbai-workspace-kit-*' | head -n 1)"
-    [ -n "$src" ] || fail "downloaded archive did not contain lbai-workspace-kit"
+    [ -n "$src" ] || fail "安装包内容异常"
     info "  正在写入 $INSTALL_DIR ..."
     install_from_dir "$src"
     step_done
     return 0
   fi
 
-  clone_and_install "$tmp" || fail "download failed; check network and retry"
+  clone_and_install "$tmp" || fail "下载失败，请检查网络后重试"
   step_done
 }
 
@@ -960,7 +961,7 @@ INSTALL_STEP=0
 ensure_prerequisites
 
 PYTHON_BIN="$(resolve_python_bin)"
-[ -n "$PYTHON_BIN" ] || fail "Python 3.10+ is required"
+[ -n "$PYTHON_BIN" ] || fail "需要 Python 3.10+"
 
 SCRIPT_DIR="$(detect_script_dir || true)"
 if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/lbai_core/lbai/cli.py" ] && [ -d "$SCRIPT_DIR/workspace_template" ]; then
@@ -1016,18 +1017,11 @@ else
   set_st BACKEND SKIPPED "非交互环境或 LBAI_SKIP_BACKEND_AUTH=1"
 fi
 
-step "输出安装结果汇总"
+step "输出安装结果"
 kit_version="$(read_kit_version)"
-set_st LBAI OK "v$kit_version ($BIN_DIR/lbai)"
+set_st LBAI OK "v$kit_version"
 
 print_install_summary
-
-info "Release: $RELEASE_TAG"
+print_install_verdict
 info ""
-"$BIN_DIR/lbai" setup-guide
-if ! codex_cli_ready && { codex_cli_bin >/dev/null 2>&1 || [ -x "$HOME/.local/bin/codex" ]; }; then
-  info ""
-  info "提示：Codex CLI 已安装但插件未就绪，执行 source ~/.zprofile 后重新运行 install.sh"
-fi
-info ""
-info "升级：重新运行 install.sh    卸载：lbai uninstall"
+info "升级: 重新运行 install.sh | 卸载: lbai uninstall"

@@ -74,6 +74,10 @@
       "mutates": true,
       "backend_required": false,
       "auto_execute_delivery": true,
+      "auto_intake_when_no_task": true,
+      "intake_prompt": "task_intake_enrichment_prompt_v1.md",
+      "intake_schema": "task_intake_enrichment_schema_v1.json",
+      "prepare_tool": "prepare_finish_task.py",
       "delivery_prompt": "execute_task_plan_prompt_v1.md",
       "delivery_check_tool": "check_task_delivery.py"
     },

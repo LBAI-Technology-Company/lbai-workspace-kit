@@ -79,6 +79,16 @@ lbai auth doctor
 - 在 Cursor/Codex 里使用 `/lbai-*`；模型会按 `lbai_system/prompts/` 中对应 prompt 生成 JSON 再调用 Python 工具，其中搜索命令使用后端 query plan。
 - 若 JSON 校验失败，按输出里的 `next_step` 重新生成 enrichment。
 
+## 忘记运行 `/lbai-new-task`，可以直接 `/lbai-finish-task` 吗？
+
+可以。日常只需 `/lbai-finish-task`。
+
+若 `tasks/` 下还没有今天的任务目录，finish 会先走 **补建档（auto-intake）**：从当前对话读取任务描述与上下文，生成 task intake JSON，调用 `new_task.py` 创建任务文件夹与 intake 记录，然后继续自动交付、finish review 和 Git 同步。
+
+若对话里仍有无法从聊天推断的 blocking 缺口，finish 会停在 `auto_intake: BLOCKED` 或 `auto_execute: BLOCKED`，并列出还缺什么。
+
+可选：若你希望一开始就看到正式任务文件夹，仍可使用 `/lbai-new-task`。
+
 ## `/lbai-new-task` 说缺信息，我一定要用 `/lbai-add-evidence` 吗？
 
 不一定。

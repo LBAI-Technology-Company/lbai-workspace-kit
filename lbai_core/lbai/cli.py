@@ -265,19 +265,16 @@ def git_credential_sync_status() -> tuple[str, str]:
 
 
 def print_git_credential_sync(ok: bool, message: str) -> None:
-    print(f'git_credential_sync: {"OK" if ok else "NEEDS_ATTENTION"}')
-    print(f'git_credential_note: {message}')
+    print(f'Git 凭据同步: {"成功" if ok else "失败"}')
+    print(f'  {message}')
     if not ok:
         if 'read:org' in message.lower():
             print(
-                f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}，粘贴包含 read:org '
-                '且可访问目标 private repo 的新 Token；若无法创建，请联系管理员'
+                f'修复: 运行 {GITHUB_AUTH_TOKEN_CMD}，粘贴含 read:org 权限、'
+                '可访问目标私有仓库的新 Token'
             )
         else:
-            print(
-                f'manual_fix: 重新运行 {GITHUB_AUTH_TOKEN_CMD}；若仍失败，'
-                '联系管理员确认 Token 是否有效且可访问目标 private repo'
-            )
+            print(f'修复: 运行 {GITHUB_AUTH_TOKEN_CMD}；仍失败请联系管理员确认 Token 权限')
 
 
 def auth_workspace_path() -> Path | None:
@@ -339,44 +336,25 @@ def shell_reload_hints() -> list[str]:
 
 
 def post_install_setup_lines(workspace_path: Path | str) -> list[str]:
-    root = str(workspace_path)
     load_cmds = shell_reload_hints()
-    load_block = '\n  '.join(load_cmds)
-
+    load_hint = ' 或 '.join(load_cmds)
     return [
-        '【步骤 1】让 lbai 命令生效',
-        f'  {load_block}',
-        '  验证：lbai --version  应显示版本号',
-        '',
-        '【步骤 2】保存 GitHub Token',
-        f'  命令：{GITHUB_AUTH_TOKEN_CMD}',
-        '  · 已保存过可直接回车，会重新同步 Git 凭据',
-        '',
-        '【步骤 3】绑定私有仓库到本机工作区',
-        f'  命令：{BIND_GITHUB_CMD}',
-        '  · 按提示粘贴管理员给的git仓库 URL',
-        '',
-        '【步骤 4】检查 GitHub 配置是否成功',
-        '  命令：lbai auth doctor',
-        '',
-        '【步骤 5】登录知识服务',
-        '  命令：lbai auth backend-login',
-        '  · 已配置过直接回车保留原 Key',
-        '',
-        '【步骤 6】设置岗位角色（首次必做）',
-        '  · Codex：任意项目 → 对话窗口 → LBAI Role Setup',
-        '  · Cursor：聊天输入 /lbai-role-setup',
+        '安装后续步骤：',
+        f'1. {load_hint}  # 让 lbai 命令生效',
+        f'2. {GITHUB_AUTH_TOKEN_CMD}  # 粘贴 Token（已有可直接回车）',
+        f'3. {BIND_GITHUB_CMD}  # 粘贴私有仓库 URL',
+        '4. lbai auth doctor  # 确认「认证状态: 就绪」',
+        '5. lbai auth backend-login  # 可选，知识检索',
+        '6. /lbai-role-setup 或 LBAI Role Setup  # 首次岗位配置',
     ]
 
 
 def github_sync_setup_lines(workspace_path: Path | str) -> list[str]:
-    root = str(workspace_path)
     return [
-        'GitHub 私有仓库尚未绑定，请继续完成安装后续步骤：',
-        f'  步骤 2：{GITHUB_AUTH_TOKEN_CMD}',
-        f'  步骤 3：{BIND_GITHUB_CMD}',
-        '  步骤 4：lbai auth doctor',
-        '  完整分步指引：lbai setup-guide',
+        'GitHub 尚未绑定，请继续：',
+        f'  {GITHUB_AUTH_TOKEN_CMD}',
+        f'  {BIND_GITHUB_CMD}',
+        '  lbai auth doctor',
     ]
 
 
@@ -398,38 +376,33 @@ def setup_guide(args: argparse.Namespace) -> int:
 def print_github_repo_binding_guidance(*, auth_ready: bool) -> None:
     root = auth_workspace_path()
     if not root:
-        print('workspace_status: NOT_CONFIGURED')
-        print(
-            '下一步：已有工作区运行 lbai workspace set --path <工作区路径>；'
-            '首次创建运行 lbai init-workspace'
-        )
+        print('工作区: 未配置')
+        print('下一步: lbai bind-github 或 lbai init-workspace')
         return
 
-    print('workspace_status: READY')
-    print(f'workspace_path: {root}')
+    print(f'工作区: {root}')
     origin = workspace_origin_url(root)
     if origin:
-        print('github_repo_status: BOUND')
-        print(f'github_repo_url: {origin}')
+        print('GitHub 仓库: 已绑定')
+        print(f'  {origin}')
         return
 
-    print('github_repo_status: NOT_BOUND')
+    print('GitHub 仓库: 未绑定')
     print_github_sync_setup_guide(root)
     if not auth_ready:
-        print('（请先完成步骤 2，再执行步骤 3）')
+        print('（请先完成 Token 配置，再绑定仓库）')
 
 
 def print_auth_verification_next_step(sync_ok: bool) -> None:
     if not sync_ok:
-        print('先修复上方 Token 权限或 Git 凭据问题，然后运行 lbai auth doctor')
+        print(f'下一步: {GITHUB_AUTH_TOKEN_CMD}')
         print_github_repo_binding_guidance(auth_ready=False)
         return
 
     root = auth_workspace_path()
     if root and workspace_origin_url(root):
-        print('github_repo_status: BOUND')
-        print(f'github_repo_url: {workspace_origin_url(root)}')
-        print('运行 lbai auth doctor 可复查全部鉴权状态')
+        print('GitHub 仓库: 已绑定')
+        print(f'  {workspace_origin_url(root)}')
         return
     print_github_repo_binding_guidance(auth_ready=True)
 
@@ -795,38 +768,35 @@ def github_auth_token(_args: argparse.Namespace) -> int:
     source = auth_source_label()
 
     if source:
-        print('auth_check: already configured')
-        print(f'auth_source: {source}')
-        print('如需更换 Token 请粘贴新 Token；直接回车会重新同步 Git 凭据（推荐换 Token 后执行一次）。')
+        print('GitHub Token 已配置')
+        print(f'  来源: {source}')
+        print('更换 Token 请粘贴新值；直接回车将重新同步 Git 凭据。')
         token = prompt_secret('GitHub Token', '粘贴 Token 时终端会显示 ***，表示正在输入')
         if not token:
-            print('auth_status: UNCHANGED')
+            print('Token: 未变更')
             ok, message = ensure_git_credentials_synced()
             print_git_credential_sync(ok, message)
             print_auth_verification_next_step(ok)
             return 0 if ok else 2
     else:
-        print('GitHub Token 将保存在本机 ~/.lbai/auth/，不会写入工作区文件。')
-        print('粘贴后 lbai 会自动同步到 Git，终端 git push 也能直接使用。')
-        print('Do not paste this token into README, .env, role_workspace, tasks, or chat artifacts.')
+        print('GitHub Token 将保存在本机 ~/.lbai/auth/，不会写入工作区。')
+        print('粘贴后会自动同步到 Git。')
         token = prompt_secret('GitHub Token', '粘贴 Token 时终端会显示 ***，表示正在输入')
         if not token:
             if gh_authenticated():
-                print('auth_status: USING_GH')
+                print('认证: 使用 GitHub CLI')
                 ok, message = setup_gh_for_git()
                 print_git_credential_sync(ok, message)
                 print_auth_verification_next_step(ok)
                 return 0 if ok else 2
-            print('auth_status: BLOCKED')
-            print('reason: empty token')
-            print(f'next_step: 向管理员索取 GitHub Token（需 repo 权限），或先运行 gh auth login 后再执行 {GITHUB_AUTH_TOKEN_CMD} 并回车')
+            print('认证状态: 未配置')
+            print(f'下一步: 向管理员索取 GitHub Token，或 gh auth login 后运行 {GITHUB_AUTH_TOKEN_CMD}')
             return 2
 
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(token + '\n', encoding='utf-8')
     path.chmod(stat.S_IRUSR | stat.S_IWUSR)
-    print('auth_status: SAVED')
-    print(f'token_store: {path}')
+    print('Token: 已保存')
     ok, message = sync_git_credentials(token)
     print_git_credential_sync(ok, message)
     print_auth_verification_next_step(ok)
@@ -837,32 +807,27 @@ def auth_backend_login(args: argparse.Namespace) -> int:
     existing = read_knowledge_service_auth()
     workspace_repo_id = str(args.workspace_repo_id or existing.get('workspace_repo_id') or '').strip()
     if existing.get('api_key'):
-        print('backend_auth_check: already configured')
-        print('直接回车保持不变；如需更换请输入新 API Key。')
+        print('后端 API Key 已配置')
+        print('直接回车保持不变；更换请输入新 Key。')
         api_key_hint = '粘贴 API Key 时终端会显示 ***，表示正在输入'
-        prompt = 'LBAI backend API key: '
+        prompt = '后端 API Key: '
     else:
-        print('LBAI backend API key will be saved outside the workspace.')
-        print('It will not be written to workspace files, Git commits, role_workspace, or tasks.')
+        print('后端 API Key 将保存在本机，不会写入工作区或 Git。')
         api_key_hint = '粘贴 API Key 时终端会显示 ***，表示正在输入'
-        prompt = 'Paste LBAI backend API key: '
+        prompt = '后端 API Key: '
 
     api_key = (args.api_key or '').strip()
     if not api_key:
         api_key = prompt_secret(prompt.rstrip(': '), api_key_hint)
     if not api_key:
         if args.optional:
-            print('backend_auth_status: SKIPPED')
-            print('next_step: lbai auth backend-login')
+            print('后端 API Key: 已跳过')
             return 0
         if existing.get('api_key'):
-            print('backend_auth_status: UNCHANGED')
-            print('知识服务已配置。')
+            print('后端 API Key: 未变更')
             print_ready_workspace_next_step()
-            print('完整安装后续步骤：lbai setup-guide')
             return 0
-        print('backend_auth_status: BLOCKED')
-        print('reason: empty API key')
+        print('后端 API Key: 未配置')
         return 2
 
     if not args.no_verify:
@@ -874,17 +839,16 @@ def auth_backend_login(args: argparse.Namespace) -> int:
         )
         print(message)
         if not ok:
-            print('backend_auth_status: BLOCKED')
-            print('next_step: 检查 API Key 是否正确；如果只是暂时无法联网，可使用 lbai auth backend-login --no-verify 离线保存。')
+            print('后端 API Key: 验证失败')
+            print('下一步: 检查 Key 是否正确；离线可用 lbai auth backend-login --no-verify')
             return 2
     else:
-        print('backend_key_check: SKIPPED (--no-verify)')
+        print('后端 Key 验证: 已跳过 (--no-verify)')
 
     path = write_knowledge_service_auth(
         api_key, args.api_key_header, args.base_url, workspace_repo_id
     )
-    print('backend_auth_status: SAVED')
-    print(f'backend_auth_store: {path}')
+    print('后端 API Key: 已保存')
     print_ready_workspace_next_step()
     return 0
 
@@ -896,31 +860,41 @@ def auth_doctor(_args: argparse.Namespace) -> int:
     source = auth_source_label()
     backend_auth = read_knowledge_service_auth()
     sync_status, sync_detail = git_credential_sync_status()
-    print('auth_check:')
-    print(f'- token_available: {"yes" if token else "no"}')
-    print(f'- gh_available: {"yes" if gh else "no"}')
-    print(f'- gh_auth_status: {"ok" if gh_ok else "not_authenticated"}')
-    print(f'- git_credential_sync: {sync_status}')
-    print(f'- git_credential_note: {sync_detail}')
-    print(f'- backend_api_key_available: {"yes" if backend_auth.get("api_key") else "no"}')
+    sync_labels = {
+        'ok': '一致',
+        'stale': '不一致',
+        'missing': '未同步',
+        'needs_setup': '待配置',
+    }
+
+    print('认证检查')
+    print(f'  GitHub Token: {"已保存" if token else "未配置"}')
+    if gh:
+        print(f'  GitHub CLI: {"已登录" if gh_ok else "未登录"}')
+    print(f'  Git 凭据: {sync_labels.get(sync_status, sync_status)}')
+    if sync_detail:
+        print(f'  说明: {sync_detail}')
+    print(f'  后端 API Key: {"已配置" if backend_auth.get("api_key") else "未配置（可选）"}')
     if source:
-        print(f'- auth_source: {source}')
-    if backend_auth.get('api_key'):
-        print(f'- backend_auth_source: {knowledge_service_auth_path()}')
+        print(f'  Token 来源: {source}')
+
     if sync_status == 'ok':
+        print('认证状态: 就绪')
         print('auth_status: READY')
-        print_ready_workspace_next_step()
+        print_github_repo_binding_guidance(auth_ready=True)
         return 0
     if sync_status in {'stale', 'missing', 'needs_setup'}:
+        print('认证状态: 需同步')
         print('auth_status: NEEDS_SYNC')
         print(
-            f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 若曾报告权限缺失请粘贴新 Token；'
-            '否则可直接回车重新同步'
+            f'下一步: {GITHUB_AUTH_TOKEN_CMD}  '
+            '（权限缺失请粘贴新 Token，否则直接回车重新同步）'
         )
         print_github_repo_binding_guidance(auth_ready=False)
         return 2
+    print('认证状态: 未配置')
     print('auth_status: BLOCKED')
-    print(f'next_step: {GITHUB_AUTH_TOKEN_CMD}  # 粘贴管理员提供的 GitHub Token')
+    print(f'下一步: {GITHUB_AUTH_TOKEN_CMD}')
     print_github_repo_binding_guidance(auth_ready=False)
     return 2
 

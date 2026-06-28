@@ -1,6 +1,6 @@
 # LBAI Task Intake Enrichment Prompt v1
 
-Use in **Cursor** or **Codex desktop app** for `/lbai-new-task`. No rule-based fallback.
+Use in **Cursor** or **Codex desktop app** for `/lbai-new-task` or retroactive intake inside `/lbai-finish-task`. No rule-based fallback.
 
 ## Flow
 
@@ -9,6 +9,8 @@ Use in **Cursor** or **Codex desktop app** for `/lbai-new-task`. No rule-based f
    - `role_workspace/world_model/ROLE_BOUNDARY_v1.md`
    - Optional: recent evidence via `/lbai-search-artifacts`
    - Current conversation context supplied by the employee
+
+   When invoked from `/lbai-finish-task` without a prior task folder, treat the full current conversation as primary source material. Populate `known_information` with `conversation_context` entries for goals, decisions, constraints, and facts the employee already provided in chat. Only list `missing_inputs` for blocking gaps that are not already covered by the conversation.
 
    When the task likely depends on existing company knowledge, search available artifacts before deciding what is missing. If search returns usable data, use it as context. If search returns no data or errors, treat that as normal absence of extra context and continue evaluating what the employee must provide.
 

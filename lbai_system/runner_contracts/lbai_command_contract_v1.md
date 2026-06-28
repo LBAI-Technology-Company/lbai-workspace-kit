@@ -16,7 +16,7 @@ Every Cursor or Codex adapter action is acceptable only when all four controls a
 
 - Company rules: apply role boundary, review boundary, sensitive-data boundary, and protected-file rules before treating output as company work.
 - Evidence boundary: distinguish approved source-supported facts from drafts, assumptions, uncertainty, review-sensitive claims, and redacted sensitive material.
-- Task process: do not turn chat or saved evidence into formal work unless the employee uses `/lbai-new-task` or explicitly asks to create task artifacts.
+- Task process: do not turn chat or saved evidence into formal work unless the employee uses `/lbai-finish-task`, `/lbai-new-task`, or explicitly asks to create task artifacts. `/lbai-finish-task` is the normal retroactive intake path when work happened in chat first.
 - Delivery standard: formal work must land in auditable repo artifacts, update ledgers, pass hygiene checks, and sync only safe artifact scopes when applicable.
 
 ## Runtime Scope
@@ -52,14 +52,18 @@ Adapters must read this contract, then call or follow the listed tools. Do not i
 - During normal task work, do not edit `.cursor/`, `lbai_system/`, `AGENTS.md`, `README.md`, or `workspace_dashboard.html`.
 - Do not modify `role_workspace/` or `tasks/` during `/lbai-update-kit`.
 
-## Employee task lifecycle (two commands)
+## Employee task lifecycle (finish-first)
 
 For daily task work, employees mainly need:
 
-1. `/lbai-new-task` — start a formal task
-2. `/lbai-finish-task` — deliver, review, and sync
+1. `/lbai-finish-task` — **primary end command**: retroactive intake when no task exists, deliver (when needed), review, and sync
+2. `/lbai-new-task` — **optional start command**: explicit early intake when the employee wants a formal task folder before working
 
-`/lbai-finish-task` **auto-runs the delivery phase** (the same work as `/lbai-execute-task`) when `task_output.md` is missing, empty, or still a placeholder. Employees do not need to run `/lbai-execute-task` in the normal flow.
+`/lbai-finish-task` **auto-runs retroactive intake** when no current task folder exists: the agent reads the current conversation, produces task intake enrichment JSON, calls `new_task.py --enrichment`, then continues the normal finish flow.
+
+`/lbai-finish-task` also **auto-runs the delivery phase** (the same work as `/lbai-execute-task`) when `task_output.md` is missing, empty, or still a placeholder. Employees do not need to run `/lbai-execute-task` in the normal flow.
+
+Keep `/lbai-new-task` for early formal intake, splitting intake from finish, or when the employee wants task artifacts before delivery.
 
 Keep `/lbai-execute-task` for debugging, regenerating deliverables without sync, or splitting delivery from finish.
 
@@ -294,22 +298,25 @@ leader_review_reminder: <reminder or None>
 
 Deliver (when needed), finish, run hygiene checks, update ledgers, and sync safe artifacts to the private GitHub upstream.
 
-This is the **normal end-to-end task command** for employees. It auto-runs the delivery phase when deliverables are not ready.
+This is the **normal end-to-end task command** for employees. It auto-runs retroactive intake when no task exists, and auto-runs the delivery phase when deliverables are not ready.
 
-Supported runtimes: **Cursor** and **Codex desktop app** only. No rule-based fallback for finish review.
+Supported runtimes: **Cursor** and **Codex desktop app** only. No rule-based fallback for intake or finish review.
 
 Prompts and schema:
 
 ```text
+lbai_system/prompts/task_intake_enrichment_prompt_v1.md
 lbai_system/prompts/execute_task_plan_prompt_v1.md
 lbai_system/prompts/finish_review_enrichment_prompt_v1.md
+lbai_system/schemas/task_intake_enrichment_schema_v1.json
 lbai_system/schemas/finish_review_enrichment_schema_v1.json
 ```
 
 Tools:
 
 ```text
-lbai_system/tools/resolve_current_task.py finish
+lbai_system/tools/prepare_finish_task.py [task_folder]
+lbai_system/tools/new_task.py --enrichment <json_path>
 lbai_system/tools/check_task_delivery.py <task_folder>
 lbai_system/tools/archive_input.py <task_folder> --resolves "<exact missing input>"
 lbai_system/tools/prepare_execute_task.py <task_folder>
@@ -319,23 +326,30 @@ lbai_system/tools/finish_task.py <task_folder> --enrichment <json_path>
 
 Behavior:
 
-1. If input is empty, resolve the task with `resolve_current_task.py finish`.
-2. **Archive chat clarifications first.** If the employee provided direct clarifications, decisions, preferences, or lightweight context in the current conversation, save them as task-local input via `archive_input.py --resolves "<exact missing input>"` before delivery checks.
-3. Run `check_task_delivery.py <task_folder>`.
-4. **Auto-execute phase (when needed).** Run auto-execute only when `check_task_delivery.py` reports `auto_execute_needed: true` **and** `prepare_execute_task.py` reports `execute_status: READY` after missing inputs are closed:
+1. Run `prepare_finish_task.py [task_folder]`.
+2. **Auto-intake phase (when needed).** When `auto_intake_needed: true`:
+   - Read the current conversation (employee/user messages only), role context, and relevant prior artifacts.
+   - Produce task intake enrichment JSON per `task_intake_enrichment_prompt_v1.md`. Populate `known_information` from `conversation_context` for material already discussed in chat. Use `/lbai-search-artifacts` when the task may depend on company knowledge.
+   - Call `new_task.py --enrichment <json_path>`. Code creates the task folder and intake records.
+   - If intake status is `BLOCKED`, continue only when missing inputs can be closed from chat via `archive_input.py --resolves`; otherwise return `auto_intake: BLOCKED` with the exact missing items.
+   - Set `auto_intake: RUN` when a new task folder was created; `auto_intake: SKIPPED` when an existing task was resolved.
+3. **Archive chat clarifications.** If the employee provided direct clarifications, decisions, preferences, or lightweight context in the current conversation, save them as task-local input via `archive_input.py --resolves "<exact missing input>"` before delivery checks.
+4. Run `check_task_delivery.py <task_folder>`.
+5. **Auto-execute phase (when needed).** Run auto-execute only when `check_task_delivery.py` reports `auto_execute_needed: true` **and** `prepare_execute_task.py` reports `execute_status: READY` after missing inputs are closed:
    - Run `prepare_execute_task.py <task_folder>`.
    - Read `lbai_system/prompts/execute_task_plan_prompt_v1.md`, `task_scope.md`, `task_slot.md`, `task_ledger.md`, linked evidence briefs, and role context files.
    - Write `execution_plan.md` and `task_output.md` aligned with `task_slot.md`, with facts/assumptions/sources separated.
    - If `check_task_delivery.py` or `prepare_execute_task.py` reports `BLOCKED`, return `auto_execute: BLOCKED` and do **not** call `finish_task.py`.
-5. **Finish review phase.** Read task scope, `task_output.md`, `execution_plan.md` (if present), linked evidence, `missing_inputs.md`, and the current task conversation (employee/user messages only). Produce finish review enrichment JSON including `employee_conversation_turns`.
-6. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, `task_conversation.md`, runs hygiene check, updates ledgers, and syncs when allowed.
-7. If `finish_verdict` is `BLOCK_FINISH`, set `commit_readiness: BLOCKED` even when files exist.
-8. If task status is not `BLOCKED` and commit readiness is `READY`, auto git add/commit/push scoped artifacts.
+6. **Finish review phase.** Read task scope, `task_output.md`, `execution_plan.md` (if present), linked evidence, `missing_inputs.md`, and the current task conversation (employee/user messages only). Produce finish review enrichment JSON including `employee_conversation_turns`.
+7. Call `finish_task.py <task_folder> --enrichment <json_path>`. Code writes `finish_review.md`, `task_conversation.md`, runs hygiene check, updates ledgers, and syncs when allowed.
+8. If `finish_verdict` is `BLOCK_FINISH`, set `commit_readiness: BLOCKED` even when files exist.
+9. If task status is not `BLOCKED` and commit readiness is `READY`, auto git add/commit/push scoped artifacts.
 
 Response format:
 
 ```text
 任务收尾完成：<task_folder>
+auto_intake: <RUN | SKIPPED | BLOCKED>
 auto_execute: <RUN | SKIPPED | BLOCKED>
 task_status: <COMPLETED | BLOCKED>
 leader_review_reminder: <reminder or None>

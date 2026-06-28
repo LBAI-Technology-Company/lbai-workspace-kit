@@ -183,7 +183,7 @@ def test_cli_backend_login_rejects_invalid_key(tmp_path):
         )
     assert result.returncode == 2
     assert 'backend_key_check: FAILED HTTP_401' in result.stdout
-    assert 'backend_auth_status: BLOCKED' in result.stdout
+    assert '后端 API Key: 验证失败' in result.stdout
     assert not (home / 'auth' / 'knowledge_service.json').exists()
 
 
@@ -198,7 +198,7 @@ def test_cli_backend_login_no_verify_can_store_offline(tmp_path):
         env_extra={'LBAI_HOME': str(home)},
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'backend_key_check: SKIPPED' in result.stdout
+    assert '后端 Key 验证: 已跳过' in result.stdout
     assert (home / 'auth' / 'knowledge_service.json').exists()
 
 
@@ -301,7 +301,8 @@ def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'git_credential_sync: ok' in result.stdout
+    assert 'Git 凭据: 一致' in result.stdout
+    assert '认证状态: 就绪' in result.stdout
     assert 'auth_status: READY' in result.stdout
 
 
@@ -347,16 +348,10 @@ def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, m
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'workspace_status: READY' in result.stdout
-    assert f'workspace_path: {active_workspace}' in result.stdout
-    assert 'github_repo_status: NOT_BOUND' in result.stdout
-    assert '安装后续步骤' in result.stdout
-    assert 'lbai setup-guide' in result.stdout
-    assert (
-        f'lbai init-workspace --repo-url <你的仓库URL> --path "{active_workspace}"'
-        not in result.stdout
-    )
+    assert f'工作区: {active_workspace}' in result.stdout
+    assert 'GitHub 仓库: 未绑定' in result.stdout
     assert 'lbai bind-github' in result.stdout
+    assert 'lbai auth doctor' in result.stdout
 
 
 def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
@@ -368,20 +363,11 @@ def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
         cwd=kit_root(),
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert '【步骤 1】让 lbai 命令生效' in result.stdout
-    assert '验证：lbai --version  应显示版本号' in result.stdout
-    assert '【步骤 2】保存 GitHub Token' in result.stdout
-    assert '已保存过可直接回车，会重新同步 Git 凭据' in result.stdout
-    assert '【步骤 3】绑定私有仓库到本机工作区' in result.stdout
+    assert '安装后续步骤' in result.stdout
+    assert 'lbai github auth token' in result.stdout
     assert 'lbai bind-github' in result.stdout
-    assert '按提示粘贴管理员给的git仓库 URL' in result.stdout
-    assert '【步骤 4】检查 GitHub 配置是否成功' in result.stdout
     assert 'lbai auth doctor' in result.stdout
-    assert '【步骤 5】登录知识服务' in result.stdout
     assert 'lbai auth backend-login' in result.stdout
-    assert '已配置过直接回车保留原 Key' in result.stdout
-    assert '【步骤 6】设置岗位角色' in result.stdout
-    assert 'Codex：任意项目 → 对话窗口 → LBAI Role Setup' in result.stdout
     assert '/lbai-role-setup' in result.stdout
 
 
@@ -393,7 +379,7 @@ def test_git_credential_permission_hint_names_missing_read_org(capsys):
     )
     output = capsys.readouterr().out
     assert 'read:org' in output
-    assert 'private repo' in output
+    assert '私有仓库' in output
 
 
 def test_set_workspace_origin_url_adds_missing_origin(tmp_path):
