@@ -35,17 +35,37 @@ macOS / Windows；Git + Python 3.10+（安装脚本会检查并尝试安装）�
 
 ### 2.2 安装 lbai CLI
 
-Mac / Linux：
+Mac / Linux（GitHub 直连）：
 
 ```bash
 curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zshrc
 ```
 
+**国内网络 / GitHub 较慢**（推荐，自动轮询镜像；失败会换源重试）：
+
+```bash
+curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.sh | sh
+source ~/.zshrc
+source ~/.zprofile   # macOS 上 Codex 需要
+```
+
+也可手动指定镜像（将 `ghproxy.net` 换成 `gh-proxy.com` 试另一个）：
+
+```bash
+curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
+```
+
 Windows（PowerShell，完成后重新打开终端）：
 
 ```powershell
 irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+**国内网络**（PowerShell 镜像）：
+
+```powershell
+irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
 ```
 
 若中文显示乱码，改用上面这条命令（不要用 `install.ps1 | iex`）。也可手动执行：
@@ -61,7 +81,7 @@ iex ([Text.Encoding]::UTF8.GetString($bytes))
 
 ```bash
 lbai github auth token      # 必做：粘贴 private repo 权限的 Token
-lbai auth doctor            # 确认 auth_status: READY
+lbai auth doctor            # 确认「结论: 就绪」
 lbai auth backend-login     # 可选：后端知识检索 API Key
 ```
 

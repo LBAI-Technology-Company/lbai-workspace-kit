@@ -9,7 +9,7 @@ Route reads and writes through the registered active workspace (`lbai workspace 
 
 **Advanced/debug only.** Daily work uses `/lbai-finish-task`, which auto-runs delivery when `task_output.md` is not ready.
 
-1. Run `lbai doctor --json --plugin-version 1.5.5 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
+1. Run `lbai doctor --json --plugin-version 1.5.6 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
 2. Read the workspace `AGENTS.md`, `lbai_system/runner_contracts/lbai_command_contract_v1.md`, and `lbai_system/prompts/execute_task_plan_prompt_v1.md`.
 3. Resolve the current task. If multiple candidates remain, ask the user to choose.
 4. Run `lbai execute-task <task-folder>` when a folder is known. Stop if the preparation command reports blocking inputs.

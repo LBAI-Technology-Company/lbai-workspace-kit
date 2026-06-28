@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.6
+
+- **Docs**: README / README.zh-CN add domestic GitHub mirror install URLs (`ghproxy.net`, `install-bootstrap.sh` / `.ps1`); align `lbai auth doctor` hint to `结论: 就绪`.
+
 ## 1.5.5
 
 - **`prepare_finish_task.py`**: new finish prep tool resolves task folder or signals `auto_intake_needed` for retroactive intake before delivery/finish.

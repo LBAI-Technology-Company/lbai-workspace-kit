@@ -7,7 +7,7 @@ description: Deliver (when needed), review, finish, and safely synchronize an LB
 
 Route reads and writes through the registered active workspace (`lbai workspace show`). Commands work from any Codex project once `lbai init-workspace` or `lbai workspace set` has run.
 
-1. Run `lbai doctor --json --plugin-version 1.5.5 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
+1. Run `lbai doctor --json --plugin-version 1.5.6 --min-workspace-version 1.4.1`. Stop on an invalid or incompatible workspace.
 2. Read the workspace `AGENTS.md`, `lbai_system/runner_contracts/lbai_command_contract_v1.md`, `lbai_system/prompts/task_intake_enrichment_prompt_v1.md`, `lbai_system/prompts/execute_task_plan_prompt_v1.md`, `lbai_system/prompts/finish_review_enrichment_prompt_v1.md`, and related schemas.
 3. Run `prepare_finish_task.py`. If `auto_intake_needed: true`, produce task intake JSON and run `new_task.py --enrichment` before continuing.
 4. Archive chat clarifications with `archive_input.py --resolves` when applicable.

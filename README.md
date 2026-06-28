@@ -50,17 +50,37 @@ tasks/            任务记录与交付物
 
 ### 2.2 安装 lbai CLI
 
-Mac / Linux：
+Mac / Linux（GitHub 直连）：
 
 ```bash
 curl -fsSL https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
 source ~/.zshrc
 ```
 
+**国内网络 / GitHub 较慢**（推荐，自动轮询镜像）：
+
+```bash
+curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.sh | sh
+source ~/.zshrc
+source ~/.zprofile   # macOS Codex
+```
+
+手动镜像（可换 `gh-proxy.com`）：
+
+```bash
+curl -fsSL https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install.sh | sh
+```
+
 Windows（PowerShell，完成后请**重新打开**终端）：
 
 ```powershell
 irm https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
+```
+
+**国内网络**（PowerShell 镜像）：
+
+```powershell
+irm https://ghproxy.net/https://github.com/LBAI-Technology-Company/lbai-workspace-kit/releases/latest/download/install-bootstrap.ps1 | iex
 ```
 
 若中文乱码，请使用 `install-bootstrap.ps1`（勿用 `install.ps1 | iex`）。手动方式：
@@ -89,7 +109,7 @@ lbai github auth token
 lbai auth doctor
 ```
 
-应看到 `auth_status: READY`。
+应看到「结论: 就绪」。
 
 ### 2.4 配置后端检索（可选）
 
