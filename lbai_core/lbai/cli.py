@@ -248,20 +248,20 @@ def git_credential_sync_status() -> tuple[str, str]:
     cred = git_credential_password()
     if token:
         if cred and token == cred:
-            return 'ok', '已保存 Token 与 Git 凭据一致'
+            return 'ok', ''
         if cred:
-            return 'stale', 'Git 凭据与已保存 Token 不一致；请运行 lbai github auth token 粘贴新 Token，或直接回车重新同步'
-        return 'missing', 'Token 已保存但未同步到 Git；请运行 lbai github auth token 并直接回车重新同步'
+            return 'stale', 'Git 凭据与 Token 不一致，push/pull 可能失败'
+        return 'missing', 'Token 未同步到 Git，终端 git 无法访问 GitHub'
     if gh_authenticated():
         if cred:
-            return 'ok', '使用 GitHub CLI 凭据'
+            return 'ok', ''
         ok, msg = setup_gh_for_git()
         if ok:
-            return 'ok', msg
-        return 'needs_setup', 'gh 已登录但 Git 未配置；请运行 lbai github auth token 并直接回车'
+            return 'ok', ''
+        return 'needs_setup', 'GitHub CLI 已登录，但 Git 未配置'
     if cred:
-        return 'ok', 'Git 凭据管理器已配置'
-    return 'missing', '尚未配置 GitHub 认证；请运行 lbai github auth token'
+        return 'ok', ''
+    return 'missing', '未配置 GitHub Token'
 
 
 def print_git_credential_sync(ok: bool, message: str) -> None:
@@ -337,24 +337,40 @@ def shell_reload_hints() -> list[str]:
 
 def post_install_setup_lines(workspace_path: Path | str) -> list[str]:
     load_cmds = shell_reload_hints()
-    load_hint = ' 或 '.join(load_cmds)
+    load_block = '\n  '.join(load_cmds)
     return [
-        '安装后续步骤：',
-        f'1. {load_hint}  # 让 lbai 命令生效',
-        f'2. {GITHUB_AUTH_TOKEN_CMD}  # 粘贴 Token（已有可直接回车）',
-        f'3. {BIND_GITHUB_CMD}  # 粘贴私有仓库 URL',
-        '4. lbai auth doctor  # 确认「认证状态: 就绪」',
-        '5. lbai auth backend-login  # 可选，知识检索',
-        '6. /lbai-role-setup 或 LBAI Role Setup  # 首次岗位配置',
+        '【步骤 1】让 lbai 命令生效',
+        f'  {load_block}',
+        '  验证：lbai --version  应显示版本号',
+        '',
+        '【步骤 2】保存 GitHub Token',
+        f'  命令：{GITHUB_AUTH_TOKEN_CMD}',
+        '  · 已保存过可直接回车，会重新同步 Git 凭据',
+        '',
+        '【步骤 3】绑定私有仓库到本机工作区',
+        f'  命令：{BIND_GITHUB_CMD}',
+        '  · 按提示粘贴管理员给的 git 仓库 URL',
+        '',
+        '【步骤 4】检查 GitHub 配置是否成功',
+        '  命令：lbai auth doctor  # 确认「结论: 就绪」',
+        '',
+        '【步骤 5】登录知识服务（可选）',
+        '  命令：lbai auth backend-login',
+        '  · 已配置过直接回车保留原 Key',
+        '',
+        '【步骤 6】设置岗位角色（首次必做）',
+        '  · Codex：任意项目 → 对话窗口 → LBAI Role Setup',
+        '  · Cursor：聊天输入 /lbai-role-setup',
     ]
 
 
 def github_sync_setup_lines(workspace_path: Path | str) -> list[str]:
     return [
-        'GitHub 尚未绑定，请继续：',
-        f'  {GITHUB_AUTH_TOKEN_CMD}',
-        f'  {BIND_GITHUB_CMD}',
-        '  lbai auth doctor',
+        'GitHub 私有仓库尚未绑定，请继续：',
+        f'  步骤 2：{GITHUB_AUTH_TOKEN_CMD}',
+        f'  步骤 3：{BIND_GITHUB_CMD}',
+        '  步骤 4：lbai auth doctor',
+        '  完整分步指引：lbai setup-guide',
     ]
 
 
@@ -855,48 +871,66 @@ def auth_backend_login(args: argparse.Namespace) -> int:
 
 def auth_doctor(_args: argparse.Namespace) -> int:
     token = read_token()
-    gh = shutil.which('gh')
-    gh_ok = gh_authenticated() if gh else False
-    source = auth_source_label()
     backend_auth = read_knowledge_service_auth()
     sync_status, sync_detail = git_credential_sync_status()
+    root = auth_workspace_path()
+    origin = workspace_origin_url(root) if root else None
+    backend_ok = bool(backend_auth.get('api_key'))
+
     sync_labels = {
-        'ok': '一致',
+        'ok': '正常',
         'stale': '不一致',
         'missing': '未同步',
         'needs_setup': '待配置',
     }
 
-    print('认证检查')
-    print(f'  GitHub Token: {"已保存" if token else "未配置"}')
-    if gh:
-        print(f'  GitHub CLI: {"已登录" if gh_ok else "未登录"}')
-    print(f'  Git 凭据: {sync_labels.get(sync_status, sync_status)}')
-    if sync_detail:
-        print(f'  说明: {sync_detail}')
-    print(f'  后端 API Key: {"已配置" if backend_auth.get("api_key") else "未配置（可选）"}')
-    if source:
-        print(f'  Token 来源: {source}')
+    issues: list[str] = []
+    next_steps: list[str] = []
 
-    if sync_status == 'ok':
-        print('认证状态: 就绪')
-        print('auth_status: READY')
-        print_github_repo_binding_guidance(auth_ready=True)
-        return 0
-    if sync_status in {'stale', 'missing', 'needs_setup'}:
-        print('认证状态: 需同步')
-        print('auth_status: NEEDS_SYNC')
-        print(
-            f'下一步: {GITHUB_AUTH_TOKEN_CMD}  '
-            '（权限缺失请粘贴新 Token，否则直接回车重新同步）'
-        )
-        print_github_repo_binding_guidance(auth_ready=False)
-        return 2
-    print('认证状态: 未配置')
-    print('auth_status: BLOCKED')
-    print(f'下一步: {GITHUB_AUTH_TOKEN_CMD}')
-    print_github_repo_binding_guidance(auth_ready=False)
-    return 2
+    if sync_status != 'ok':
+        issues.append(sync_detail or 'Git 凭据未就绪')
+        if token:
+            next_steps.append(
+                f'{GITHUB_AUTH_TOKEN_CMD}   # 直接回车重新同步；权限报错再粘贴新 Token'
+            )
+        else:
+            next_steps.append(f'{GITHUB_AUTH_TOKEN_CMD}   # 粘贴管理员提供的 Token')
+    if not root:
+        issues.append('工作区未配置')
+        next_steps.append('lbai bind-github   # 或 lbai init-workspace')
+    elif not origin:
+        issues.append('GitHub 仓库未绑定，/lbai-finish-task 无法同步')
+        next_steps.append('lbai bind-github   # 粘贴私有仓库 URL')
+
+    print('=== LBAI 认证检查 ===')
+    print()
+    if not issues:
+        print('结论: 就绪')
+    elif sync_status != 'ok':
+        print('结论: 未就绪')
+    else:
+        print('结论: 认证就绪，仓库待绑定')
+    print()
+    print(f'GitHub Token   {"已配置" if token else "未配置"}')
+    print(f'Git 凭据       {sync_labels.get(sync_status, sync_status)}')
+    print(f'后端 API Key   {"已配置" if backend_ok else "未配置（可选，仅影响知识搜索）"}')
+    print(f'工作区         {root if root else "未配置"}')
+    print(f'GitHub 仓库    {origin if origin else "未绑定"}')
+
+    if issues:
+        print()
+        print('需处理:')
+        for index, issue in enumerate(issues, start=1):
+            print(f'  {index}. {issue}')
+        print()
+        print('执行:')
+        for step in next_steps:
+            print(f'  {step}')
+    else:
+        print()
+        print('无需操作，可直接使用 /lbai-finish-task')
+
+    return 0 if sync_status == 'ok' else 2
 
 
 def repo_basename(repo_url: str) -> str:

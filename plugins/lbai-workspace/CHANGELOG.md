@@ -4,8 +4,8 @@
 
 - **`prepare_finish_task.py`**: new finish prep tool resolves task folder or signals `auto_intake_needed` for retroactive intake before delivery/finish.
 - **Finish-task contract**: adapters, MCP, Codex plugin, and command manifests updated to run prepare → optional auto-intake → delivery check → finish review.
-- **Installer UX**: `install.sh` / `install.ps1` logs simplified to Chinese with explicit `安装结果: 成功|失败` verdict and concise post-install steps.
-- **CLI auth/setup output**: `lbai auth doctor`, `setup-guide`, and GitHub auth prompts use shorter Chinese messages (`认证状态: 就绪`).
+- **Installer UX**: restore full **安装结果汇总** table, verbose Codex plugin steps with local-kit marketplace fallback, `lbai setup-guide` at end, and clearer piped-install backend skip message; add `install-bootstrap.sh` mirror bootstrap for macOS/Linux.
+- **CLI auth/setup output**: `lbai auth doctor` prints concise Chinese (`结论` / `需处理` / `执行`); `setup-guide` uses numbered `【步骤 N】` checklist.
 - **Tests**: `test_finish_delivery.py` prepare step coverage; installer and CLI smoke assertions updated.
 
 ## 1.5.4

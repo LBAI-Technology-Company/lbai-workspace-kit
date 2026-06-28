@@ -301,9 +301,8 @@ def test_cli_auth_doctor_reports_git_credential_sync(tmp_path, monkeypatch):
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'Git 凭据: 一致' in result.stdout
-    assert '认证状态: 就绪' in result.stdout
-    assert 'auth_status: READY' in result.stdout
+    assert 'Git 凭据       正常' in result.stdout
+    assert '结论: 就绪' in result.stdout
 
 
 def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, monkeypatch):
@@ -348,10 +347,9 @@ def test_cli_auth_doctor_prompts_to_bind_repo_for_existing_workspace(tmp_path, m
         },
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert f'工作区: {active_workspace}' in result.stdout
-    assert 'GitHub 仓库: 未绑定' in result.stdout
+    assert f'工作区         {active_workspace}' in result.stdout
+    assert 'GitHub 仓库    未绑定' in result.stdout
     assert 'lbai bind-github' in result.stdout
-    assert 'lbai auth doctor' in result.stdout
 
 
 def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
@@ -363,7 +361,7 @@ def test_setup_guide_lists_beginner_post_install_steps(tmp_path):
         cwd=kit_root(),
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert '安装后续步骤' in result.stdout
+    assert '【步骤 1】' in result.stdout
     assert 'lbai github auth token' in result.stdout
     assert 'lbai bind-github' in result.stdout
     assert 'lbai auth doctor' in result.stdout

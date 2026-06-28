@@ -156,7 +156,7 @@ class TestPromptSchemaInventory:
         assert 'workspace ensure' in install_sh
         assert 'print_install_summary' in install_sh
         assert 'print_install_verdict' in install_sh
-        assert '组件状态' in install_sh
+        assert '安装结果汇总' in install_sh
         assert '安装结果:' in install_sh
         assert 'bootstrap_latest_installer' in install_sh
         assert 'INSTALLER_VERSION' in install_sh

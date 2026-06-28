@@ -136,7 +136,7 @@ function Write-InstallVerdict {
     Write-Info "请继续完成初始化："
     Write-Info "  1. lbai github auth token   # 粘贴 Token；已有可直接回车"
     Write-Info "  2. lbai bind-github         # 粘贴管理员给的私有仓库 URL"
-    Write-Info "  3. lbai auth doctor         # 确认「认证状态: 就绪」"
+    Write-Info "  3. lbai auth doctor         # 确认「结论: 就绪」"
     Write-Info ""
     Write-Info "可选: lbai auth backend-login | 首次: /lbai-role-setup"
     Write-Info "详细步骤: lbai setup-guide"
